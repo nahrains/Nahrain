@@ -3651,8 +3651,10 @@
         // Sync Auth Users Data
         dbRef.child('users').on('value', (snapshot) => {
             localStorage.setItem('nahr_users_db', JSON.stringify(snapshot.val() || {}));
-            // Refresh if Admin Dash is open
             if (document.getElementById('admin-dash').classList.contains('active')) renderAdminLists();
+        }, (err) => {
+            // SILENT CATCH: Do not show red error to students/guests if they can't read all users
+            console.log("Users sync restricted to authorized staff.");
         });
 
         // 2. Push to Cloud periodically (Auto-Backup & Broadcast)
@@ -4142,112 +4144,118 @@
             msg.innerText = 'جاري البحث عن سجلات سابقة...';
 
             // 1. First, search for existing "Pre-Uploaded" records (ghost users)
-            firebase.database().ref('users').once('value').then(snap => {
-                const users = snap.val() || {};
-                let ghostUid = null;
-                let ghostData = {};
+            firebase.database().ref('users').once('value')
+                .catch(e => {
+                    console.warn("Ghost check skipped (No read permission)");
+                    return { val: () => ({}) }; // Return empty snapshot
+                })
+                .then(snap => {
+                    const users = snap.val() || {};
+                    let ghostUid = null;
+                    let ghostData = {};
 
-                // A. Check for DIRECT EMAIL MATCH (For Staff/Admins you added manually)
-                Object.keys(users).forEach(k => {
-                    const u = users[k];
-                    if (u && u.email && u.email.toLowerCase() === email.toLowerCase()) {
-                        ghostUid = k;
-                        ghostData = u;
-                        console.log("🎯 Found Pre-Authorized Account by Email:", u.email);
-                    }
-                });
 
-                // B. If no email match, try Fuzzy Name/Phone (For Students)
-                if (!ghostUid) {
-                    // Smart Search: Find a record with Fuzzy Name Match
+                    // A. Check for DIRECT EMAIL MATCH (For Staff/Admins you added manually)
                     Object.keys(users).forEach(k => {
                         const u = users[k];
-                        if (!u || !u.name) return;
-
-                        // Skip if this record is already a full account
-                        if (u.email && !u.email.includes('@temp') && u.email !== '') return;
-
-                        // Normalize Strings (unify Alef/Ha/Ya, remove extra spaces)
-                        const normalize = (s) => s.trim()
-                            .replace(/[أإآ]/g, "ا")
-                            .replace(/ة/g, "ه")
-                            .replace(/ى/g, "ي")
-                            .replace(/\s+/g, " ");
-
-                        const storedName = normalize(u.name);
-                        const inputName = normalize(name);
-
-                        let isMatch = false;
-
-                        // 1. Exact Match
-                        if (storedName === inputName) isMatch = true;
-                        // 2. Starts With (Handling Surname variations)
-                        // Ensure at least 2 words to avoid matching generic first names like "Ali"
-                        else if (inputName.split(' ').length >= 2 && storedName.split(' ').length >= 2) {
-                            if (inputName.startsWith(storedName) || storedName.startsWith(inputName)) {
-                                isMatch = true;
-                            }
-                        }
-
-                        if (isMatch) {
+                        if (u && u.email && u.email.toLowerCase() === email.toLowerCase()) {
                             ghostUid = k;
                             ghostData = u;
-                            console.log("🎯 Found Fuzzy Match:", u.name, "with", name);
+                            console.log("🎯 Found Pre-Authorized Account by Email:", u.email);
                         }
                     });
-                }
 
-                // 2. Create the Real Auth Account
-                msg.innerText = 'جاري إنشاء الحساب الآمن...';
-                return firebase.auth().createUserWithEmailAndPassword(email, pass).then(userCred => {
-                    const newUid = userCred.user.uid;
+                    // B. If no email match, try Fuzzy Name/Phone (For Students)
+                    if (!ghostUid) {
+                        // Smart Search: Find a record with Fuzzy Name Match
+                        Object.keys(users).forEach(k => {
+                            const u = users[k];
+                            if (!u || !u.name) return;
 
-                    // 3. Prepare Final Data (Merge Ghost Data + New Data)
-                    const finalData = {
-                        ...ghostData, // Keep grades, finance, etc.
-                        name: name,   // Ensure correct spelling from form
-                        phone: phone,
-                        email: email,
-                        password: pass, // CRITICAL FIX: Save password to DB for login verification
-                        classId: cls,
-                        // CRITICAL: Preserve the ROLL from ghostData if it exists (don't downgrade admins to students)
-                        role: (ghostData.role && (ghostData.role === 'admin' || ghostData.role === 'teacher')) ? ghostData.role : 'student',
-                        joined: ghostData.joined || new Date().toISOString(),
-                        isMerged: !!ghostUid // Flag for debugging
-                    };
+                            // Skip if this record is already a full account
+                            if (u.email && !u.email.includes('@temp') && u.email !== '') return;
 
-                    // Add empty structures if missing
-                    if (!finalData.grades) finalData.grades = {};
-                    if (!finalData.gradesDetail) finalData.gradesDetail = {};
+                            // Normalize Strings (unify Alef/Ha/Ya, remove extra spaces)
+                            const normalize = (s) => s.trim()
+                                .replace(/[أإآ]/g, "ا")
+                                .replace(/ة/g, "ه")
+                                .replace(/ى/g, "ي")
+                                .replace(/\s+/g, " ");
 
-                    // 4. Save to New UID
-                    return firebase.database().ref('users/' + newUid).set(finalData).then(() => {
-                        // 5. If we found a ghost, DELETE the old temp record to prevent duplicates
-                        if (ghostUid) {
-                            firebase.database().ref('users/' + ghostUid).remove();
-                            console.log("👻 Ghost account merged and deleted:", ghostUid);
-                        }
+                            const storedName = normalize(u.name);
+                            const inputName = normalize(name);
 
-                        userCred.user.sendEmailVerification();
+                            let isMatch = false;
 
-                        let welcomeText = `تم إنشاء الحساب بنجاح!\nأهلاً بك يا ${name}.`;
-                        if (ghostUid) {
-                            welcomeText = `✅ تم العثور على سجلاتك السابقة وربطها بحسابك الجديد بنجاح!\nأهلاً بك يا ${name}.`;
-                        }
+                            // 1. Exact Match
+                            if (storedName === inputName) isMatch = true;
+                            // 2. Starts With (Handling Surname variations)
+                            // Ensure at least 2 words to avoid matching generic first names like "Ali"
+                            else if (inputName.split(' ').length >= 2 && storedName.split(' ').length >= 2) {
+                                if (inputName.startsWith(storedName) || storedName.startsWith(inputName)) {
+                                    isMatch = true;
+                                }
+                            }
 
-                        alert(welcomeText + `\nيرجى تفعيل حسابك عبر البريد الإلكتروني ثم تسجيل الدخول.`);
-                        closeReg();
+                            if (isMatch) {
+                                ghostUid = k;
+                                ghostData = u;
+                                console.log("🎯 Found Fuzzy Match:", u.name, "with", name);
+                            }
+                        });
+                    }
+
+                    // 2. Create the Real Auth Account
+                    msg.innerText = 'جاري إنشاء الحساب الآمن...';
+                    return firebase.auth().createUserWithEmailAndPassword(email, pass).then(userCred => {
+                        const newUid = userCred.user.uid;
+
+                        // 3. Prepare Final Data (Merge Ghost Data + New Data)
+                        const finalData = {
+                            ...ghostData, // Keep grades, finance, etc.
+                            name: name,   // Ensure correct spelling from form
+                            phone: phone,
+                            email: email,
+                            password: pass, // CRITICAL FIX: Save password to DB for login verification
+                            classId: cls,
+                            // CRITICAL: Preserve the ROLL from ghostData if it exists (don't downgrade admins to students)
+                            role: (ghostData.role && (ghostData.role === 'admin' || ghostData.role === 'teacher')) ? ghostData.role : 'student',
+                            joined: ghostData.joined || new Date().toISOString(),
+                            isMerged: !!ghostUid // Flag for debugging
+                        };
+
+                        // Add empty structures if missing
+                        if (!finalData.grades) finalData.grades = {};
+                        if (!finalData.gradesDetail) finalData.gradesDetail = {};
+
+                        // 4. Save to New UID
+                        return firebase.database().ref('users/' + newUid).set(finalData).then(() => {
+                            // 5. If we found a ghost, DELETE the old temp record to prevent duplicates
+                            if (ghostUid) {
+                                firebase.database().ref('users/' + ghostUid).remove();
+                                console.log("👻 Ghost account merged and deleted:", ghostUid);
+                            }
+
+                            userCred.user.sendEmailVerification();
+
+                            let welcomeText = `تم إنشاء الحساب بنجاح!\nأهلاً بك يا ${name}.`;
+                            if (ghostUid) {
+                                welcomeText = `✅ تم العثور على سجلاتك السابقة وربطها بحسابك الجديد بنجاح!\nأهلاً بك يا ${name}.`;
+                            }
+
+                            alert(welcomeText + `\nيرجى تفعيل حسابك عبر البريد الإلكتروني ثم تسجيل الدخول.`);
+                            closeReg();
+                        });
                     });
+
+                }).catch((error) => {
+                    msg.style.color = 'red';
+                    // Friendly Error Messages
+                    if (error.code === 'auth/email-already-in-use') msg.innerText = 'البريد الإلكتروني مسجل مسبقاً!';
+                    else if (error.code === 'auth/invalid-email') msg.innerText = 'البريد الإلكتروني غير صالح';
+                    else msg.innerText = 'خطأ: ' + error.message;
+                    console.error(error);
                 });
-
-            }).catch((error) => {
-                msg.style.color = 'red';
-                // Friendly Error Messages
-                if (error.code === 'auth/email-already-in-use') msg.innerText = 'البريد الإلكتروني مسجل مسبقاً!';
-                else if (error.code === 'auth/invalid-email') msg.innerText = 'البريد الإلكتروني غير صالح';
-                else msg.innerText = 'خطأ: ' + error.message;
-                console.error(error);
-            });
         }
 
         function registerUser() {
