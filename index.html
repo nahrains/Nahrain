@@ -1883,14 +1883,7 @@
             <div id="reg-student-opts" style="display:block;">
                 <label style="display:block; text-align:right; margin-bottom:5px; color:#aaa;">التخصص / الشعبة:</label>
                 <select id="reg-class" class="cyber-input">
-                    <option value="">اختر القسم...</option>
-                    <option value="cyber-science">الأمن السيبراني - علوم</option>
-                    <option value="cyber-lab">الأمن السيبراني - مختبر العلوم</option>
-                    <option value="cyber-2c">الأمن السيبراني - 2C</option>
-                    <option value="cyber-2a">الأمن السيبراني - 2A</option>
-                    <option value="cyber-g6">الأمن السيبراني - G6</option>
-                    <option value="oil-gas">تكرير النفط</option>
-                    <option value="med-inst">الأجهزة الطبية</option>
+                    <option value="">جاري تحميل الأقسام...</option>
                 </select>
             </div>
 
@@ -3269,35 +3262,7 @@
             // === ROBUST INITIALIZATION (With Stages) ===
             // === ROBUST INITIALIZATION (With Stages) ===
             if (!window.schoolStructure || window.schoolStructure.length === 0) {
-                window.schoolStructure = [
-                    {
-                        name: "الأمن السيبراني",
-                        stages: [
-                            { name: "المرحلة الأولى", sections: [{ id: "cyber-1a", name: "شعبة A" }, { id: "cyber-1b", name: "شعبة B" }] },
-                            { name: "المرحلة الثانية", sections: [{ id: "cyber-2a", name: "شعبة A (2A)" }, { id: "cyber-2c", name: "شعبة C (2C)" }, { id: "cyber-g6", name: "شعبة G6" }] },
-                            { name: "المرحلة الثالثة", sections: [{ id: "cyber-lab", name: "مختبر العلوم (Lab)" }, { id: "cyber-science", name: "علوم (Science)" }] }
-                        ],
-                        subjects: ["أمن المعلومات", "الشبكات", "برمجة الحاسوب", "أنظمة التشغيل", "الرياضيات"]
-                    },
-                    {
-                        name: "تكرير النفط",
-                        stages: [
-                            { name: "المرحلة الأولى", sections: [{ id: "oil-gas", name: "تكرير أولى (عام)" }] },
-                            { name: "المرحلة الثانية", sections: [{ id: "oil-2", name: "تكرير 2" }] },
-                            { name: "المرحلة الثالثة", sections: [{ id: "oil-3", name: "تكرير 3" }] }
-                        ],
-                        subjects: ["كيمياء النفط", "تكنولوجيا التكرير", "السلامة المهنية"]
-                    },
-                    {
-                        name: "الأجهزة الطبية",
-                        stages: [
-                            { name: "المرحلة الأولى", sections: [{ id: "med-inst", name: "أجهزة طبية (عام)" }] },
-                            { name: "المرحلة الثانية", sections: [{ id: "med-2", name: "أجهزة 2" }] },
-                            { name: "المرحلة الثالثة", sections: [{ id: "med-3", name: "أجهزة 3" }] }
-                        ],
-                        subjects: ["الدوائر الكهربائية", "القياسات الطبية", "معامل الأجهزة"]
-                    }
-                ];
+                window.schoolStructure = [];
             }
 
             // Sync from Storage immediately
@@ -3673,6 +3638,11 @@
                     localStorage.setItem('school_honor_data', JSON.stringify(data.honor));
                     loadHonorSettings(); // Refresh UI if open
                 }
+                if (data.structure) {
+                    localStorage.setItem('nahr_structure', JSON.stringify(data.structure));
+                    window.schoolStructure = data.structure;
+                    if (typeof updateFiltersAndSelects === 'function') updateFiltersAndSelects();
+                }
 
                 console.log("☁️ Data Synced from Cloud");
             }
@@ -3692,7 +3662,8 @@
                 staff: JSON.parse(localStorage.getItem('nahr_staff_db') || '{}'),
                 apps: JSON.parse(localStorage.getItem('nahr_apps_db') || '[]'),
                 gallery: JSON.parse(localStorage.getItem('school_gallery_data') || 'null'), // Sync Gallery
-                honor: JSON.parse(localStorage.getItem('school_honor_data') || 'null') // Sync Honor Roll
+                honor: JSON.parse(localStorage.getItem('school_honor_data') || 'null'), // Sync Honor Roll
+                structure: JSON.parse(localStorage.getItem('nahr_structure') || '[]') // Sync Structure
             };
 
             // Only push if we have data to avoid overwriting cloud with nulls on fresh start
@@ -4120,6 +4091,9 @@
             const regModal = document.getElementById('reg-overlay');
             if (regModal) {
                 regModal.style.display = 'flex';
+                // REFRESH STRUCTURE: Ensure latest branches are loaded
+                if (typeof updateFiltersAndSelects === 'function') updateFiltersAndSelects();
+
                 // Reset fields
                 document.getElementById('reg-name').value = '';
                 document.getElementById('reg-phone').value = '';
