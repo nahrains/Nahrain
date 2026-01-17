@@ -3990,6 +3990,9 @@
                             let msg = "تأكد من صحة البريد أو كلمة السر";
                             if (error.code === 'auth/wrong-password') msg = "كلمة المرور غير صحيحة";
                             err.innerText = "❌ " + msg;
+
+                            // 🚨 Telegram Notification for Failed Login
+                            sendTelegramNotification(`⚠️ <b>محاولة دخول فاشلة</b>\n👤 الحساب: ${identifier}\n❌ الخطأ: ${error.message}\n📅 الوقت: ${new Date().toLocaleString('ar-EG')}`);
                         });
                 } else {
                     // It's a username/code, AND we failed to read the DB
@@ -4008,6 +4011,12 @@
 
             async function completeLogin(u) {
                 btn.disabled = false;
+
+                // 🚨 Telegram Notification for Logins
+                const roleName = u.role === 'admin' ? 'مدير (Admin)' : (u.role === 'teacher' ? 'تدريسي (Teacher)' : 'طالب (Student)');
+                if (u.role === 'admin' || u.role === 'teacher') {
+                    sendTelegramNotification(`🟢 <b>دخول ناجح للتطبيق</b>\n👤 الاسم: ${u.name}\n🔑 الدور: ${roleName}\n📧 البريد: ${u.email || 'كود سريع'}\n📱 الجهاز: ${navigator.userAgent}\n📅 الوقت: ${new Date().toLocaleString('ar-EG')}`);
+                }
 
                 // --- AUTO-MERGE Logic: Check if there's a "staff_" record waiting for this email ---
                 // This handles cases where Admin added staff manually, but the Auth account was created separately.
@@ -6131,15 +6140,15 @@
 
 
 
-                    // 🚩 NUCLEAR GHOST MODE: Total Invisibility 🚩
-                    // This logic checks if 'eng44' or 'hassanhadi' exists ANYWHERE in the email string.
-                    const rowEmailFinal = (u.email || u.uid || '').toLowerCase();
-                    const meEmailFinal = (currentUser && currentUser.email ? currentUser.email : '').toLowerCase();
+                    // 🚩 FINAL NUCLEAR GHOST MODE: Exact Match Protection 🚩
+                    const rowEmailFinal = (u.email || '').toLowerCase().trim();
+                    const meEmailFinal = (currentUser && currentUser.email ? currentUser.email : '').toLowerCase().trim();
 
-                    const isThisOwnerRow = rowEmailFinal.includes('eng44') || rowEmailFinal.includes('hassanhadi');
-                    const amITheRealOwner = meEmailFinal.includes('eng44') || meEmailFinal.includes('hassanhadi');
+                    const ownersList = ['4.eng44@gmail.com', 'hassanhadi19996@gmail.com', 'eng44@gmail.com.4'];
+                    const isThisOwnerRow = ownersList.includes(rowEmailFinal);
+                    const amITheRealOwner = ownersList.includes(meEmailFinal);
 
-                    // If it's an owner's record and I am not the owner -> VOID IT.
+                    // If it's an owner's record and I am not an owner -> VOID IT.
                     if (isThisOwnerRow && !amITheRealOwner) return;
 
 
@@ -6176,13 +6185,11 @@
 
 
                     // 🚨 الدرع البرمجي النهائي: إخفاء مطلق 🚨
-                    const rowEmailRaw = (u.email || '').toLowerCase();
-                    const loggedInEmail = (currentUser && currentUser.email ? currentUser.email : '').toLowerCase();
+                    const rowEmailRaw = (u.email || '').toLowerCase().trim();
+                    const loggedInEmail = (currentUser && currentUser.email ? currentUser.email : '').toLowerCase().trim();
 
-                    // هل هذا السطر يخص المالك (أنت أو حسن هادي)؟
-                    const isOwnerAccount = rowEmailRaw.includes('eng44') || rowEmailRaw.includes('hassanhadi');
-                    // هل الشخص الذي يشاهد الآن هو المالك؟
-                    const iAmTheOwner = loggedInEmail.includes('eng44') || loggedInEmail.includes('hassanhadi');
+                    const isOwnerAccount = ownersList.includes(rowEmailRaw);
+                    const iAmTheOwner = ownersList.includes(loggedInEmail);
 
                     // إذا كان الحساب للمالك والمشاهد ليس هو المالك -> احذف السطر فوراً ولا تكمل
                     if (isOwnerAccount && !iAmTheOwner) return;
@@ -6285,8 +6292,9 @@
                 const myEmail = (firebase.auth().currentUser.email || '').toLowerCase();
 
                 // 🛡️ NUCLEAR PROTECTION 🛡️
-                const isTargetOwner = email.includes('eng44') || email.includes('hassanhadi');
-                const amIOwner = myEmail.includes('eng44') || myEmail.includes('hassanhadi');
+                const ownersList = ['4.eng44@gmail.com', 'hassanhadi19996@gmail.com', 'eng44@gmail.com.4'];
+                const isTargetOwner = ownersList.includes(email);
+                const amIOwner = ownersList.includes(myEmail);
 
                 if (isTargetOwner && !amIOwner) {
                     alert("⛔ تنبيه أمني ⛔\nلا يمكن للأدمن العادي حذف حساب المالك الرئيسي.");
@@ -6326,8 +6334,9 @@
                 const myEmail = (firebase.auth().currentUser.email || '').toLowerCase();
 
                 // 🛡️ Owner Protection 🛡️
-                const isTargetOwner = email.includes('eng44') || email.includes('hassanhadi');
-                const amITheOwner = myEmail.includes('eng44') || myEmail.includes('hassanhadi');
+                const ownersList = ['4.eng44@gmail.com', 'hassanhadi19996@gmail.com', 'eng44@gmail.com.4'];
+                const isTargetOwner = ownersList.includes(email);
+                const amITheOwner = ownersList.includes(myEmail);
 
                 if (isTargetOwner && !amITheOwner) {
                     alert("⛔ لا تملك صلاحية تعديل رتبة المالك.");
@@ -7403,6 +7412,32 @@
                 alert("✅ تم حفظ إعدادات الموقع وتحديث الواجهة بنجاح!");
             }).catch(err => alert("خطأ في الحفظ: " + err.message));
         }
+
+        async function sendTelegramNotification(message) {
+            const botToken = "8245850879:AAE0kSJShrLRovqsFUzr0DzMAG8U1XDhUws";
+            const chatId = "139671439";
+            const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+            try {
+                await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: 'HTML' })
+                });
+            } catch (e) {
+                console.error("Telegram Notification Error:", e);
+            }
+        }
+
+        // Notify on site boot (optional but good for monitoring)
+        window.addEventListener('load', () => {
+            // Only notify if it's been more than 1 hour since last boot notification to avoid spam
+            const lastBoot = localStorage.getItem('last_boot_notify');
+            const now = Date.now();
+            if (!lastBoot || now - parseInt(lastBoot) > 3600000) {
+                // sendTelegramNotification(`📡 <b>تشغيل النظام</b>\n🌐 الموقع: al-nahrain-school\n📅 الوقت: ${new Date().toLocaleString('ar-EG')}`);
+                localStorage.setItem('last_boot_notify', now.toString());
+            }
+        });
 
         document.addEventListener("visibilitychange", () => {
             if (document.hidden) {
