@@ -4852,12 +4852,13 @@
 
         function openStudentDashboard(st) {
             const d = document.getElementById('student-dash');
+            if (!st) return;
 
             // 1. Set Welcome Text & Major
             const nameEl = document.getElementById('std-welcome-name');
             const majorEl = document.getElementById('std-welcome-major');
             if (nameEl) nameEl.innerHTML = `<i class="fa-solid fa-graduation-cap"></i> مرحباً، ${st.name}`;
-            if (majorEl) majorEl.innerText = st.major || "طالب متميز";
+            if (majorEl) majorEl.innerText = st.major || st.className || "طالب متميز";
 
             // 2. Load Installments
             const instBody = document.getElementById('student-installments-body');
@@ -4869,39 +4870,53 @@
                                                             <td>${getStatusBadge(i.s)}</td>
                                                         </tr>`).join('');
                 } else {
-                    instBody.innerHTML = `<tr>
-                                                            <td colspan="3" style="text-align:center; color:#777;">لا
-                                                                توجد
-                                                                دفعات مالية مسجلة</td>
-                                                        </tr>`;
+                    instBody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#777;">لا توجد دفعات مالية مسجلة</td></tr>`;
                 }
             }
 
-            // 3. Load Live Grades (Legacy/JSON style)
+            // 3. Load Live Grades (Smart Merged)
             const gradesBody = document.getElementById('std-grades-body');
             if (gradesBody) {
-                const g = st.grades || {};
-                if (Object.keys(g).length === 0) {
-                    gradesBody.innerHTML = `<tr>
-                                                            <td colspan="3" style="text-align:center; color:#777;">لا
-                                                                توجد
-                                                                درجات يومية مرفوعة بعد</td>
-                                                        </tr>`;
-                } else {
-                    gradesBody.innerHTML = Object.entries(g).map(([s, v]) => `<tr>
-                                                            <td>${s}</td>
-                                                            <td>${v}</td>
-                                                            <td>${v >= 90 ? 'ممتاز' : v >= 50 ? 'ناجح' : 'راسب'}</td>
-                                                        </tr>`).join('');
+                let html = '';
+                // A. Legacy Grades
+                if (st.grades) {
+                    Object.entries(st.grades).forEach(([s, v]) => {
+                        html += `<tr><td>${s}</td><td>${v}</td><td>${v >= 90 ? 'ممتاز' : v >= 50 ? 'ناجح' : 'راسب'}</td></tr>`;
+                    });
                 }
+                // B. New System Grades (Detailed)
+                if (st.gradesDetail) {
+                    Object.entries(st.gradesDetail).forEach(([subject, details]) => {
+                        if (typeof details === 'object') {
+                            const v = details.total || details.avg || details.final || '';
+                            const label = v !== '' ? v : '<span style="color:#777; font-size:0.7rem;">(قيد المراجعة)</span>';
+                            const status = v !== '' ? (v >= 90 ? 'ممتاز' : v >= 50 ? 'ناجح' : 'راسب') : '-';
+                            html += `<tr><td>${subject}</td><td>${label}</td><td>${status}</td></tr>`;
+                        } else {
+                            // migration fallback
+                            html += `<tr><td>${subject}</td><td>${details}</td><td>${details >= 90 ? 'ممتاز' : details >= 50 ? 'ناجح' : 'راسب'}</td></tr>`;
+                        }
+                    });
+                }
+
+                gradesBody.innerHTML = html || `<tr><td colspan="3" style="text-align:center; color:#777;">لا توجد درجات يومية مرفوعة بعد</td></tr>`;
             }
 
             // 4. Generate Digital ID (QR)
-            if (typeof generateStudentQR === 'function') {
-                generateStudentQR(st.uid);
-            }
+            if (typeof generateStudentQR === 'function') generateStudentQR(st.uid || st.code);
 
             openDashboard('student');
+
+            // 5. ATTACH REAL-TIME SYNC FOR THIS STUDENT (Only once)
+            if (st.uid && !window.hasStudentDashboardSync) {
+                window.hasStudentDashboardSync = true;
+                firebase.database().ref('users/' + st.uid).on('value', snap => {
+                    const freshData = snap.val();
+                    if (freshData) {
+                        openStudentDashboard(freshData); // Refresh UI silently
+                    }
+                });
+            }
         }
         function getStatusBadge(s) { return s === 'paid' ? '<span class="grade-badge grade-good">تم</span>' : '<span class="grade-badge" style="color:red">غير مدفوع</span>'; }
 
