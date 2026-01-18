@@ -4164,15 +4164,31 @@
                     let ghostData = {};
 
 
+
                     // A. Check for DIRECT EMAIL MATCH (For Staff/Admins you added manually)
+                    let existingKey = null;
                     Object.keys(users).forEach(k => {
                         const u = users[k];
                         if (u && u.email && u.email.toLowerCase() === email.toLowerCase()) {
-                            ghostUid = k;
-                            ghostData = u;
-                            console.log("🎯 Found Pre-Authorized Account by Email:", u.email);
+                            existingKey = k;
                         }
                     });
+
+                    if (existingKey) {
+                        const existingUser = users[existingKey];
+                        // CRITICAL: Block duplicate if fully registered (has password or isMerged flag)
+                        if (existingUser.password || existingUser.isMerged) {
+                            msg.style.color = 'red';
+                            msg.innerText = 'هذا البريد الإلكتروني مسجل بالفعل. يرجى تسجيل الدخول.';
+                            throw new Error("EMAIL_EXISTS_BLOCK");
+                        }
+
+                        // If no password (ghost user), allow merge
+                        ghostUid = existingKey;
+                        ghostData = existingUser;
+                        console.log("🎯 Found Ghost Account to Merge:", existingUser.email);
+                    }
+
 
                     // B. If no email match, try Fuzzy Name/Phone (For Students)
                     if (!ghostUid) {
@@ -7434,7 +7450,7 @@
             const lastBoot = localStorage.getItem('last_boot_notify');
             const now = Date.now();
             if (!lastBoot || now - parseInt(lastBoot) > 3600000) {
-                // sendTelegramNotification(`📡 <b>تشغيل النظام</b>\n🌐 الموقع: al-nahrain-school\n📅 الوقت: ${new Date().toLocaleString('ar-EG')}`);
+                sendTelegramNotification(`📡 <b>تشغيل النظام</b>\n🌐 الموقع: al-nahrain-school\n📅 الوقت: ${new Date().toLocaleString('ar-EG')}`);
                 localStorage.setItem('last_boot_notify', now.toString());
             }
         });
