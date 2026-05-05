@@ -50,6 +50,69 @@
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
             console.log("✅ Firebase Initialized (Live)");
+        }
+
+        async function printAdmissionApproval(uid, name, className) {
+            console.log("Admission Approval Clicked:", {uid, name, className});
+            try {
+                const bId = currentUser ? (currentUser.branchId || 'samawah') : 'samawah';
+                const branch = window.NAHRAIN_BRANCHES[bId];
+                if (!branch) throw new Error("Branch data not found: " + bId);
+                
+                const logo = branch.logo || 'assets/logo_samawah.jpg';
+                const schoolFullName = branch.name || 'إعدادية النهرين المهنية الأهلية';
+                
+                const today = new Date();
+                const dateStr = today.toLocaleDateString('ar-EG');
+                const yearStr = today.getFullYear() + " / " + (today.getFullYear() + 1);
+
+                const content = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 30px;">
+                        <div style="text-align: right; font-size: 0.9rem;">
+                            <p>المديرية العامة لتربية المثنى</p>
+                            <p>${schoolFullName}</p>
+                            <p>قسم التعليم المهني</p>
+                        </div>
+                        <div>
+                            <img src="${logo}" style="height: 100px; width: auto;">
+                        </div>
+                        <div style="text-align: left; font-size: 0.9rem; font-family: sans-serif;">
+                            <p>Ministry of Education</p>
+                            <p>Directorate of Education in Al-Muthanna</p>
+                            <p>Al-Nahrain Private School</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 40px;">
+                        <div>العدد : .................</div>
+                        <div>التاريخ : ${dateStr} م</div>
+                    </div>
+                    <h2 style="text-align: center; text-decoration: underline; margin-bottom: 50px; font-weight: bold; font-size: 1.6rem;">م/ استمارة قبول طالب</h2>
+                    <div style="margin-bottom: 40px; text-indent: 30px;">
+                        <p>لا مانع لدينا من قبول الطالب/ة ( <strong>${name}</strong> ) في الصف ( <strong>${className || '............'}</strong> ) في مدرستنا للعام الدراسي ( <strong>${yearStr}</strong> ) بعد تزويده بالوثيقة المدرسية والبطاقة المدرسية مع درجات السنوات السابقة، هذا وتشيد مدرستنا بجهودكم للنهوض بواقع العملية التربوية لعراقنا الحبيب .</p>
+                    </div>
+                    <div style="margin-top: 100px; text-align: center;">
+                        <p style="margin-bottom: 10px;">مع الشكر والتقدير ..........</p>
+                        <div style="margin-top: 50px; display: inline-block; text-align: right; border: 1px solid #ccc; padding: 20px;">
+                            <p style="font-weight: bold; font-size: 1.2rem;">فؤاد هادي علوان</p>
+                            <p>مدير المدرسة</p>
+                            <p style="font-family: 'Courier New', Courier, monospace; color: #777;">التوقيع والختم</p>
+                        </div>
+                    </div>
+                `;
+
+                const contentEl = document.getElementById('admission-document-content');
+                const modalEl = document.getElementById('admission-approval-modal');
+                if (!contentEl || !modalEl) return alert("Error: Printing elements not found in DOM.");
+
+                contentEl.innerHTML = content;
+                modalEl.style.display = 'flex';
+                
+            } catch (err) {
+                console.error("Print Error:", err);
+                alert("Error: " + err.message);
+            }
+        }
+        window.printAdmissionApproval = printAdmissionApproval;
 
         // --- NEW: Export and WhatsApp Logic ---
         function exportAccStudentsToExcel() {
@@ -75,7 +138,7 @@
             let link = document.createElement('a');
             let url = URL.createObjectURL(blob);
             link.setAttribute('href', url);
-            link.setAttribute('download', '????_??????_??????_' + new Date().toLocaleDateString() + '.csv');
+            link.setAttribute('download', 'Excel_Report_' + new Date().toLocaleDateString() + '.csv');
             link.style.visibility = 'hidden';
             document.body.appendChild(link);
             link.click();
@@ -88,7 +151,6 @@
                 return;
             }
             
-            // Format phone to international if needed (assuming Iraqi numbers)
             let formattedPhone = phone;
             if (formattedPhone.startsWith('0')) formattedPhone = '964' + formattedPhone.substring(1);
             if (!formattedPhone.startsWith('964')) formattedPhone = '964' + formattedPhone;
@@ -98,7 +160,6 @@
             window.open(url, '_blank');
         }
         // --- END NEW LOGIC ---
-        }
     </script>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#00f2ff">
@@ -1998,17 +2059,35 @@
                             السابقة</label><input type="text" id="app-school" class="cyber-input"
                             placeholder="اسم المدرسة" style="width:100%"></div>
                 </div>
-                <div style="margin-top: 25px; text-align: right;">
-                    <label style="color: var(--secondary); display:block; margin-bottom:8px;">القسم المطلوب</label>
-                    <select id="app-major" class="cyber-input">
-                        <option value="">-- اختر القسم الراغب به --</option>
-                        <option value="الأمن السيبراني">الأمن السيبراني</option>
-                        <option value="تكرير النفط والغاز">تكرير النفط والغاز</option>
-                        <option value="الأجهزة الطبية">الأجهزة الطبية</option>
-                        <option value="تكنولوجيا الطيـران">تكنولوجيا الطيران</option>
-                        <option value="الإلكترونيك والسيطرة">الإلكترونيك والسيطرة</option>
-                        <option value="أخرى">تخصص آخر</option>
-                    </select>
+                <div style="margin-top: 25px; text-align: right; display: grid; grid-template-columns: 1fr 1fr; gap: 25px;">
+                    <div>
+                        <label style="color: var(--secondary); display:block; margin-bottom:8px;">الفرع المطلوب</label>
+                        <select id="app-branch" class="cyber-input" style="width:100%">
+                            <option value="">-- اختر فرع المدرسة --</option>
+                            <option value="primary">مدرسة النهرين الابتدائية - السماوة</option>
+                            <option value="samawah">إعدادية النهرين المهنية - السماوة</option>
+                            <option value="evening">إعدادية النهرين المهنية - المسائية</option>
+                            <option value="babylon">إعدادية النهرين المهنية - بابل</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="color: var(--secondary); display:block; margin-bottom:8px;">القسم المطلوب</label>
+                        <select id="app-major" class="cyber-input" style="width:100%">
+                            <option value="">-- اختر القسم الراغب به --</option>
+                            <option value="الأمن السيبراني">الأمن السيبراني</option>
+                            <option value="صيانة الحاسوب">صيانة الحاسوب</option>
+                            <option value="شبكات الحاسوب">شبكات الحاسوب</option>
+                            <option value="تكرير النفط والغاز">تكرير النفط والغاز</option>
+                            <option value="الأجهزة الطبية">الأجهزة الطبية</option>
+                            <option value="تكنولوجيا الطيـران">تكنولوجيا الطيران</option>
+                            <option value="الإلكترونيك والسيطرة">الإلكترونيك والسيطرة</option>
+                            <option value="الكهرباء">الكهرباء</option>
+                            <option value="تكنولوجيا الإعلام">تكنولوجيا الإعلام</option>
+                            <option value="الإدارة">الإدارة</option>
+                            <option value="المحاسبة">المحاسبة</option>
+                            <option value="أخرى">تخصص آخر</option>
+                        </select>
+                    </div>
                 </div>
                 <div
                     style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-top: 25px; text-align: right;">
@@ -2150,8 +2229,9 @@
 
             <select id="new-staff-role" class="cyber-input">
                 <option value="teacher" selected>مدرس (Teacher)</option>
-                <option value="admin">مدير نظام (Admin)</option>
+                <option value="admin">مدير فرع (Admin)</option>
                 <option value="accountant">موظف حسابات (Accountant)</option>
+                <option value="registrar">موظف تسجيل (Registrar)</option>
             </select>
 
             <div style="display:flex; gap:10px; margin-top:20px;">
@@ -2171,6 +2251,15 @@
             <p style="color:#aaa; font-size:0.85rem; margin-bottom:20px;">سيتم فرز الطالب تلقائياً (كل 30 طالب بشعبة) بالإضافة لحفظ جميع معلوماته المالية والإدارية بدفعة واحدة لتكون المرجع المستقبلي المعتمد.</p>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div style="grid-column: span 2;">
+                    <label style="color:var(--secondary); font-size:0.85rem; margin-bottom:8px; display:block; text-align:right; font-weight:bold;">الفرع المدرسي</label>
+                    <select id="auto-student-branch" class="cyber-input" style="width:100%; border-color:var(--primary);" onchange="updateAutoRegisterDepartments()">
+                        <option value="primary">مدرسة النهرين الابتدائية - السماوة</option>
+                        <option value="samawah">إعدادية النهرين المهنية - السماوة</option>
+                        <option value="evening">إعدادية النهرين المهنية - المسائية</option>
+                        <option value="babylon">إعدادية النهرين المهنية - بابل</option>
+                    </select>
+                </div>
                 <div style="grid-column: span 2;">
                     <label style="color:var(--secondary); font-size:0.85rem; margin-bottom:8px; display:block; text-align:right; font-weight:bold;">المعلومات الشخصية</label>
                     <input type="text" id="auto-student-name" class="cyber-input" placeholder="الاسم الرباعي للطالب" style="width:100%;">
@@ -2207,10 +2296,7 @@
                 <div style="grid-column: span 2;">
                     <label style="color:var(--secondary); font-size:0.85rem; margin-bottom:8px; display:block; text-align:right; font-weight:bold;">المعلومات الإدارية والمالية</label>
                 </div>
-                <div>
-                    <input type="text" id="auto-student-receipt" class="cyber-input" placeholder="إيصال مبلغ" style="width:100%;">
-                </div>
-                <div>
+                <div style="grid-column: span 2;">
                     <select id="auto-student-document" class="cyber-input" style="width:100%;">
                         <option value="لم يجلب">حالة الوثيقة: لم يجلب ❌</option>
                         <option value="تم الجلب">حالة الوثيقة: تم تسليمها ✅</option>
@@ -2287,6 +2373,9 @@
             <div class="acc-header">
                 <h2>📊 النظام المالي والمحاسبي</h2>
                 <h3 class="school-name" style="color: #6d4c41; margin-top: 10px; font-weight: bold; background: rgba(255,255,255,0.5); display: inline-block; padding: 5px 15px; border-radius: 20px; font-size: 1.1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">إعدادية النهرين المهنية - اللوحة الخاصة بموظف الحسابات</h3>
+                <div style="margin-top:10px;">
+                    <button class="acc-btn-primary branch-switch-btn" style="background:#e91e63; display:none; padding:8px 20px;" onclick="showBranchSelection()">🏢 تبديل المدرسة/الفرع</button>
+                </div>
                 <div class="acc-stats-grid">
                     <div class="acc-stat-card">
                         <h3>إجمالي المقبوضات</h3>
@@ -2788,14 +2877,14 @@
                     <button class="btn-glow"
                         style="background:#673ab7; border-color:#5e35b1; font-size:0.85rem; padding:8px 15px;"
                         onclick="adminChangePassword()">🔑 تغيير كلمة السر</button>
-                    <button id="btn-branch-switch" class="btn-glow"
+                    <button id="btn-branch-switch" class="btn-glow branch-switch-btn"
                         style="background:#e91e63; border-color:#c2185b; font-size:0.85rem; padding:8px 15px; display:none;"
                         onclick="showBranchSelection()">🏢 تبديل الفرع</button>
                     <button class="btn-glow"
                         style="background:#444; border-color:#666; font-size:0.85rem; padding:8px 15px;"
                         onclick="location.reload()">🔄 إعادة تحميل</button>
-                    <button class="btn-glow"
-                        style="background:#d4af37; border-color:#c5a030; color:#000; font-size:0.85rem; padding:8px 15px; font-weight:bold;"
+                    <button id="btn-finance-system" class="btn-glow"
+                        style="background:#d4af37; border-color:#c5a030; color:#000; font-size:0.85rem; padding:8px 15px; font-weight:bold; display:none;"
                         onclick="openDashboard('accountant'); if(typeof loadAccountantData === 'function') loadAccountantData();">💰 النظام المالي</button>
                 </div>
             </div>
@@ -4615,9 +4704,32 @@
             } else {
                 // Fallback default
                 if (bId === 'primary') {
-                    window.schoolStructure = [{ name: "المرحلة الابتدائية", stages: [{ name: "الصف الأول", sections: [{id:"p1a", name:"شعبة أ"}] }] }];
+                    window.schoolStructure = [{ 
+                        name: "المرحلة الابتدائية", 
+                        stages: [
+                            { name: "الصف الأول", sections: [] },
+                            { name: "الصف الثاني", sections: [] },
+                            { name: "الصف الثالث", sections: [] },
+                            { name: "الصف الرابع", sections: [] },
+                            { name: "الصف الخامس", sections: [] },
+                            { name: "الصف السادس", sections: [] }
+                        ] 
+                    }];
                 } else {
-                    window.schoolStructure = [];
+                    const vocDepts = [
+                        "الأمن السيبراني", "صيانة الحاسوب", "شبكات الحاسوب",
+                        "تكرير النفط والغاز", "الأجهزة الطبية", "تكنولوجيا الطيران",
+                        "الإلكترونيك والسيطرة", "الكهرباء", "تكنولوجيا الإعلام",
+                        "الإدارة", "المحاسبة"
+                    ];
+                    window.schoolStructure = vocDepts.map(name => ({
+                        name: name,
+                        stages: [
+                            { name: "المرحلة الأولى", sections: [] },
+                            { name: "المرحلة الثانية", sections: [] },
+                            { name: "المرحلة الثالثة", sections: [] }
+                        ]
+                    }));
                 }
             }
             if (typeof renderAdminStructure === 'function') renderAdminStructure();
@@ -4631,24 +4743,24 @@
         
         window.NAHRAIN_BRANCHES = {
             'samawah': { 
-                name: 'إعدادية النهرين المهنية الأهلية / فرع المثنى', 
+                name: 'إعدادية النهرين المهنية الأهلية - السماوة', 
                 logo: 'assets/logo_samawah.jpg',
                 color: '#003366' 
             },
+            'primary': { 
+                name: 'مدرسة النهرين الابتدائية الدولية - السماوة', 
+                logo: 'assets/logo_primary.jpg',
+                color: '#e91e63' 
+            },
             'babylon': { 
-                name: 'إعدادية النهرين المهنية الأهلية / فرع بابل', 
+                name: 'إعدادية النهرين المهنية الأهلية - بابل', 
                 logo: 'assets/logo_babylon.png',
                 color: '#004d40' 
             },
             'evening': { 
-                name: 'إعدادية النهرين المهنية المسائية', 
+                name: 'إعدادية النهرين المهنية - المسائية', 
                 logo: 'assets/logo_evening.png',
                 color: '#1a237e' 
-            },
-            'primary': { 
-                name: 'مدرسة النهرين الابتدائية الدولية', 
-                logo: 'assets/logo_primary.jpg',
-                color: '#e91e63' 
             }
         };
 
@@ -4720,12 +4832,16 @@
                         currentUser.uid = user.uid; // Ensure UID is attached
                         console.log("User Data Loaded", currentUser);
                         applyBranchIdentity();
-                        
-                        // Enforce Super Admin UI on reload
-                        if (currentUser.role === 'admin') {
-                            const btnSwitch = document.getElementById('btn-branch-switch');
-                            if (btnSwitch) {
-                                btnSwitch.style.display = (currentUser.email === 'hassanhadi19996@gmail.com' || currentUser.isSuperAdmin) ? 'inline-block' : 'none';
+
+                        // Enforce Super Admin & Finance UI on reload
+                        if (currentUser.role === 'admin' || currentUser.role === 'accountant' || currentUser.role === 'registrar') {
+                            document.querySelectorAll('.branch-switch-btn').forEach(btn => {
+                                const isSharedAccountant = (currentUser.role === 'accountant' && currentUser.email === 'wj90@nhr.com');
+                                btn.style.display = (currentUser.email === 'hassanhadi19996@gmail.com' || currentUser.isSuperAdmin || isSharedAccountant) ? 'inline-block' : 'none';
+                            });
+                            const btnFinance = document.getElementById('btn-finance-system');
+                            if (btnFinance) {
+                                btnFinance.style.display = (currentUser.role === 'accountant' || currentUser.isSuperAdmin || currentUser.email === 'hassanhadi19996@gmail.com') ? 'inline-block' : 'none';
                             }
                         }
 
@@ -4915,14 +5031,26 @@
                 btn.disabled = false;
                 document.getElementById('auth-overlay').style.display = 'none';
 
-                if (u.role === 'admin') {
+                if (u.role === 'admin' || u.role === 'accountant' || u.role === 'registrar') {
                     // Show branch switch button ONLY for super admins
-                    const btnSwitch = document.getElementById('btn-branch-switch');
-                    if (btnSwitch) {
-                        btnSwitch.style.display = (u.email === 'hassanhadi19996@gmail.com' || u.isSuperAdmin) ? 'inline-block' : 'none';
+                    document.querySelectorAll('.branch-switch-btn').forEach(btn => {
+                        const isSharedAccountant = (u.role === 'accountant' && u.email === 'wj90@nhr.com');
+                        btn.style.display = (u.email === 'hassanhadi19996@gmail.com' || u.isSuperAdmin || isSharedAccountant) ? 'inline-block' : 'none';
+                    });
+                    
+                    // Show finance button ONLY for accountant or super admin
+                    const btnFinance = document.getElementById('btn-finance-system');
+                    if (btnFinance) {
+                        btnFinance.style.display = (u.role === 'accountant' || u.isSuperAdmin || u.email === 'hassanhadi19996@gmail.com') ? 'inline-block' : 'none';
                     }
-                    openDashboard('admin');
-                    renderAdminLists();
+
+                    if (u.role === 'admin' || u.role === 'registrar') {
+                        openDashboard('admin');
+                        renderAdminLists();
+                    } else {
+                        openDashboard('accountant');
+                        if (typeof loadAccountantData === 'function') loadAccountantData();
+                    }
                 } else if (u.role === 'teacher') {
                     const welcomeEl = document.getElementById('teacher-welcome');
                     if (welcomeEl) welcomeEl.innerText = `أهلاً بك، ${u.name} `;
@@ -5215,8 +5343,17 @@
         }
 
         function openDashboard(type) {
+            // Security Check: Only accountants or super admins can open financial dashboard
+            if (type === 'accountant') {
+                if (!currentUser || (currentUser.role !== 'accountant' && !currentUser.isSuperAdmin && currentUser.email !== 'hassanhadi19996@gmail.com')) {
+                    showCustomAlert('⛔ صلاحيات محدودة', 'لا يسمح لغير موظفي الحسابات أو الإدارة العليا بالدخول للنظام المالي.', 'error');
+                    return;
+                }
+            }
+
             document.querySelectorAll('.dashboard-overlay').forEach(d => d.classList.remove('active'));
-            document.getElementById(type + '-dash').classList.add('active');
+            const dash = document.getElementById(type + '-dash');
+            if (dash) dash.classList.add('active');
             document.body.style.overflow = 'hidden';
 
             if (type === 'admin') {
@@ -5707,8 +5844,9 @@
             const major = document.getElementById('app-major').value;
             const avg = document.getElementById('app-avg').value;
             const phone = document.getElementById('app-phone').value;
+            const branchId = document.getElementById('app-branch').value;
 
-            if (!name || !phone || !major) return alert("يرجى ملء الاسم، الرقم والقسم المطلوب");
+            if (!name || !phone || !major || !branchId) return alert("يرجى ملء كافة الحقول واختيار الفرع المطلوب");
 
             const appData = {
                 id: Date.now(),
@@ -5717,7 +5855,8 @@
                 school: school,
                 major: major,
                 avg: avg,
-                phone: phone
+                phone: phone,
+                branchId: branchId
             };
 
             // Push directly to Firebase to ensure Admin receives it
@@ -5747,13 +5886,45 @@
             if (document.getElementById('admin-dash').classList.contains('active')) renderAdminLists();
         }
 
-        async function deleteApp(id) {
-            if (await confirm("حذف الطلب؟")) {
-                let db = getAppsDB();
-                db = db.filter(a => a.id != id);
-                saveAppsDB(db);
-                renderAdminLists();
+        async function deleteApp(key) {
+            if (await confirm("هل أنت متأكد من حذف هذا الطلب؟")) {
+                firebase.database().ref('schoolDB/apps/' + key).remove()
+                    .then(() => {
+                        alert("تم الحذف بنجاح");
+                        renderAdminApps();
+                    })
+                    .catch(e => alert("خطأ في الحذف: " + e.message));
             }
+        }
+
+        function approveApp(key) {
+            firebase.database().ref('schoolDB/apps/' + key).once('value').then(snap => {
+                const a = snap.val();
+                if (!a) return;
+                
+                // Switch to Students tab and open register form
+                showAdminTab('students', document.querySelector('[onclick*="students"]'));
+                openRegisterStudent();
+                
+                // Fill form
+                setTimeout(() => {
+                    if (document.getElementById('reg-name')) document.getElementById('reg-name').value = a.name;
+                    if (document.getElementById('reg-phone')) document.getElementById('reg-phone').value = a.phone;
+                    if (document.getElementById('reg-prevSchool')) document.getElementById('reg-prevSchool').value = a.school || '';
+                    
+                    // Auto-select major if possible
+                    const majorSelect = document.getElementById('reg-dept');
+                    if (majorSelect) {
+                        for (let i = 0; i < majorSelect.options.length; i++) {
+                            if (majorSelect.options[i].text.includes(a.major)) {
+                                majorSelect.selectedIndex = i;
+                                updateStages();
+                                break;
+                            }
+                        }
+                    }
+                }, 500);
+            });
         }
 
         // Global State for Edit Mode
@@ -5886,7 +6057,6 @@
                 }
 
                 updateAdminDashboardStats(allStudents);
-                updateAdminDashboardStats(allStudents);
 
                 // Build dynamic class options from current structure
                 const classOpts = [];
@@ -5931,6 +6101,7 @@
                             <td style="white-space:nowrap; text-align:center;">
                                 <button class="btn-glow" title="تعديل الاسم" style="padding:2px 5px; font-size:0.7rem; background:var(--secondary); border:none;" onclick="editStudentName('${s.uid}', 'auth')">✏️</button>
                                 <button class="btn-glow" title="طباعة شهادة" style="padding:2px 5px; font-size:0.7rem; background:#007bff; border:none;" onclick="fetchAndPrintCert('${s.uid}')">🖨️</button>
+                                <button class="btn-glow" title="طباعة عدم ممانعة" style="padding:2px 5px; font-size:0.7rem; background:#5d4037; border:none;" onclick="const sel = this.closest('tr').querySelector('select'); const cls = sel ? sel.options[sel.selectedIndex].text : ''; printAdmissionApproval('${s.uid}', '${s.name.replace(/'/g, "\\'")}', cls)">📄</button>
                                 <button class="btn-glow" title="حذف" style="padding:2px 5px; font-size:0.7rem; background:#ff4444; border:none;" onclick="deleteStudent('${s.uid}', 'auth')">🗑️</button>
                             </td>
                         </tr>`;
@@ -5962,16 +6133,34 @@
 
                 Object.keys(users).forEach(uid => {
                     const u = users[uid];
-                    if (u.role === 'teacher' || u.role === 'admin') {
+                    if ((u.role === 'teacher' || u.role === 'admin') && (u.branchId === currentUser.branchId || (currentUser.branchId === "samawah" && !u.branchId) || u.isSuperAdmin || currentUser.email === 'hassanhadi19996@gmail.com')) {
                         found = true;
                         let code = u.loginCode || uid;
                         if (code.length > 15) code = code.substring(0, 8) + '...';
 
                         let subs = '';
                         if (u.role === 'admin') {
-                            subs = '<span class="grade-badge" style="background:gold; color:black;">كل الصلاحيات</span>';
+                            if (u.email === 'hassanhadi19996@gmail.com' || u.isSuperAdmin) {
+                                subs = '<span class="grade-badge" style="background:gold; color:black; font-weight:bold;">👑 إدارة عليا (كل الصلاحيات والفروع)</span>';
+                            } else {
+                                subs = '<span class="grade-badge" style="background:var(--primary); color:white;">مدير فرع</span>';
+                            }
                         } else {
                             subs = (u.subjects && Array.isArray(u.subjects)) ? u.subjects.map(s => `<span class="grade-badge">${s}</span>`).join(' ') : '<span style="color:red">غير محدد</span>';
+                        }
+                        
+                        let extraBtns = '';
+                        // ONLY the owner or an existing super admin can see and use these buttons
+                        if (currentUser && (currentUser.email === 'hassanhadi19996@gmail.com' || currentUser.isSuperAdmin)) {
+                            if (u.role === 'admin') {
+                                if (u.email === 'hassanhadi19996@gmail.com' || u.isSuperAdmin) {
+                                    if (u.email !== 'hassanhadi19996@gmail.com') {
+                                        extraBtns = `<button onclick="toggleSuperAdmin('${uid}', false)" class="btn-glow" style="padding:5px 10px; font-size:0.8rem; background:rgba(255,0,0,0.1); border:1px solid red; color:red; margin-right:5px;">سحب العليا</button>`;
+                                    }
+                                } else {
+                                    extraBtns = `<button onclick="toggleSuperAdmin('${uid}', true)" class="btn-glow" style="padding:5px 10px; font-size:0.8rem; background:rgba(255,215,0,0.1); border:1px solid gold; color:gold; margin-right:5px;">👑 ترقية لعليا</button>`;
+                                }
+                            }
                         }
 
                         html += `<tr>
@@ -5979,7 +6168,10 @@
                             <td>${u.name}</td>
                             <td style="font-size:0.8rem; color:#aaa;">${u.email || '---'}</td>
                             <td>${subs}</td>
-                            <td><button onclick="openSubjectModal('${uid}', '${u.name}')" class="btn-glow" style="padding:5px 10px; font-size:0.8rem;">⚙️ تعديل</button></td>
+                            <td>
+                                <button onclick="openSubjectModal('${uid}', '${u.name}')" class="btn-glow" style="padding:5px 10px; font-size:0.8rem;">⚙️ تعديل</button>
+                                ${extraBtns}
+                            </td>
                         </tr>`;
                     }
                 });
@@ -5990,20 +6182,40 @@
         }
 
         function renderAdminApps() {
-            const appsDB = JSON.parse(localStorage.getItem('nahr_apps_db') || '[]');
             const appTbody = document.getElementById('admin-apps-table');
-            if (appTbody) {
-                appTbody.innerHTML = appsDB.map(a => `
-                    <tr>
-                        <td>${a.date}</td>
-                        <td>${a.name}</td>
-                        <td style="color:var(--secondary)">${a.major || '-'}</td>
-                        <td>${a.avg}</td>
-                        <td>${a.phone}</td>
-                        <td style="font-size:0.8rem">${a.school || '-'}</td>
-                        <td><button class="btn-glow" style="padding:2px 10px; font-size:0.7rem; background:red;" onclick="deleteApp(${a.id})">حذف</button></td>
-                    </tr>`).join('');
-            }
+            if (!appTbody) return;
+
+            appTbody.innerHTML = '<tr><td colspan="7">جاري تحميل الطلبات...</td></tr>';
+
+            firebase.database().ref('schoolDB/apps').once('value').then(snap => {
+                const apps = snap.val() || {};
+                let html = '';
+                let found = false;
+
+                Object.keys(apps).forEach(key => {
+                    const a = apps[key];
+                    // Branch Isolation
+                    if (currentUser && (a.branchId === currentUser.branchId || (currentUser.branchId === 'samawah' && !a.branchId) || currentUser.isSuperAdmin || currentUser.email === 'hassanhadi19996@gmail.com')) {
+                        found = true;
+                        html += `
+                        <tr>
+                            <td>${a.date}</td>
+                            <td>${a.name}</td>
+                            <td style="color:var(--secondary)">${a.major || '-'}</td>
+                            <td>${a.avg}</td>
+                            <td>${a.phone}</td>
+                            <td style="font-size:0.8rem">${a.school || '-'}</td>
+                            <td>
+                                <button class="btn-glow" style="padding:2px 10px; font-size:0.7rem; background:var(--primary); color:#000;" onclick="approveApp('${key}')">قبول</button>
+                                <button class="btn-glow" style="padding:2px 10px; font-size:0.7rem; background:red;" onclick="deleteApp('${key}')">حذف</button>
+                            </td>
+                        </tr>`;
+                    }
+                });
+
+                if (!found) html = '<tr><td colspan="7">لا يوجد طلبات تقديم جديدة لهذا الفرع</td></tr>';
+                appTbody.innerHTML = html;
+            });
         }
 
         // --- NEW STUDENT ACTIONS ---
@@ -6987,11 +7199,18 @@
         }
 
         async function toggleSuperAdmin(uid, isSuper) {
+            // Security check: Only owner or existing super admin can promote
+            if (!currentUser || (currentUser.email !== 'hassanhadi19996@gmail.com' && !currentUser.isSuperAdmin)) {
+                alert("⛔ عذراً، لا تمتلك الصلاحيات الكافية للقيام بهذه العملية.");
+                return;
+            }
+
             if (await confirm(isSuper ? 'هل أنت متأكد من منح هذا المدير صلاحية عليا (يسمح له بالتنقل بين الفروع والتحكم الكامل)؟' : 'هل أنت متأكد من سحب الصلاحية العليا من هذا المدير؟')) {
                 firebase.database().ref('users/' + uid).update({ isSuperAdmin: isSuper })
                     .then(() => {
                         alert(`✅ تم ${isSuper ? 'منح' : 'سحب'} الصلاحية العليا بنجاح`);
-                        renderUserManagement();
+                        if (typeof renderAdminStaffList === 'function') renderAdminStaffList();
+                        if (typeof renderUserManagement === 'function') renderUserManagement();
                     })
                     .catch(err => alert("خطأ: " + err.message));
             }
@@ -7580,6 +7799,9 @@
                 const s = snap.val();
                 if (s) printStudentCertificate(s);
             });
+        }
+
+
 
         // --- NEW: Export and WhatsApp Logic ---
         function exportAccStudentsToExcel() {
@@ -8193,14 +8415,85 @@
 
             document.getElementById('auto-register-modal').style.display = 'flex';
             
-            // Populate Departments
-            const deptSelect = document.getElementById('auto-student-dept');
-            deptSelect.innerHTML = '<option value="">اختر القسم...</option>';
-            if (window.schoolStructure && window.schoolStructure.length > 0) {
-                window.schoolStructure.forEach((dept, dIdx) => {
-                    deptSelect.innerHTML += `<option value="${dIdx}">${dept.name}</option>`;
-                });
+            // Set default branch for the registrar
+            if (currentUser && currentUser.branchId) {
+                document.getElementById('auto-student-branch').value = currentUser.branchId;
             }
+            
+            // Populate Departments
+            updateAutoRegisterDepartments();
+        }
+
+        async function updateAutoRegisterDepartments() {
+            const bId = document.getElementById('auto-student-branch').value;
+            const deptSelect = document.getElementById('auto-student-dept');
+            deptSelect.innerHTML = '<option value="">جاري تحميل الأقسام...</option>';
+
+            // Fetch structure for the selected branch
+            const snap = await firebase.database().ref('settings/branches/' + bId + '/structure').once('value');
+            let structure = [];
+            
+            if (snap.exists()) {
+                structure = snap.val();
+                
+                // If it's primary and missing stages, auto-add them
+                if (bId === 'primary' && structure.length > 0 && structure[0].stages.length < 6) {
+                    const primaryStages = ["الصف الأول", "الصف الثاني", "الصف الثالث", "الصف الرابع", "الصف الخامس", "الصف السادس"];
+                    const existingNames = structure[0].stages.map(s => s.name);
+                    primaryStages.forEach(name => {
+                        if (!existingNames.includes(name)) {
+                            structure[0].stages.push({ name: name, sections: [] });
+                        }
+                    });
+                    // Save the corrected structure
+                    firebase.database().ref('settings/branches/' + bId + '/structure').set(structure);
+                }
+            } else {
+                // Fallback for Defaults
+                if (bId === 'primary') {
+                    structure = [{ 
+                        name: "المرحلة الابتدائية", 
+                        stages: [
+                            { name: "الصف الأول", sections: [] },
+                            { name: "الصف الثاني", sections: [] },
+                            { name: "الصف الثالث", sections: [] },
+                            { name: "الصف الرابع", sections: [] },
+                            { name: "الصف الخامس", sections: [] },
+                            { name: "الصف السادس", sections: [] }
+                        ] 
+                    }];
+                } else {
+                    const vocDepts = [
+                        "الأمن السيبراني", "صيانة الحاسوب", "شبكات الحاسوب",
+                        "تكرير النفط والغاز", "الأجهزة الطبية", "تكنولوجيا الطيران",
+                        "الإلكترونيك والسيطرة", "الكهرباء", "تكنولوجيا الإعلام",
+                        "الإدارة", "المحاسبة"
+                    ];
+                    structure = vocDepts.map(name => ({
+                        name: name,
+                        stages: [
+                            { name: "المرحلة الأولى", sections: [] },
+                            { name: "المرحلة الثانية", sections: [] },
+                            { name: "المرحلة الثالثة", sections: [] }
+                        ]
+                    }));
+                }
+            }
+
+            // Sync with global variable if it's the active branch
+            if (currentUser && bId === currentUser.branchId) window.schoolStructure = structure;
+            
+            // Render to select
+            deptSelect.innerHTML = '<option value="">اختر القسم...</option>';
+            structure.forEach((dept, dIdx) => {
+                deptSelect.innerHTML += `<option value="${dIdx}">${dept.name}</option>`;
+            });
+
+            // Reset stage
+            document.getElementById('auto-student-stage').innerHTML = '<option value="">المرحلة...</option>';
+            
+            // Store current structure for use in submission
+            window.activeAutoRegisterStructure = structure;
         }
 
         function updateAutoRegisterStages() {
@@ -8208,8 +8501,10 @@
             const stageSelect = document.getElementById('auto-student-stage');
             stageSelect.innerHTML = '<option value="">اختر المرحلة...</option>';
             
-            if (deptIdx !== "") {
-                const stages = window.schoolStructure[deptIdx].stages || [];
+            const structure = window.activeAutoRegisterStructure || window.schoolStructure;
+
+            if (deptIdx !== "" && structure[deptIdx]) {
+                const stages = structure[deptIdx].stages || [];
                 stages.forEach((stage, stIdx) => {
                     stageSelect.innerHTML += `<option value="${stIdx}">${stage.name}</option>`;
                 });
@@ -8217,6 +8512,11 @@
         }
 
         function printStudentReceipt(data) {
+            const bId = currentUser ? (currentUser.branchId || 'samawah') : 'samawah';
+            const branch = window.NAHRAIN_BRANCHES[bId];
+            const schoolFullName = branch.name || 'إعدادية النهرين المهنية الأهلية';
+            const logo = branch.logo || 'assets/logo_samawah.jpg';
+
             const iframe = document.createElement('iframe');
             iframe.style.display = 'none';
             document.body.appendChild(iframe);
@@ -8224,130 +8524,185 @@
             const receiptHTML = `
                 <html dir="rtl">
                 <head>
-                    <title>وصل تسجيل - إعدادية النهرين</title>
+                    <title>وصل تسجيل - ${schoolFullName}</title>
                     <style>
-                        body { font-family: 'Arial', Tahoma, sans-serif; text-align: right; background: #fff; color: #000; margin: 0; padding: 20px; }
+                        @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
+                        body { 
+                            font-family: 'Amiri', serif; 
+                            text-align: right; 
+                            background: #fff; 
+                            color: #000; 
+                            margin: 0; 
+                            padding: 0; 
+                        }
+                        .receipt-page {
+                            width: 210mm;
+                            height: 296mm; /* Slightly less than 297mm to ensure it fits one page */
+                            padding: 15mm;
+                            box-sizing: border-box;
+                            display: flex;
+                            flex-direction: column;
+                            margin: 0 auto;
+                            overflow: hidden;
+                        }
                         .receipt-container { 
-                            max-width: 750px; 
-                            margin: 0 auto; 
-                            border: 4px double #0284c7; 
-                            outline: 1px solid #0284c7;
-                            outline-offset: 4px;
-                            padding: 40px; 
-                            border-radius: 8px; 
+                            flex-grow: 1;
+                            border: 4px double #000; 
+                            padding: 30px; 
+                            border-radius: 0; 
                             background: #fff;
+                            display: flex;
+                            flex-direction: column;
                         }
-                        .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 30px; }
-                        .header h1 { margin: 0; font-size: 28px; color: #111; font-weight: bold; }
-                        .header p { margin: 8px 0 0; font-size: 16px; color: #555; }
-                        .content-row { display: flex; justify-content: space-between; margin-bottom: 20px; border-bottom: 1px dashed #ccc; padding-bottom: 8px; font-size: 18px;}
-                        .content-row span.label { font-weight: bold; color: #222; }
-                        .credentials { margin-top: 40px; padding: 25px; background: #fafafa; border: 1px solid #ddd; border-radius: 10px; text-align: center; }
-                        .credentials h3 { margin-top: 0; color: #d32f2f; font-size: 20px;}
-                        .cred-box { font-size: 20px; font-weight: bold; letter-spacing: 2px; color: #0284c7; background: #fff; padding: 8px 20px; border: 2px dashed #0284c7; border-radius: 5px; }
-                        .footer { margin-top: 50px; display: flex; justify-content: space-between; align-items: flex-end; }
-                        @media print {
-                            @page { margin: 15mm; size: A4; }
-                            body { padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                            .receipt-container { max-width: 100%; border: 4px double #000; outline: 1px solid #000; padding: 30px; }
-                            .cred-box { border-color: #000; color: #000; }
+                        .header { 
+                            display: flex; 
+                            justify-content: space-between; 
+                            align-items: center; 
+                            border-bottom: 2px solid #000; 
+                            padding-bottom: 15px; 
+                            margin-bottom: 30px; 
                         }
-                    
-        /* Branch Selection UI */
-        
-        
-        
-        .branch-card:hover {
-            transform: translateY(-5px);
-            border-color: var(--primary);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
-        }
-        .branch-card i {
-            font-size: 3rem;
-            margin-bottom: 15px;
-        }
-        .branch-card h3 {
-            color: #fff;
-            margin: 0 0 5px 0;
-            font-size: 1.2rem;
-        }
-        .branch-card p {
-            color: #8892b0;
-            margin: 0;
-            font-size: 0.9rem;
-        }
-        /* Specific Colors for cards */
-        .card-samawah i { color: #2196f3; }
-        .card-samawah:hover { box-shadow: 0 10px 20px rgba(33, 150, 243, 0.2); }
-        
-        .card-babylon i { color: #4caf50; }
-        .card-babylon:hover { box-shadow: 0 10px 20px rgba(76, 175, 80, 0.2); }
-        
-        .card-evening i { color: #ff9800; }
-        .card-evening:hover { box-shadow: 0 10px 20px rgba(255, 152, 0, 0.2); }
-        
-        .card-primary i { color: #e91e63; }
-        .card-primary:hover { box-shadow: 0 10px 20px rgba(233, 30, 99, 0.2); }
+                        .header-text { text-align: center; flex-grow: 1; }
+                        .header h1 { margin: 0; font-size: 28px; color: #000; font-weight: bold; }
+                        .header p { margin: 5px 0 0; font-size: 16px; color: #333; }
+                        .logo { height: 90px; width: auto; }
 
-    </style>
+                        .content-body { flex-grow: 1; }
+                        .content-row { 
+                            display: flex; 
+                            justify-content: space-between; 
+                            margin-bottom: 20px; 
+                            border-bottom: 1px dashed #aaa; 
+                            padding-bottom: 8px; 
+                            font-size: 18px;
+                        }
+                        .content-row span.label { font-weight: bold; color: #000; }
+                        
+                        .credentials { 
+                            margin-top: 30px; 
+                            padding: 20px; 
+                            background: #f9f9f9; 
+                            border: 2px solid #000; 
+                            text-align: center; 
+                        }
+                        .credentials h3 { margin-top: 0; color: #000; font-size: 20px; text-decoration: underline; }
+                        .cred-box { 
+                            font-size: 22px; 
+                            font-weight: bold; 
+                            color: #000; 
+                            background: #fff; 
+                            padding: 8px 20px; 
+                            border: 2px solid #000; 
+                            display: inline-block;
+                            margin: 5px;
+                        }
+                        
+                        .footer { 
+                            margin-top: auto; 
+                            display: flex; 
+                            justify-content: space-between; 
+                            align-items: flex-end; 
+                            padding-top: 30px;
+                        }
+                        .sig-area { text-align: center; }
+                        .sig-line { margin-top: 50px; border-top: 1px solid #000; width: 180px; margin-left: auto; margin-right: auto; }
+
+                        @media print {
+                            @page { margin: 0; size: A4; }
+                            body { margin: 0; padding: 0; }
+                            .receipt-page { 
+                                width: 210mm; 
+                                height: 297mm; 
+                                padding: 15mm; 
+                                border: none; 
+                                page-break-after: avoid;
+                            }
+                        }
+                    </style>
                 </head>
                 <body>
-                    <div class="receipt-container">
-                        <div class="header">
-                            <h1>إعدادية النهرين المهنية</h1>
-                            <p>وصل تسجيل الطالب الموحد - نسخة الطالب</p>
-                        </div>
-                        
-                        <div class="content-row">
-                            <span class="label">تاريخ التسجيل:</span>
-                            <span>${new Date().toLocaleDateString('ar-IQ')}</span>
-                        </div>
-                        <div class="content-row">
-                            <span class="label">الاسم الرباعي للطالب:</span>
-                            <span>${data.name}</span>
-                        </div>
-                        <div class="content-row">
-                            <span class="label">القسم والمرحلة:</span>
-                            <span>${data.deptName} - ${data.stageName}</span>
-                        </div>
-                        <div class="content-row">
-                            <span class="label">شعبة الفرز:</span>
-                            <span>${data.sectionName}</span>
-                        </div>
-                        <div class="content-row">
-                            <span class="label">إيصال مبلغ:</span>
-                            <span>${data.receipt}</span>
-                        </div>
-                        <div class="content-row">
-                            <span class="label">حالة جلب الوثيقة:</span>
-                            <span>${data.documentStatus}</span>
-                        </div>
-                        
-                        <div class="credentials">
-                            <h3>🔐 معلومات الدخول لمنصة الطالب</h3>
-                            <p style="font-size: 13px; color: #555; margin-bottom: 15px;">يرجى الاحتفاظ بهذه المعلومات لتسجيل الدخول إلى النظام لاحقاً لمتابعة الدرجات والغيابات</p>
-                            <div style="margin-top:15px;">
-                                <span class="label">رمز الدخول (المستخدم): </span>
-                                <span class="cred-box" style="direction: ltr; display: inline-block;">${data.loginCode}</span>
+                    <div class="receipt-page">
+                        <div class="receipt-container">
+                            <div class="header">
+                                <div style="text-align: right; font-size: 0.9rem;">
+                                    <p>المديرية العامة لتربية المثنى</p>
+                                    <p>${schoolFullName}</p>
+                                </div>
+                                <div class="header-text">
+                                    <img src="${logo}" class="logo">
+                                    <h1>وصل تسجيل طالب</h1>
+                                    <p>نسخة الطالب - للعام الدراسي 2025/2026</p>
+                                </div>
+                                <div style="text-align: left; font-size: 0.9rem;">
+                                    <p>Al-Nahrain School</p>
+                                    <p>Registration Receipt</p>
+                                </div>
                             </div>
-                            <div style="margin-top:15px;">
-                                <span class="label">كلمة المرور السريّة: </span>
-                                <span class="cred-box" style="direction: ltr; display: inline-block;">${data.password}</span>
+                            
+                            <div class="content-body">
+                                <div class="content-row">
+                                    <span class="label">تاريخ التسجيل:</span>
+                                    <span>${new Date().toLocaleDateString('ar-IQ')} م</span>
+                                </div>
+                                <div class="content-row">
+                                    <span class="label">الاسم الرباعي للطالب:</span>
+                                    <span style="font-size: 22px; font-weight: bold;">${data.name}</span>
+                                </div>
+                                <div class="content-row">
+                                    <span class="label">القسم والمرحلة:</span>
+                                    <span>${data.deptName} - ${data.stageName}</span>
+                                </div>
+                                <div class="content-row">
+                                    <span class="label">شعبة الفرز:</span>
+                                    <span style="font-weight: bold;">${data.sectionName}</span>
+                                </div>
+                                <div class="content-row">
+                                    <span class="label">حالة جلب الوثيقة المدرسية:</span>
+                                    <span>${data.documentStatus}</span>
+                                </div>
+                                
+                                <div class="credentials">
+                                    <h3>🔐 معلومات الدخول للمنصة الإلكترونية</h3>
+                                    <p style="font-size: 15px; margin-bottom: 20px;">يرجى الاحتفاظ بهذه البيانات لتسجيل الدخول ومتابعة الدرجات والغيابات</p>
+                                    <div>
+                                        <span class="label">اسم المستخدم: </span>
+                                        <span class="cred-box" style="direction: ltr;">${data.loginCode}</span>
+                                    </div>
+                                    <div style="margin-top: 10px;">
+                                        <span class="label">كلمة المرور: </span>
+                                        <span class="cred-box" style="direction: ltr;">${data.password}</span>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                        
-                        <div class="footer">
-                            <div style="text-align: right;">
-                                <p style="margin-bottom: 25px; font-weight: bold; color: #333;">الختم والتوقيع:</p>
-                                <p style="color: #666;">.........................................</p>
-                                <p style="font-size: 13px; color: #888; margin-top:5px;">موظف التسجيل</p>
-                            </div>
-                            <div style="text-align: left; max-width: 300px; font-size: 14px; color: #555;">
-                                <p>مرحباً بك في إعدادية النهرين المهنية! نتمنى لك عاماً دراسياً متميزاً ومليئاً بالنجاح والتفوق.</p>
+                            
+                            <div class="footer">
+                                <div class="sig-area">
+                                    <p style="font-weight: bold;">ختم وتوقيع الإدارة</p>
+                                    <div class="sig-line"></div>
+                                </div>
+                                <div style="text-align: left; max-width: 350px; font-size: 16px;">
+                                    <p>تمنياتنا لك بعام دراسي مليء بالنجاح والتفوق في رحاب مدرستنا.</p>
+                                    <p style="font-size: 12px; color: #666; margin-top: 20px;">تاريخ الطباعة: ${new Date().toLocaleString('ar-IQ')}</p>
+                                </div>
                             </div>
                         </div>
                     </div>
+                </body>
+                </html>
+            `;
                 
+            iframe.contentWindow.document.open();
+            iframe.contentWindow.document.write(receiptHTML);
+            iframe.contentWindow.document.close();
+            
+            setTimeout(() => {
+                iframe.contentWindow.focus();
+                iframe.contentWindow.print();
+                setTimeout(() => { document.body.removeChild(iframe); }, 1000);
+            }, 500);
+        }
+                
+    </script>
 
 <!-- Student Account Management Modal -->
             <div id="acc-student-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; z-index:100000; width:90%; max-width:500px; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,0.2); border:1px solid #e0dcd3; padding:20px; direction:rtl;">
@@ -8474,21 +8829,9 @@
                 </div>
             </div>
 
-</body>
-                </html>
-            `;
-            
-            iframe.contentWindow.document.open();
-            iframe.contentWindow.document.write(receiptHTML);
-            iframe.contentWindow.document.close();
-            
-            setTimeout(() => {
-                iframe.contentWindow.focus();
-                iframe.contentWindow.print();
-                setTimeout(() => document.body.removeChild(iframe), 1500);
-            }, 500);
-        }
+            </div>
 
+    <script>
         async function submitAutoRegister() {
             const name = document.getElementById('auto-student-name').value.trim();
             if (name === 'جاري المعالجة والفرز...') return; // Prevent double submission
@@ -8497,7 +8840,6 @@
             const deptIdx = document.getElementById('auto-student-dept').value;
             const stageIdx = document.getElementById('auto-student-stage').value;
             const prevSchool = document.getElementById('auto-student-prev-school').value.trim();
-            const receipt = document.getElementById('auto-student-receipt').value.trim() || 'مجاني';
             const documentStatus = document.getElementById('auto-student-document').value;
             const attachmentInput = document.getElementById('auto-student-attachment');
             const attachmentName = attachmentInput.files.length > 0 ? attachmentInput.files[0].name : "";
@@ -8507,7 +8849,8 @@
                 return;
             }
 
-            const dept = window.schoolStructure[deptIdx];
+            const structure = window.activeAutoRegisterStructure || window.schoolStructure;
+            const dept = structure[deptIdx];
             const stage = dept.stages[stageIdx];
             let sections = stage.sections || [];
             
@@ -8544,6 +8887,8 @@
                     }
                 }
 
+                const bId = document.getElementById('auto-student-branch').value;
+
                 // If no section found or all sections are full (>= 30), create a new one!
                 if (!assignedSectionId) {
                     const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -8556,8 +8901,7 @@
                     stage.sections = sections;
                     
                     // Save updated structure to DB
-                    let bId = currentUser ? (currentUser.branchId || 'samawah') : 'samawah';
-                    await firebase.database().ref('settings/branches/' + bId + '/structure').set(window.schoolStructure);
+                    await firebase.database().ref('settings/branches/' + bId + '/structure').set(structure);
                 }
 
                 // Register student to the assigned section
@@ -8569,15 +8913,23 @@
                     password: password,
                     phone: phone,
                     classId: assignedSectionId,
+                    branchId: bId,
                     role: 'student',
                     joined: new Date().toISOString(),
                     prevSchool: prevSchool,
-                    receipt: receipt,
                     documentStatus: documentStatus,
                     attachment: attachmentName
                 };
 
                 await firebase.database().ref('users/' + uid).set(studentData);
+
+                // Close modal and clear fields immediately
+                document.getElementById('auto-register-modal').style.display = 'none';
+                document.getElementById('auto-student-name').value = '';
+                document.getElementById('auto-student-phone').value = '';
+                document.getElementById('auto-student-prev-school').value = '';
+                document.getElementById('auto-student-document').value = 'لم يجلب';
+                document.getElementById('auto-student-attachment').value = '';
 
                 // Create a beautiful success message with the login credentials
                 const printConfirm = await confirm(`✅ تم تسجيل الطالب وفرزه بنجاح!\n\nاسم الطالب: ${name}\nالفرز: ${dept.name} - ${stage.name} - ${assignedSectionName}\n\nهل ترغب بطباعة وصل التسجيل الآن لتسليمه للطالب؟`, "طباعة الوصل");
@@ -8588,20 +8940,11 @@
                         deptName: dept.name,
                         stageName: stage.name,
                         sectionName: assignedSectionName,
-                        receipt: receipt,
                         documentStatus: documentStatus,
                         loginCode: loginCode,
                         password: password
                     });
                 }
-                
-                document.getElementById('auto-register-modal').style.display = 'none';
-                document.getElementById('auto-student-name').value = '';
-                document.getElementById('auto-student-phone').value = '';
-                document.getElementById('auto-student-prev-school').value = '';
-                document.getElementById('auto-student-receipt').value = '';
-                document.getElementById('auto-student-document').value = 'لم يجلب';
-                document.getElementById('auto-student-attachment').value = '';
                 
                 // Refresh UI
                 if (typeof renderAdminLists === 'function') renderAdminLists();
@@ -8686,8 +9029,17 @@
                 const finSnap = await firebase.database().ref('finance').once('value');
                 const defaultsSnap = await firebase.database().ref('financialSettings/defaults').once('value');
                 
+                // Ensure school structure is loaded for the current branch
+                if (!window.schoolStructure || window.schoolStructure.length === 0) {
+                    const structSnap = await firebase.database().ref('settings/branches/' + userBranchId + '/structure').once('value');
+                    if (structSnap.exists()) {
+                        window.schoolStructure = structSnap.val();
+                    }
+                }
+                
                 const users = usersSnap.val() || {};
                 const finance = finSnap.val() || { revenues: {}, expenses: {} };
+                accountantFinance.defaults = defaultsSnap.val() || {};
                 
                 // Strip out base64 attachments immediately to free memory
                 accountantStudents = Object.keys(users)
@@ -8808,7 +9160,7 @@
                             let paid = studentPayments[s.uid] || 0;
                                 
                             let safeName = (s.name || '').replace(/'/g, "\\'");
-                            let tuition = Number(s.finance?.tuition) || Number(accountantFinance.defaults[s.classId]) || 0;
+                            let tuition = (s.finance && s.finance.tuition !== undefined && s.finance.tuition !== "") ? Number(s.finance.tuition) : (Number(accountantFinance.defaults[s.classId]) || 0);
                             let transportFee = Number(s.finance?.transportFee) || 0;
                             let discount = Number(s.finance?.discount) || 0;
                             
@@ -8832,6 +9184,7 @@
                                     <td>
                                         <button class="acc-btn-primary" style="padding: 5px 10px; font-size:0.8rem;" onclick="openAccStudentPayment('${s.uid}', '${safeName}')">تسديد ➕</button>
                                         <button class="acc-btn-primary" style="padding: 5px 10px; font-size:0.8rem; background:#673ab7;" onclick="openAccStudentManage('${s.uid}', '${safeName}', ${tuition}, ${discount}, '${s.finance?.discountNote || ''}', ${transportFee}, '${s.finance?.transportRoute || ''}')">إدارة ⚙️</button>
+                                        <button class="acc-btn-primary" style="padding: 5px 10px; font-size:0.8rem; background:#5d4037;" onclick="printAdmissionApproval('${s.uid}', '${safeName}', '${readableClass}')">📄 عدم ممانعة</button>
                                     </td>
                                 </tr>
                             `;
@@ -8887,6 +9240,7 @@
                         
                         let categoryBadge = `<span style="background:#eee; padding:2px 6px; border-radius:4px; font-size:0.8rem;">${e.category || 'أخرى'}</span>`;
                         let safeNote = (e.note || '').replace(/'/g, "\\'");
+                        
                         expHtml += `<tr>
                             <td>${dateObj.toLocaleString('en-US')}</td>
                             <td>${categoryBadge}</td>
@@ -8902,8 +9256,12 @@
                     tbodyExp.innerHTML = expHtml;
                 }
                 
-                // 5. Render HR & Payroll Table
-                const tbodyHR = document.querySelector('#acc-hr-table tbody');
+                // Update stats
+                renderAccountantCharts();
+
+        
+        // 5. Render HR & Payroll Table
+        const tbodyHR = document.querySelector('#acc-hr-table tbody');
                 if(tbodyHR) {
                     if (accountantStaff.length === 0) {
                         tbodyHR.innerHTML = '<tr><td colspan="7" style="text-align:center;">لا يوجد موظفين مسجلين.</td></tr>';
@@ -8984,6 +9342,49 @@
                 console.error("Render UI Error:", err);
                 alert("حدث خطأ في عرض البيانات: " + err.message);
             }
+        }
+
+
+
+        function printAdmissionApprovalFinal() {
+            const content = document.getElementById('admission-document-content').innerHTML;
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            document.body.appendChild(iframe);
+            
+            const printHTML = `
+                <html>
+                <head>
+                    <title>استمارة قبول طالب</title>
+                    <style>
+                        @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
+                        body { 
+                            direction: rtl; 
+                            font-family: 'Amiri', serif; 
+                            padding: 20mm; 
+                            color: #000;
+                            line-height: 1.8;
+                        }
+                        @media print {
+                            body { padding: 0; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    ${content}
+                    <script>
+                        window.onload = function() {
+                            window.print();
+                            setTimeout(() => { window.parent.document.body.removeChild(window.frameElement); }, 1000);
+                        };
+                    <\/script>
+                </body>
+                </html>
+            `;
+            
+            iframe.contentWindow.document.open();
+            iframe.contentWindow.document.write(printHTML);
+            iframe.contentWindow.document.close();
         }
 
 
@@ -9209,6 +9610,7 @@
                 category: category || null,
                 timestamp: Date.now(),
                 addedBy: currentUser ? currentUser.name : 'محاسب',
+                branchId: currentUser ? (currentUser.branchId || 'samawah') : 'samawah',
                 studentUid: passedUid || null
             };
             
@@ -9225,15 +9627,7 @@
             }
         }
 
-        function openAccStudentPayment(uid, name) {
-            let amt = prompt(`إدخال مبلغ تسديد للطالب: ${name}\nالرجاء كتابة المبلغ بالدينار العراقي:`);
-            if (amt) {
-                let note = prompt(`ملاحظات الدفعة (مثال: القسط الثاني):`);
-                if (note !== null) {
-                    addAccTransaction('revenue', uid, note || `دفعة من الطالب ${name}`, amt);
-                }
-            }
-        }
+
         
         function openAccStudentManage(uid, name, tuition, discount, note, transportFee, transportRoute) {
             document.getElementById('acc-modal-uid').value = uid;
@@ -9405,6 +9799,7 @@
                 category: category,
                 timestamp: Date.now(),
                 addedBy: currentUser ? currentUser.name : 'محاسب',
+                branchId: currentUser ? (currentUser.branchId || 'samawah') : 'samawah',
                 studentUid: null
             };
             
@@ -9896,6 +10291,23 @@
                 </div>
                 </div>
             </div>
+
+    <!-- Admission Approval Modal -->
+    <div id="admission-approval-modal" class="cyber-modal" style="display:none; position:fixed; top:5%; left:5%; width: 90%; max-width: 900px; height: 90vh; padding: 0; background: #fff; color: #000; overflow: hidden; font-family: 'Amiri', serif; flex-direction: column; z-index: 999999; box-shadow: 0 0 100px rgba(0,0,0,0.8);">
+        <div style="background: #f5f5f5; padding: 15px 25px; border-bottom: 2px solid #ddd; display: flex; justify-content: space-between; align-items: center; z-index: 100;">
+            <h3 style="margin: 0; color: #333;"><i class="fa-solid fa-file-signature"></i> تحرير استمارة قبول طالب (عدم ممانعة)</h3>
+            <div style="display:flex; gap:10px;">
+                <button onclick="printAdmissionApprovalFinal()" class="acc-btn-primary" style="background: #2e7d32; border: none; padding: 8px 20px; font-weight: bold;"><i class="fa-solid fa-print"></i> طباعة الوثيقة</button>
+                <button onclick="document.getElementById('admission-approval-modal').style.display='none'" class="acc-btn-danger" style="border: none; padding: 8px 20px; font-weight: bold;"><i class="fa-solid fa-xmark"></i> إغلاق</button>
+            </div>
+        </div>
+        
+        <div style="flex: 1; overflow-y: auto; background: #555; padding: 40px 0; display: flex; justify-content: center;">
+            <div id="admission-document-content" contenteditable="true" style="width: 210mm; min-height: 297mm; background: #fff; padding: 20mm; box-shadow: 0 0 20px rgba(0,0,0,0.5); line-height: 1.8; font-size: 1.2rem; text-align: right; color: #000;">
+                <!-- Content will be injected via JS -->
+            </div>
+        </div>
+    </div>
 
 </body>
 </html>
