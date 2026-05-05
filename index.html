@@ -2372,7 +2372,7 @@
         <div class="acc-container">
             <div class="acc-header">
                 <h2>📊 النظام المالي والمحاسبي</h2>
-                <h3 class="school-name" style="color: #6d4c41; margin-top: 10px; font-weight: bold; background: rgba(255,255,255,0.5); display: inline-block; padding: 5px 15px; border-radius: 20px; font-size: 1.1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">إعدادية النهرين المهنية - اللوحة الخاصة بموظف الحسابات</h3>
+                <h3 id="acc-branch-title" class="school-name" style="color: #6d4c41; margin-top: 10px; font-weight: bold; background: rgba(255,255,255,0.5); display: inline-block; padding: 5px 15px; border-radius: 20px; font-size: 1.1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">إعدادية النهرين المهنية - اللوحة الخاصة بموظف الحسابات</h3>
                 <div style="margin-top:10px;">
                     <button class="acc-btn-primary branch-switch-btn" style="background:#e91e63; display:none; padding:8px 20px;" onclick="showBranchSelection()">🏢 تبديل المدرسة/الفرع</button>
                 </div>
@@ -6024,7 +6024,7 @@
                 Object.keys(users).forEach(uid => {
                     const u = users[uid];
                     if (u.role === 'student') {
-                    if (u.branchId !== currentUser.branchId && !(currentUser.branchId === "samawah" && !u.branchId)) return;
+                    if (u.branchId !== currentUser.branchId) return;
                         const nameMatch = (u.name || '').toLowerCase().includes(searchVal);
                         const emailMatch = (u.email || '').toLowerCase().includes(searchVal);
                         if (searchVal && !nameMatch && !emailMatch) return;
@@ -6133,7 +6133,7 @@
 
                 Object.keys(users).forEach(uid => {
                     const u = users[uid];
-                    if ((u.role === 'teacher' || u.role === 'admin') && (u.branchId === currentUser.branchId || (currentUser.branchId === "samawah" && !u.branchId) || u.isSuperAdmin || currentUser.email === 'hassanhadi19996@gmail.com')) {
+                    if ((u.role === 'teacher' || u.role === 'admin' || u.role === 'accountant') && (u.branchId === currentUser.branchId || u.isSuperAdmin || currentUser.email === 'hassanhadi19996@gmail.com')) {
                         found = true;
                         let code = u.loginCode || uid;
                         if (code.length > 15) code = code.substring(0, 8) + '...';
@@ -9043,7 +9043,7 @@
                 
                 // Strip out base64 attachments immediately to free memory
                 accountantStudents = Object.keys(users)
-                    .filter(k => users[k].role === 'student' && (users[k].branchId === userBranchId || (userBranchId === "samawah" && !users[k].branchId)))
+                    .filter(k => users[k].role === 'student' && users[k].branchId === userBranchId)
                     .map(k => {
                         let u = users[k];
                         return { 
@@ -9057,7 +9057,7 @@
                     });
                     
                 accountantStaff = Object.keys(users)
-                    .filter(k => (users[k].role === 'teacher' || users[k].role === 'admin' || users[k].role === 'accountant') && (users[k].branchId === userBranchId || (userBranchId === "samawah" && !users[k].branchId)))
+                    .filter(k => (users[k].role === 'teacher' || users[k].role === 'admin' || users[k].role === 'accountant') && users[k].branchId === userBranchId)
                     .map(k => {
                         let u = users[k];
                         return { 
@@ -9068,8 +9068,8 @@
                         };
                     });
                     
-                accountantFinance.revenues = Object.values(finance.revenues || {}).filter(r => r.branchId === userBranchId || (userBranchId === "samawah" && !r.branchId));
-                accountantFinance.expenses = Object.values(finance.expenses || {}).filter(e => e.branchId === userBranchId || (userBranchId === "samawah" && !e.branchId));
+                accountantFinance.revenues = Object.values(finance.revenues || {}).filter(r => r && r.branchId === userBranchId);
+                accountantFinance.expenses = Object.values(finance.expenses || {}).filter(e => e && e.branchId === userBranchId);
                 
                 // Yield again before heavy DOM rendering
                 await new Promise(r => setTimeout(r, 50));
@@ -9107,6 +9107,12 @@
             renderFinancialSettings();
             try {
                 // 0. Pre-calculate all student payments into a dictionary (O(N+M) instead of O(N*M))
+                // Update Branch Title
+                const bId = currentUser ? (currentUser.branchId || 'samawah') : 'samawah';
+                const branchName = window.NAHRAIN_BRANCHES[bId] ? window.NAHRAIN_BRANCHES[bId].name : 'إعدادية النهرين';
+                const titleEl = document.getElementById('acc-branch-title');
+                if (titleEl) titleEl.innerText = branchName;
+                
                 let studentPayments = {};
                 if(accountantFinance.revenues && accountantFinance.revenues.length > 0) {
                     accountantFinance.revenues.forEach(r => {
@@ -9257,7 +9263,6 @@
                 }
                 
                 // Update stats
-                renderAccountantCharts();
 
         
         // 5. Render HR & Payroll Table
