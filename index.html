@@ -59,7 +59,7 @@
                 const branch = window.NAHRAIN_BRANCHES[bId];
                 if (!branch) throw new Error("Branch data not found: " + bId);
                 
-                const logo = branch.logo || 'assets/logo_samawah.jpg';
+                const logo = branch.logo || 'logo_samawah.jpg';
                 const schoolFullName = branch.name || 'إعدادية النهرين المهنية الأهلية';
                 
                 const today = new Date();
@@ -4744,22 +4744,22 @@
         window.NAHRAIN_BRANCHES = {
             'samawah': { 
                 name: 'إعدادية النهرين المهنية الأهلية - السماوة', 
-                logo: 'assets/logo_samawah.jpg',
+                logo: 'logo_samawah.jpg',
                 color: '#003366' 
             },
             'primary': { 
                 name: 'مدرسة النهرين الابتدائية الدولية - السماوة', 
-                logo: 'assets/logo_primary.jpg',
+                logo: 'logo_primary.jpg',
                 color: '#e91e63' 
             },
             'babylon': { 
                 name: 'إعدادية النهرين المهنية الأهلية - بابل', 
-                logo: 'assets/logo_babylon.png',
+                logo: 'logo_babylon.png',
                 color: '#004d40' 
             },
             'evening': { 
                 name: 'إعدادية النهرين المهنية - المسائية', 
-                logo: 'assets/logo_evening.png',
+                logo: 'logo_evening.png',
                 color: '#1a237e' 
             }
         };
@@ -4789,7 +4789,7 @@
                     img.src = branch.logo;
                     img.onerror = () => { 
                         console.error("Failed to load logo:", branch.logo);
-                        img.src = 'assets/logo.jpg'; // Ultimate fallback
+                        img.src = 'logo.jpg'; // Ultimate fallback
                     };
                 });
                 
@@ -8515,7 +8515,7 @@
             const bId = currentUser ? (currentUser.branchId || 'samawah') : 'samawah';
             const branch = window.NAHRAIN_BRANCHES[bId];
             const schoolFullName = branch.name || 'إعدادية النهرين المهنية الأهلية';
-            const logo = branch.logo || 'assets/logo_samawah.jpg';
+            const logo = branch.logo || 'logo_samawah.jpg';
 
             const iframe = document.createElement('iframe');
             iframe.style.display = 'none';
