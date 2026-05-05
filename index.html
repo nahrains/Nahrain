@@ -2877,6 +2877,9 @@
                     <button class="btn-glow"
                         style="background:#673ab7; border-color:#5e35b1; font-size:0.85rem; padding:8px 15px;"
                         onclick="adminChangePassword()">🔑 تغيير كلمة السر</button>
+                    <button class="btn-glow" 
+                        style="background:#c62828; border-color:#b71c1c; font-size:0.85rem; padding:8px 15px;" 
+                        onclick="systemHardReset()">💣 تصفير النظام</button>
                     <button id="btn-branch-switch" class="btn-glow branch-switch-btn"
                         style="background:#e91e63; border-color:#c2185b; font-size:0.85rem; padding:8px 15px; display:none;"
                         onclick="showBranchSelection()">🏢 تبديل الفرع</button>
@@ -3354,12 +3357,10 @@
 
                     Object.keys(users).forEach(uid => {
                         const u = users[uid];
-                        // Auto-fill student role if missing but email is student-like
                         if (!u.role) {
                             updates[`users/${uid}/role`] = 'student';
                             fixCount++;
                         }
-                        // Sync classId and major
                         if (u.role === 'student' && !u.classId && u.major) {
                             updates[`users/${uid}/classId`] = u.major;
                             fixCount++;
@@ -3375,6 +3376,44 @@
                         alert("✅ قاعدة البيانات سليمة، لا توجد أخطاء لإصلاحها.");
                     }
                 });
+            }
+
+            async function systemHardReset() {
+                if (!currentUser || (!currentUser.isSuperAdmin && currentUser.email !== 'hassanhadi19996@gmail.com')) {
+                    alert("عذراً، هذه الصلاحية للمدير العام فقط!");
+                    return;
+                }
+                
+                if (!confirm("⚠️ تحذير شديد! أنت على وشك حذف جميع الطلاب وجميع الحسابات المالية وجميع الموظفين (باستثناء المدراء). هل تريد الاستمرار؟")) return;
+                const code = await prompt("أدخل كلمة 'تصفير' للتأكيد النهائي:");
+                if (code !== 'تصفير') return;
+
+                showCustomAlert("جاري التصفير", "يتم الآن حذف كافة البيانات التجريبية...", "info");
+                
+                try {
+                    // Delete Finance & Attendance & Notifications
+                    await firebase.database().ref('finance').set(null);
+                    await firebase.database().ref('attendance').set(null);
+                    await firebase.database().ref('notifications').set(null);
+                    await firebase.database().ref('messages').set(null);
+                    
+                    // Delete Users except admins/superadmins
+                    const snap = await firebase.database().ref('users').once('value');
+                    const users = snap.val() || {};
+                    const updates = {};
+                    Object.keys(users).forEach(uid => {
+                        const u = users[uid];
+                        if (uid !== currentUser.uid && u.email !== 'hassanhadi19996@gmail.com' && !u.isSuperAdmin && u.role !== 'admin' && u.role !== 'accountant') {
+                            updates[uid] = null;
+                        }
+                    });
+                    await firebase.database().ref('users').update(updates);
+                    
+                    showCustomAlert("نجاح", "تم تصفير النظام بالكامل بنجاح ✅", "success");
+                    setTimeout(() => location.reload(), 1500);
+                } catch(e) {
+                    alert("حدث خطأ أثناء التصفير: " + e.message);
+                }
             }
 
             // --- REPORT PRINTING FUNCTIONS ---
