@@ -4709,6 +4709,9 @@
                         sessionStorage.setItem('activeBranch', branchId);
                         applyBranchIdentity();
                         
+                        // Clear cached school structure so it reloads for the new branch
+                        window.schoolStructure = [];
+                        
                         // Force data refresh
                         if (document.getElementById('admin-dash').style.display === 'block') {
                             if (typeof renderAdminLists === 'function') renderAdminLists();
@@ -8988,6 +8991,10 @@
                 // Refresh UI
                 if (typeof renderAdminLists === 'function') renderAdminLists();
                 if (typeof updateFiltersAndSelects === 'function') updateFiltersAndSelects();
+                // Auto-refresh accountant dashboard so new student appears immediately
+                if (typeof loadAccountantData === 'function' && document.getElementById('accountant-dash') && document.getElementById('accountant-dash').style.display === 'block') {
+                    loadAccountantData();
+                }
 
             } catch (err) {
                 console.error(err);
@@ -9068,12 +9075,14 @@
                 const finSnap = await firebase.database().ref('finance').once('value');
                 const defaultsSnap = await firebase.database().ref('financialSettings/defaults').once('value');
                 
-                // Ensure school structure is loaded for the current branch
-                if (!window.schoolStructure || window.schoolStructure.length === 0) {
-                    const structSnap = await firebase.database().ref('settings/branches/' + userBranchId + '/structure').once('value');
-                    if (structSnap.exists()) {
-                        window.schoolStructure = structSnap.val();
-                    }
+                // Always reload school structure for the current branch (never use cached structure)
+                const structSnap = await firebase.database().ref('settings/branches/' + userBranchId + '/structure').once('value');
+                if (structSnap.exists()) {
+                    window.schoolStructure = structSnap.val();
+                    console.log('Loaded structure for branch:', userBranchId, '- Depts:', window.schoolStructure.length);
+                } else {
+                    window.schoolStructure = [];
+                    console.warn('No structure found for branch:', userBranchId);
                 }
                 
                 const users = usersSnap.val() || {};
