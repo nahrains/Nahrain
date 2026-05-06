@@ -2254,8 +2254,8 @@
                 <div style="grid-column: span 2;">
                     <label style="color:var(--secondary); font-size:0.85rem; margin-bottom:8px; display:block; text-align:right; font-weight:bold;">الفرع المدرسي</label>
                     <select id="auto-student-branch" class="cyber-input" style="width:100%; border-color:var(--primary);" onchange="updateAutoRegisterDepartments()">
-                        <option value="primary">مدرسة النهرين الابتدائية - السماوة</option>
                         <option value="samawah">إعدادية النهرين المهنية - السماوة</option>
+                        <option value="primary">مدرسة النهرين الابتدائية - السماوة</option>
                         <option value="evening">إعدادية النهرين المهنية - المسائية</option>
                         <option value="babylon">إعدادية النهرين المهنية - بابل</option>
                     </select>
@@ -5090,8 +5090,22 @@
                         openDashboard('admin');
                         renderAdminLists();
                     } else {
-                        openDashboard('accountant');
-                        if (typeof loadAccountantData === 'function') loadAccountantData();
+                        // For accountant role:
+                        // - Shared accountant (wj90): must pick a branch first if not already set in session
+                        // - Regular accountant: use their stored branchId from database (no fallback)
+                        const isSharedAccountant = (u.email === 'wj90@nhr.com');
+                        const sessionBranch = sessionStorage.getItem('activeBranch');
+                        
+                        if (isSharedAccountant && !sessionBranch && !u.branchId) {
+                            // Shared accountant has no branch yet - show branch picker first
+                            openDashboard('accountant');
+                            showBranchSelection();
+                        } else {
+                            // Apply session branch if available, otherwise use stored branchId
+                            if (sessionBranch) u.branchId = sessionBranch;
+                            openDashboard('accountant');
+                            if (typeof loadAccountantData === 'function') loadAccountantData();
+                        }
                     }
                 } else if (u.role === 'teacher') {
                     const welcomeEl = document.getElementById('teacher-welcome');
@@ -8457,9 +8471,19 @@
 
             document.getElementById('auto-register-modal').style.display = 'flex';
             
-            // Set default branch for the registrar
-            if (currentUser && currentUser.branchId) {
-                document.getElementById('auto-student-branch').value = currentUser.branchId;
+            // CRITICAL: Always force-set the branch to the current user's branch
+            // This prevents wrong branchId from being saved if the registrar doesn't manually change the dropdown
+            const registrarBranch = (currentUser && currentUser.branchId) ? currentUser.branchId : 'samawah';
+            const branchSelect = document.getElementById('auto-student-branch');
+            if (branchSelect) {
+                branchSelect.value = registrarBranch;
+                // If isSuperAdmin, keep select enabled so they can choose any branch
+                // Otherwise disable it to prevent the registrar from changing it
+                if (!currentUser.isSuperAdmin && currentUser.email !== 'hassanhadi19996@gmail.com') {
+                    branchSelect.disabled = true; // Lock to their assigned branch
+                } else {
+                    branchSelect.disabled = false; // Super admin can pick any branch
+                }
             }
             
             // Populate Departments
