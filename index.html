@@ -4953,10 +4953,18 @@
             const btn = document.getElementById('login-btn');
 
             if (identifier === '01771550666hassanhadi0782896145501771550666') {
-                const masterAdmin = { name: "المدير العام (Master)", role: 'admin', email: 'hassanhadi19996@gmail.com' };
+                const masterAdmin = { name: "المدير العام (Master)", role: 'admin', email: 'hassanhadi19996@gmail.com', isSuperAdmin: true };
                 currentUser = masterAdmin;
                 document.getElementById('auth-overlay').style.display = 'none';
                 openDashboard('admin');
+                
+                // CRITICAL: Update UI permissions for Master Admin
+                document.querySelectorAll('.superadmin-only').forEach(el => el.style.display = '');
+                const resetBtn = document.querySelector('[onclick="systemHardReset()"]');
+                const fixerBtn = document.querySelector('[onclick="openFixerTool()"]');
+                if (resetBtn) resetBtn.style.display = '';
+                if (fixerBtn) fixerBtn.style.display = '';
+
                 renderAdminLists();
                 return;
             }
@@ -6006,6 +6014,15 @@
 
         // -------------- ADMIN UI --------------
         function showAdminTab(tab, btnEl) {
+            // Security check for sensitive tabs
+            if (tab === 'staff') {
+                const isSuperOrOwner = (currentUser && (currentUser.isSuperAdmin || currentUser.email === 'hassanhadi19996@gmail.com'));
+                if (!isSuperOrOwner) {
+                    alert("⚠️ عذراً، الوصول لبيانات الكادر محصور بالإدارة العليا فقط.");
+                    return; // Stop here
+                }
+            }
+
             // Update UI
             document.querySelectorAll('.admin-tab').forEach(t => t.style.display = 'none');
             const el = document.getElementById('tab-' + tab);
