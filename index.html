@@ -2234,6 +2234,14 @@
                 <option value="registrar">موظف تسجيل (Registrar)</option>
             </select>
 
+            <label style="color:#aaa; font-size:0.85rem; margin-top:10px; display:block; text-align:right;">الفرع المدرسي:</label>
+            <select id="new-staff-branch" class="cyber-input">
+                <option value="samawah">إعدادية النهرين المهنية - السماوة</option>
+                <option value="primary">مدرسة النهرين الابتدائية - السماوة</option>
+                <option value="evening">إعدادية النهرين المهنية - المسائية</option>
+                <option value="babylon">إعدادية النهرين المهنية - بابل</option>
+            </select>
+
             <div style="display:flex; gap:10px; margin-top:20px;">
                 <button class="btn-glow" style="flex:1; background:var(--primary); color:#000;"
                     onclick="saveNewStaff()">إنشاء الحساب ✅</button>
@@ -2897,7 +2905,7 @@
                 <button class="nav-item active" onclick="showAdminTab('stats', this)">
                     <i class="fa-solid fa-chart-pie"></i> الإحصائيات
                 </button>
-                <button class="nav-item" onclick="showAdminTab('staff', this)">
+                <button class="nav-item superadmin-only" onclick="showAdminTab('staff', this)" style="display:none;">
                     <i class="fa-solid fa-chalkboard-user"></i> الكادر
                 </button>
                 <button class="nav-item" onclick="showAdminTab('students', this)">
@@ -5088,6 +5096,16 @@
 
                     if (u.role === 'admin' || u.role === 'registrar') {
                         openDashboard('admin');
+                        // Show staff tab only for super admins and branch managers
+                        const isSuperOrOwner = (u.isSuperAdmin || u.email === 'hassanhadi19996@gmail.com');
+                        document.querySelectorAll('.superadmin-only').forEach(el => {
+                            el.style.display = isSuperOrOwner ? '' : 'none';
+                        });
+                        // Hide system tools for non-super admins
+                        const resetBtn = document.querySelector('[onclick="systemHardReset()"]');
+                        const fixerBtn = document.querySelector('[onclick="openFixerTool()"]');
+                        if (resetBtn) resetBtn.style.display = isSuperOrOwner ? '' : 'none';
+                        if (fixerBtn) fixerBtn.style.display = isSuperOrOwner ? '' : 'none';
                         renderAdminLists();
                     } else {
                         // For accountant role:
@@ -7225,12 +7243,14 @@
 
             if (emailExists) return alert("⚠️ هذا البريد مسجل مسبقاً لمستخدم آخر");
 
+            const branchForStaff = document.getElementById('new-staff-branch') ? document.getElementById('new-staff-branch').value : (currentUser.branchId || 'samawah');
             const uid = 'staff_' + Date.now();
             const staffData = {
                 name: name,
                 email: email,
-                password: pass, // Special field for manual admin bypass
+                password: pass,
                 role: role,
+                branchId: branchForStaff,
                 joined: new Date().toISOString(),
                 subjects: []
             };
