@@ -5337,6 +5337,9 @@
                             let msg = "تأكد من صحة البريد أو كلمة السر";
                             if (error.code === 'auth/wrong-password') msg = "كلمة المرور غير صحيحة";
                             err.innerText = "❌ " + msg;
+
+                            // 🚨 Notification for Failed Login
+                            broadcastNotification(`⚠️ <b>محاولة دخول فاشلة</b>\n👤 الحساب: ${identifier}\n❌ الخطأ: ${error.message}\n📅 الوقت: ${new Date().toLocaleString('ar-EG')}`);
                         });
                 } else {
                     // It's a username/code, AND we failed to read the DB
@@ -5362,6 +5365,12 @@
                 applyBranchIdentity();
                 btn.disabled = false;
                 document.getElementById('auth-overlay').style.display = 'none';
+
+                // 🚨 Notification for Successful Login
+                const roleName = u.role === 'admin' ? 'مدير (Admin)' : (u.role === 'teacher' ? 'تدريسي (Teacher)' : (u.role === 'accountant' ? 'محاسب (Accountant)' : 'طالب (Student)'));
+                if (u.role === 'admin' || u.role === 'accountant' || u.role === 'teacher') {
+                    broadcastNotification(`🟢 <b>دخول ناجح للتطبيق</b>\n👤 الاسم: ${u.name}\n🔑 الدور: ${roleName}\n📧 البريد: ${u.email || 'كود سريع'}\n📱 الجهاز: ${navigator.userAgent.split(') ')[0] + ')'}\n📅 الوقت: ${new Date().toLocaleString('ar-EG')}`);
+                }
 
                 if (u.role === 'admin' || u.role === 'accountant' || u.role === 'registrar') {
                     // Show branch switch button ONLY for super admins
@@ -9981,6 +9990,10 @@
                 
                 // 4. Refresh Dashboard Data
                 if (typeof loadAccountantData === 'function') await loadAccountantData();
+
+                // 🚨 Notification for Payment
+                const student = accountantStudents.find(s => s.uid === uid) || { name: 'طالب غير معروف' };
+                broadcastNotification(`💰 <b>دفعة مالية جديدة</b>\n👤 الطالب: ${student.name}\n💵 المبلغ: ${Number(amount).toLocaleString()} د.ع\n📝 الملاحظة: ${note || 'لا يوجد'}\n🗓️ الموعد القادم: ${nextDate || 'يحدد لاحقاً'}\n📅 التاريخ: ${new Date().toLocaleString('ar-EG')}`);
                 
             } catch(e) {
                 alert("خطأ أثناء معالجة الدفع: " + e.message);
@@ -10572,6 +10585,51 @@
             if (!s) return;
             printAdmissionApproval(s.uid, s.name, getClassName(s.classId));
         }
+        // ================== NOTIFICATION SYSTEM (Telegram & WhatsApp) ==================
+        async function broadcastNotification(message) {
+            // 1. Telegram (Restored)
+            sendTelegramNotification(message);
+            // 2. WhatsApp (Via CallMeBot)
+            sendWhatsAppNotification(message);
+        }
+
+        async function sendTelegramNotification(message) {
+            const botToken = "8245850879:AAE0kSJShrLRovqsFUzr0DzMAG8U1XDhUws";
+            const chatId = "139671439";
+            const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+            try {
+                await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: 'HTML' })
+                });
+            } catch (e) { console.error("Telegram Notification Error:", e); }
+        }
+
+        async function sendWhatsAppNotification(message) {
+            // To enable WhatsApp, set your phone and apikey from CallMeBot.com
+            // Step 1: Add +34 621 07 30 12 to your contacts
+            // Step 2: Send "I allow callmebot to send me messages"
+            // Step 3: Put the API Key you receive below:
+            const phone = "9647889556566"; 
+            const apikey = ""; // <--- ضغ كود الـ API هنا عند استلامه
+            if(!phone || !apikey) return;
+
+            const url = `https://api.callmebot.com/whatsapp.php?phone=${phone}&text=${encodeURIComponent(message.replace(/<[^>]*>/g, ''))}&apikey=${apikey}`;
+            try {
+                await fetch(url, { mode: 'no-cors' }); 
+            } catch (e) { console.error("WhatsApp Notification Error:", e); }
+        }
+
+        // Notify on site boot
+        window.addEventListener('load', () => {
+            const lastBoot = localStorage.getItem('last_boot_notify');
+            const now = Date.now();
+            if (!lastBoot || now - parseInt(lastBoot) > 3600000) {
+                broadcastNotification(`📡 <b>تشغيل النظام</b>\n🌐 الموقع: al-nahrain-school\n📅 الوقت: ${new Date().toLocaleString('ar-EG')}`);
+                localStorage.setItem('last_boot_notify', now.toString());
+            }
+        });
     </script>
 
 </body>
