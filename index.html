@@ -68,10 +68,9 @@
 
                 const content = `
                     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 30px;">
-                        <div style="text-align: right; font-size: 0.9rem;">
-                            <p>المديرية العامة لتربية المثنى</p>
-                            <p>${schoolFullName}</p>
-                            <p>قسم التعليم المهني</p>
+                        <div style="text-align: right; font-size: 0.95rem; font-weight: bold; color: #000;">
+                            <p>مؤسسة النهرين التعليمية الدولية</p>
+                            <p>بالتعاون مع الشركة اللبنانية الدولية</p>
                         </div>
                         <div>
                             <img src="${logo}" style="height: 100px; width: auto;">
@@ -2556,6 +2555,13 @@
                     <input type="text" id="auto-student-prev-school" class="cyber-input" placeholder="المدرسة السابقة"
                         style="width:100%;">
                 </div>
+                <div style="grid-column: span 2;">
+                    <label style="color:var(--secondary); font-size:0.85rem; margin-bottom:8px; display:block; text-align:right; font-weight:bold;">الجنس (ذكر/أنثى)</label>
+                    <select id="auto-student-gender" class="cyber-input" style="width:100%;">
+                        <option value="male">ذكر (ولد) ♂️</option>
+                        <option value="female">أنثى (بنت) ♀️</option>
+                    </select>
+                </div>
             </div>
 
             <hr style="border:1px solid #333; margin:20px 0;">
@@ -2972,6 +2978,17 @@
                             </tbody>
                         </table>
                     </div>
+                </div>
+
+                <div class="acc-panel" style="border: 2px solid #ff4444; margin-top: 20px;">
+                    <h3 style="color:#ff4444;">🚨 إدارة الهيكلية والنظام (تصفير شامل)</h3>
+                    <p style="color:#666; font-size:0.9rem; margin-bottom:15px;">
+                        تحذير: هذا الخيار سيقوم بحذف كافة الشعب القديمة (المسماة بالحروف) في جميع الأقسام والمراحل بكافة الفروع. 
+                        سيبدأ النظام بعدها بفرز الطلاب آلياً في شعب رقمية (شعبة 1، شعبة 2...) حسب الجنس والسعة المقررة.
+                    </p>
+                    <button class="acc-btn-primary" style="background:#ff4444;" onclick="resetAllSchoolStructures()">
+                        تصفير كافة الشعب والتهيئة للنظام الرقمي الجديد 🔄
+                    </button>
                 </div>
             </div>
 
@@ -3916,8 +3933,9 @@
     </style></head><body>`;
 
                 html += `<div class="header">
-                    <h1>مدرسة النهرين الأهلية المختلطة</h1>
-                    <h2>${title}</h2>
+                    <p style="font-weight: bold; margin: 0; font-size: 1.2rem;">مؤسسة النهرين التعليمية الدولية</p>
+                    <p style="font-weight: bold; margin: 0; font-size: 1rem;">بالتعاون مع الشركة اللبنانية الدولية</p>
+                    <h2 style="margin-top: 10px;">${title}</h2>
                     <p>الشعبة: ${className === 'all' ? 'الكل' : className} | التاريخ: ${new Date().toLocaleDateString('ar-IQ')}</p>
                 </div>`;
 
@@ -3966,17 +3984,6 @@
                         style="font-size: 2rem; color: var(--secondary); margin-bottom: 10px;"></i>
                     <h2 id="stat-total-staff">0</h2>
                     <p style="color: #aaa;">إجمالي الكادر</p>
-                </div>
-                <div class="glass-panel" style="text-align:center; padding: 20px; border-bottom: 3px solid #00d26a;">
-                    <i class="fa-solid fa-sack-dollar"
-                        style="font-size: 2rem; color: #00d26a; margin-bottom: 10px;"></i>
-                    <h2 id="stat-total-revenue">0</h2>
-                    <p style="color: #aaa;">التحصيل المالي (د.ع)</p>
-                </div>
-                <div class="glass-panel" style="text-align:center; padding: 20px; border-bottom: 3px solid #ff4444;">
-                    <i class="fa-solid fa-user-clock" style="font-size: 2rem; color: #ff4444; margin-bottom: 10px;"></i>
-                    <h2 id="stat-pending-fees">0</h2>
-                    <p style="color: #aaa;">طلاب بذمتهم مبالغ</p>
                 </div>
             </div>
 
@@ -4232,7 +4239,15 @@
                     </div>
                 </div>
 
-                <div style="text-align:center;">
+                <div style="text-align:center; margin-top: 30px; border-top: 2px solid rgba(255,0,0,0.3); padding-top: 20px;">
+                    <h3 style="color:#ff4444; margin-bottom:10px;">⚠️ صيانة الهيكلية والنظام</h3>
+                    <p style="color:#aaa; font-size:0.85rem; margin-bottom:15px;">هذا الزر يقوم بمسح كافة الشعب القديمة في جميع الفروع لتفعيل نظام الفرز الرقمي الجديد (1، 2، 3...).</p>
+                    <button class="btn-glow" style="width:300px; background:#ff4444; border-color:red; font-weight:bold;" onclick="resetAllSchoolStructures()">
+                        🔄 تصفير الهيكلية لجميع الفروع
+                    </button>
+                </div>
+
+                <div style="text-align:center; margin-top: 40px;">
                     <button class="btn-glow"
                         style="width:300px; background:var(--primary); color:#000; font-weight:bold; font-size:1.2rem;"
                         onclick="saveSiteSettings()">
@@ -5008,6 +5023,10 @@
                     console.log("Guest selected branch, showing login.");
                     window.pendingRegistrationBranch = branchId;
                     sessionStorage.setItem('activeBranch', branchId);
+                    
+                    // Critical: Load the structure for the guest so registration dropdowns work
+                    await loadAdminStructure();
+                    
                     const authOverlay = document.getElementById('auth-overlay');
                     if (authOverlay) authOverlay.style.display = 'flex';
                 }
@@ -5019,7 +5038,7 @@
 
         // Modify loadAdminStructure to fetch branch-specific structure
         async function loadAdminStructure() {
-            let bId = currentUser ? (currentUser.branchId || 'samawah') : 'samawah';
+            let bId = currentUser ? (currentUser.branchId || 'samawah') : (sessionStorage.getItem('activeBranch') || window.pendingRegistrationBranch || 'samawah');
             const snap = await firebase.database().ref('settings/branches/' + bId + '/structure').once('value');
             if (snap.exists()) {
                 window.schoolStructure = snap.val();
@@ -5066,22 +5085,22 @@
         window.NAHRAIN_BRANCHES = {
             'samawah': {
                 name: 'إعدادية النهرين المهنية الأهلية - السماوة',
-                logo: 'logo_samawah.jpg',
+                logo: 'logo.jpg',
                 color: '#003366'
             },
             'primary': {
                 name: 'مدرسة النهرين الابتدائية الدولية - السماوة',
-                logo: 'logo_primary.jpg',
+                logo: 'logo.jpg',
                 color: '#e91e63'
             },
             'babylon': {
                 name: 'إعدادية النهرين المهنية الأهلية - بابل',
-                logo: 'logo_babylon.png',
+                logo: 'logo.jpg',
                 color: '#004d40'
             },
             'evening': {
                 name: 'إعدادية النهرين المهنية - المسائية',
-                logo: 'logo_evening.png',
+                logo: 'logo.jpg',
                 color: '#1a237e'
             }
         };
@@ -5357,8 +5376,8 @@
             }
 
             function completeLogin(u) {
-                // If the user is an admin/accountant and they clicked a branch before logging in, honor that branch selection
-                if ((u.role === 'admin' || u.role === 'accountant') && window.pendingRegistrationBranch) {
+                // If the user is an admin/accountant/registrar and they clicked a branch before logging in, honor that branch selection
+                if ((u.role === 'admin' || u.role === 'accountant' || u.role === 'registrar') && window.pendingRegistrationBranch) {
                     u.branchId = window.pendingRegistrationBranch;
                 }
 
@@ -6474,6 +6493,7 @@
                             <td style="text-align:center;">${whatsApp}</td>
                             <td style="white-space:nowrap; text-align:center;">
                                 <button class="btn-glow" title="تعديل الاسم" style="padding:2px 5px; font-size:0.7rem; background:var(--secondary); border:none;" onclick="editStudentName('${s.uid}', 'auth')">✏️</button>
+                                <button class="btn-glow" title="وصل تسجيل" style="padding:2px 5px; font-size:0.7rem; background:#4caf50; border:none;" onclick="printStudentReceiptFromUID('${s.uid}')">🎫</button>
                                 <button class="btn-glow" title="طباعة شهادة" style="padding:2px 5px; font-size:0.7rem; background:#007bff; border:none;" onclick="fetchAndPrintCert('${s.uid}')">🖨️</button>
                                 <button class="btn-glow" title="طباعة عدم ممانعة" style="padding:2px 5px; font-size:0.7rem; background:#5d4037; border:none;" onclick="const sel = this.closest('tr').querySelector('select'); const cls = sel ? sel.options[sel.selectedIndex].text : ''; printAdmissionApproval('${s.uid}', '${s.name.replace(/'/g, "\\'")}', cls)">📄</button>
                                 <button class="btn-glow" title="حذف" style="padding:2px 5px; font-size:0.7rem; background:#ff4444; border:none;" onclick="deleteStudent('${s.uid}', 'auth')">🗑️</button>
@@ -7561,6 +7581,7 @@
             };
 
             firebase.database().ref('users/' + uid).set(staffData).then(() => {
+                broadcastNotification(`👤 <b>إضافة موظف جديد</b>\nالاسم: ${name}\nالرتبة: ${role === 'admin' ? 'مدير' : role}\nالفرع: ${branchForStaff}\nالبريد: ${email}\nتاريخ الإضافة: ${new Date().toLocaleString('ar-IQ')}`);
                 alert(`تم إنشاء حساب الـ ${role === 'admin' ? 'مدير' : 'أستاذ'} بنجاح ✅\nالبريد: ${email}\nالآن يمكنه الدخول مباشرة من صفحة الدخول.`);
                 document.getElementById('add-staff-modal').style.display = 'none';
                 renderAdminLists();
@@ -8944,8 +8965,8 @@
                         }
                         .receipt-page {
                             width: 210mm;
-                            height: 296mm; /* Slightly less than 297mm to ensure it fits one page */
-                            padding: 15mm;
+                            height: 290mm; 
+                            padding: 10mm;
                             box-sizing: border-box;
                             display: flex;
                             flex-direction: column;
@@ -8954,8 +8975,8 @@
                         }
                         .receipt-container { 
                             flex-grow: 1;
-                            border: 4px double #000; 
-                            padding: 30px; 
+                            border: 3px double #000; 
+                            padding: 20px; 
                             border-radius: 0; 
                             background: #fff;
                             display: flex;
@@ -8966,8 +8987,8 @@
                             justify-content: space-between; 
                             align-items: center; 
                             border-bottom: 2px solid #000; 
-                            padding-bottom: 10px; 
-                            margin-bottom: 15px; 
+                            padding-bottom: 5px; 
+                            margin-bottom: 10px; 
                         }
                         .header-text { text-align: center; flex-grow: 1; }
                         .header h1 { margin: 0; font-size: 28px; color: #000; font-weight: bold; }
@@ -8978,30 +8999,30 @@
                         .content-row { 
                             display: flex; 
                             justify-content: space-between; 
-                            margin-bottom: 10px; 
-                            border-bottom: 1px dashed #aaa; 
-                            padding-bottom: 8px; 
-                            font-size: 18px;
+                            margin-bottom: 8px; 
+                            border-bottom: 1px dashed #ccc; 
+                            padding-bottom: 5px; 
+                            font-size: 16px;
                         }
                         .content-row span.label { font-weight: bold; color: #000; }
                         
                         .credentials { 
-                            margin-top: 15px; 
-                            padding: 15px; 
+                            margin-top: 10px; 
+                            padding: 10px; 
                             background: #f9f9f9; 
                             border: 2px solid #000; 
                             text-align: center; 
                         }
-                        .credentials h3 { margin-top: 0; color: #000; font-size: 20px; text-decoration: underline; }
+                        .credentials h3 { margin: 0 0 5px 0; color: #000; font-size: 18px; text-decoration: underline; }
                         .cred-box { 
-                            font-size: 22px; 
+                            font-size: 20px; 
                             font-weight: bold; 
                             color: #000; 
                             background: #fff; 
-                            padding: 8px 20px; 
+                            padding: 5px 15px; 
                             border: 2px solid #000; 
                             display: inline-block;
-                            margin: 5px;
+                            margin: 2px;
                         }
                         
                         .footer { 
@@ -9015,12 +9036,12 @@
                         .sig-line { margin-top: 50px; border-top: 1px solid #000; width: 180px; margin-left: auto; margin-right: auto; }
 
                         @media print {
-                            @page { margin: 0; size: A5 landscape; }
+                            @page { margin: 0; size: A4 portrait; }
                             body { margin: 0; padding: 0; }
                             .receipt-page { 
                                 width: 210mm; 
-                                height: 148mm; 
-                                padding: 10mm 15mm; 
+                                height: 297mm; 
+                                padding: 10mm; 
                                 border: none; 
                                 page-break-after: avoid;
                                 box-sizing: border-box;
@@ -9032,9 +9053,9 @@
                     <div class="receipt-page">
                         <div class="receipt-container">
                             <div class="header">
-                                <div style="text-align: right; font-size: 0.9rem;">
-                                    <p>المديرية العامة لتربية المثنى</p>
-                                    <p>${schoolFullName}</p>
+                                <div style="text-align: right; font-size: 0.95rem; font-weight: bold; color: #000;">
+                                    <p>مؤسسة النهرين التعليمية الدولية</p>
+                                    <p>بالتعاون مع الشركة اللبنانية الدولية</p>
                                 </div>
                                 <div class="header-text">
                                     <img src="${logo}" class="logo">
@@ -9067,6 +9088,10 @@
                                 <div class="content-row">
                                     <span class="label">حالة جلب الوثيقة المدرسية:</span>
                                     <span>${data.documentStatus}</span>
+                                </div>
+                                <div class="content-row">
+                                    <span class="label">رقم الهاتف:</span>
+                                    <span>${data.phone || '-'}</span>
                                 </div>
                                 
                                 <div class="credentials">
@@ -9108,6 +9133,44 @@
                 iframe.contentWindow.print();
                 setTimeout(() => { document.body.removeChild(iframe); }, 1000);
             }, 500);
+        }
+
+        async function resetAllSchoolStructures() {
+            if (!confirm("⚠️ هل أنت متأكد تماماً؟ سيتم مسح كافة الشعب القديمة في جميع الفروع وتهيئتها للفرز الرقمي الجديد. هذا الإجراء لا يمكن التراجع عنه!")) return;
+            
+            try {
+                if(typeof showLoading === 'function') showLoading(true);
+                
+                const branchesSnap = await firebase.database().ref('settings/branches').once('value');
+                const branchesData = branchesSnap.val();
+                
+                if (!branchesData) {
+                    alert("لم يتم العثور على أي فروع في النظام.");
+                    return;
+                }
+
+                for (let bId in branchesData) {
+                    let structure = branchesData[bId].structure;
+                    if (structure && Array.isArray(structure)) {
+                        structure.forEach(dept => {
+                            if (dept.stages) {
+                                dept.stages.forEach(stage => {
+                                    stage.sections = []; // Reset all sections to empty
+                                });
+                            }
+                        });
+                        // Save back to firebase
+                        await firebase.database().ref('settings/branches/' + bId + '/structure').set(structure);
+                    }
+                }
+                
+                alert("✅ تمت عملية التصفير بنجاح! جميع الأقسام في كافة الفروع الآن مهيأة للفرز الرقمي التلقائي (1، 2، 3...).");
+                location.reload();
+            } catch (err) {
+                alert("خطأ أثناء تصفير الهيكلية: " + err.message);
+            } finally {
+                if(typeof showLoading === 'function') showLoading(false);
+            }
         }
 
     </script>
@@ -9276,6 +9339,7 @@
             const deptIdx = document.getElementById('auto-student-dept').value;
             const stageIdx = document.getElementById('auto-student-stage').value;
             const bId = document.getElementById('auto-student-branch').value;
+            const gender = document.getElementById('auto-student-gender').value;
 
             if (!name || deptIdx === "" || stageIdx === "") {
                 alert("يرجى ملء الاسم والقسم والمرحلة!");
@@ -9290,33 +9354,47 @@
                 const structSnap = await firebase.database().ref('settings/branches/' + bId + '/structure').once('value');
                 const structure = structSnap.val() || [];
                 
+                if (!structure[deptIdx] || !structure[deptIdx].stages || !structure[deptIdx].stages[stageIdx]) {
+                    throw new Error("القسم أو المرحلة المختارة غير موجودة في هيكلية هذا الفرع. يرجى إعادة تحميل الصفحة أو اختيار فرع آخر.");
+                }
+
                 const dept = structure[deptIdx];
                 const stage = dept.stages[stageIdx];
                 let sections = stage.sections || [];
 
                 const sectionCounts = {};
                 Object.values(users).forEach(u => {
-                    if (u.role === 'student' && u.classId) sectionCounts[u.classId] = (sectionCounts[u.classId] || 0) + 1;
+                    if (u.role === 'student' && u.branchId === bId && u.classId) {
+                        sectionCounts[u.classId] = (sectionCounts[u.classId] || 0) + 1;
+                    }
                 });
 
                 let assignedSectionId = null;
                 let assignedSectionName = null;
 
+                // 1. Try to find an existing section with matching gender and space (< 30 students)
+                // Note: For Primary branch, we might still want segregation or not, but we'll apply it globally for consistency
                 for (let s of sections) {
-                    if ((sectionCounts[s.id] || 0) < 30) {
+                    if (s.gender === gender && (sectionCounts[s.id] || 0) < 30) {
                         assignedSectionId = s.id;
                         assignedSectionName = s.name;
                         break;
                     }
                 }
 
+                // 2. If no matching section with space, create a new numeric gendered section
                 if (!assignedSectionId) {
-                    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-                    const newChar = alphabet[sections.length] || sections.length.toString();
-                    assignedSectionName = `شعبة ${newChar}`;
-                    assignedSectionId = `sec_${deptIdx}_${stageIdx}_${Date.now()}`;
-                    sections.push({ id: assignedSectionId, name: assignedSectionName });
-                    stage.sections = sections;
+                    const genderSuffix = (gender === 'male' ? 'ولد' : 'بنات');
+                    const sameGenderSections = sections.filter(sec => sec.gender === gender);
+                    const newSectionNum = sameGenderSections.length + 1;
+                    
+                    assignedSectionName = `شعبة ${newSectionNum} ${genderSuffix}`;
+                    assignedSectionId = `sec_${deptIdx}_${stageIdx}_${gender}_${Date.now()}`;
+                    
+                    if (!stage.sections) stage.sections = [];
+                    stage.sections.push({ id: assignedSectionId, name: assignedSectionName, gender: gender });
+                    
+                    // Update the global structure in Firebase immediately
                     await firebase.database().ref('settings/branches/' + bId + '/structure').set(structure);
                 }
 
@@ -9326,6 +9404,7 @@
 
                 await firebase.database().ref('users/' + uid).set({
                     name: name,
+                    gender: gender,
                     loginCode: loginCode,
                     password: password,
                     phone: phone,
@@ -9336,8 +9415,30 @@
                 });
 
                 document.getElementById('auto-register-modal').style.display = 'none';
-                alert(`✅ تم التسجيل بنجاح!\nالكود: ${loginCode}\nكلمة السر: ${password}`);
+                
+                // Show Custom Alert
+                showCustomAlert('تم التسجيل', `✅ تم التسجيل بنجاح!\nالكود: ${loginCode}\nكلمة السر: ${password}`, 'success');
+
+                // AUTOMATICALLY TRIGGER RECEIPT (Student Registration Receipt)
+                const receiptData = {
+                    name: name,
+                    deptName: dept.name,
+                    stageName: stage.name,
+                    sectionName: assignedSectionName,
+                    documentStatus: document.getElementById('auto-student-document').value,
+                    phone: phone,
+                    loginCode: loginCode,
+                    password: password
+                };
+                
+                if (typeof printStudentReceipt === 'function') {
+                    printStudentReceipt(receiptData);
+                }
+
+                broadcastNotification(`📝 <b>تسجيل طالب جديد</b>\nالاسم: ${name}\nالجنس: ${gender === 'male' ? 'ذكر' : 'أنثى'}\nالفرع: ${schoolFullName}\nالقسم: ${dept.name}\nالمرحلة: ${stage.name}\nالشعبة: ${assignedSectionName}\nرقم الهاتف: ${phone}\nتاريخ التسجيل: ${new Date().toLocaleString('ar-IQ')}`);
+
                 if (typeof loadAccountantData === 'function') loadAccountantData();
+                if (typeof renderAdminLists === 'function') renderAdminLists();
             } catch (err) {
                 alert("خطأ: " + err.message);
                 document.getElementById('auto-student-name').value = name;
@@ -9714,7 +9815,7 @@
             document.body.appendChild(iframe);
             
             const printHTML = `
-                                < html >
+                <html>
                 <head>
                     <title>استمارة قبول طالب</title>
                     <style>
@@ -9740,12 +9841,54 @@
                         };
                     <\/script>
                 </body>
-                </html >
-                                `;
+                </html>
+                `;
             
             iframe.contentWindow.document.open();
             iframe.contentWindow.document.write(printHTML);
             iframe.contentWindow.document.close();
+        }
+
+        function printStudentReceiptFromUID(uid) {
+            firebase.database().ref('users/' + uid).once('value').then(snap => {
+                const s = snap.val();
+                if (!s) return alert("Student not found!");
+                
+                let deptName = 'عام';
+                let stageName = '-';
+                let sectionName = '-';
+                
+                if (window.schoolStructure) {
+                    for (let dept of window.schoolStructure) {
+                        if (dept.stages) {
+                            for (let st of dept.stages) {
+                                if (st.sections) {
+                                    for (let sc of st.sections) {
+                                        if (sc.id === s.classId) {
+                                            deptName = dept.name;
+                                            stageName = st.name;
+                                            sectionName = sc.name;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                const data = {
+                    name: s.name,
+                    deptName: deptName,
+                    stageName: stageName,
+                    sectionName: sectionName,
+                    documentStatus: s.documentStatus || 'لم يجلب',
+                    phone: s.phone || '-',
+                    loginCode: s.loginCode || '-',
+                    password: s.password || '-'
+                };
+                printStudentReceipt(data);
+            });
         }
 
 
@@ -9831,7 +9974,7 @@
                     let paid = r.querySelector('td:nth-child(5)').innerText;
                     let remaining = r.querySelector('td:nth-child(6)').innerText;
                     
-                    data.append = data.push({ name, className, paid, remaining });
+                    data.push({ name, className, paid, remaining });
                 }
             });
 
@@ -9859,8 +10002,9 @@
 
                 <body>
                     <div class="header">
-                        <h1>مدرسة النهرين الأهلية المختلطة</h1>
-                        <h2>كشف المتلكئين في سداد الأقساط</h2>
+                        <p style="font-weight: bold; margin: 0; font-size: 1.1rem;">مؤسسة النهرين التعليمية الدولية</p>
+                        <p style="font-weight: bold; margin: 0; font-size: 0.95rem;">بالتعاون مع الشركة اللبنانية الدولية</p>
+                        <h2 style="margin-top: 10px;">كشف المتلكئين في سداد الأقساط</h2>
                     </div>
                     <div class="info">
                         <div>الشعبة: ${classFilter}</div>
@@ -10296,8 +10440,8 @@
                             <div>التاريخ: <b>${dateStr}</b></div>
                         </div>
                         <div class="school-brand">
-                            <h1>إعدادية النهرين المهنية الأهلية</h1>
-                            <p>البناء المبدع للمستقبل المهني</p>
+                            <h1 style="font-size: 1.2rem;">مؤسسة النهرين التعليمية الدولية</h1>
+                            <p style="font-weight: bold;">بالتعاون مع الشركة اللبنانية الدولية</p>
                         </div>
                         <div class="receipt-title">${typeLabel}</div>
 
@@ -10595,15 +10739,19 @@
 
         async function sendTelegramNotification(message) {
             const botToken = "8245850879:AAE0kSJShrLRovqsFUzr0DzMAG8U1XDhUws";
-            const chatId = "139671439";
-            const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-            try {
-                await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: 'HTML' })
-                });
-            } catch (e) { console.error("Telegram Notification Error:", e); }
+            // يمكنك إضافة الـ Chat ID الخاص بمالك المدرسة هنا في المصفوفة
+            const chatIds = ["139671439"]; 
+            
+            for (const chatId of chatIds) {
+                const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+                try {
+                    await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: 'HTML' })
+                    });
+                } catch (e) { console.error("Telegram Notification Error:", e); }
+            }
         }
 
         async function sendWhatsAppNotification(message) {
