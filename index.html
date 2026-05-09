@@ -2555,6 +2555,10 @@
                     <input type="text" id="auto-student-prev-school" class="cyber-input" placeholder="المدرسة السابقة"
                         style="width:100%;">
                 </div>
+                <div>
+                    <input type="text" id="auto-student-password" class="cyber-input" placeholder="كلمة المرور (اتركه فارغاً للتوليد التلقائي)"
+                        style="width:100%; border-color: gold;">
+                </div>
                 <div style="grid-column: span 2;">
                     <label style="color:var(--secondary); font-size:0.85rem; margin-bottom:8px; display:block; text-align:right; font-weight:bold;">الجنس (ذكر/أنثى)</label>
                     <select id="auto-student-gender" class="cyber-input" style="width:100%;">
@@ -8502,13 +8506,24 @@
     <script>
         // ================== OFFICIAL RESULTS LOGIC ==================
         async function openAutoRegisterModal() {
-            // Simple Security Check
-            const userInput = prompt("الرجاء إدخال رمز الوصول السري الخاص بموظف التسجيل:", "0000");
+            // 1. If already logged in as authorized staff, skip prompt
+            const isAuthorized = currentUser && (currentUser.role === 'admin' || currentUser.role === 'registrar' || currentUser.role === 'accountant');
+            
+            if (!isAuthorized) {
+                // Simple Security Check for Guests/Unlogged
+                const userInput = prompt("الرجاء إدخال رمز الوصول السري الخاص بموظف التسجيل:", "");
 
-            if (userInput !== "0000" && userInput !== "1996") { 
-                alert("🚫 رمز الوصول غير صحيح! غير مصرح لك بالدخول.");
-                return;
+                if (userInput !== "0000" && userInput !== "1996") { 
+                    alert("🚫 رمز الوصول غير صحيح! غير مصرح لك بالدخول.");
+                    return;
+                }
             }
+
+            // Clear previous data
+            const passField = document.getElementById('auto-student-password');
+            if (passField) passField.value = '';
+            document.getElementById('auto-student-name').value = '';
+            document.getElementById('auto-student-phone').value = '';
 
             document.getElementById('auto-register-modal').style.display = 'flex';
 
@@ -9398,7 +9413,10 @@
                 }
 
                 const loginCode = `NHR-${Math.floor(1000 + Math.random() * 9000)}`;
-                const password = Math.floor(100000 + Math.random() * 900000).toString();
+                let password = document.getElementById('auto-student-password').value.trim();
+                if (!password) {
+                    password = Math.floor(100000 + Math.random() * 900000).toString();
+                }
                 const uid = 'student_' + Date.now();
 
                 await firebase.database().ref('users/' + uid).set({
