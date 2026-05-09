@@ -8511,10 +8511,11 @@
             
             if (!isAuthorized) {
                 // Simple Security Check for Guests/Unlogged
-                const userInput = prompt("الرجاء إدخال رمز الوصول السري الخاص بموظف التسجيل:", "");
+                // CRITICAL: Must use await because prompt is overridden with a custom async modal
+                const userInput = await prompt("الرجاء إدخال رمز الوصول السري الخاص بموظف التسجيل:", "");
 
                 if (userInput !== "0000" && userInput !== "1996") { 
-                    alert("🚫 رمز الوصول غير صحيح! غير مصرح لك بالدخول.");
+                    await alert("🚫 رمز الوصول غير صحيح! غير مصرح لك بالدخول.");
                     return;
                 }
             }
