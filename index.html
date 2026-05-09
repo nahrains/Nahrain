@@ -8469,10 +8469,7 @@
                 <div
                     style="padding:20px; background:#252525; border-bottom:1px solid #444; display:flex; justify-content:space-between; align-items:center;">
                     <div>
-                        <h2 style="margin:0; color:#00e5ff;">سجل الحضور اليومي</h2>
-                        <p style="margin:5px 0 0; color:#aaa; font-size:0.9rem;">اضغط على زر الحالة
-                            لتغييرها (حاضر /
-                            غائب)</p>
+                        <h2 style="margin:0">سجل الحضور اليومي</h2>
                     </div>
                     <div style="text-align:left;">
                         <div style="font-size:1.2rem; font-weight:bold;" id="att-date-display">
@@ -8504,6 +8501,33 @@
     <!-- Legacy modals removed -->
     <script>
         // ================== OFFICIAL RESULTS LOGIC ==================
+        async function openAutoRegisterModal() {
+            // Simple Security Check
+            const userInput = prompt("الرجاء إدخال رمز الوصول السري الخاص بموظف التسجيل:", "0000");
+
+            if (userInput !== "0000" && userInput !== "1996") { 
+                alert("🚫 رمز الوصول غير صحيح! غير مصرح لك بالدخول.");
+                return;
+            }
+
+            document.getElementById('auto-register-modal').style.display = 'flex';
+
+            // CRITICAL: Always force-set the branch to the current user's branch
+            const registrarBranch = (currentUser && currentUser.branchId) ? currentUser.branchId : 'samawah';
+            const branchSelect = document.getElementById('auto-student-branch');
+            if (branchSelect) {
+                branchSelect.value = registrarBranch;
+                if (currentUser && !currentUser.isSuperAdmin && currentUser.email !== 'hassanhadi19996@gmail.com') {
+                    branchSelect.disabled = true;
+                } else {
+                    branchSelect.disabled = false;
+                }
+            }
+
+            // Populate Departments
+            updateAutoRegisterDepartments();
+        }
+
         function toggleResultMode() {
             const single = document.getElementById('res-single-area');
             const bulk = document.getElementById('res-bulk-area');
@@ -8818,67 +8842,44 @@
         }
 
         // --- AUTO REGISTRATION & GROUPING LOGIC ---
-        async function openAutoRegisterModal() {
-            // Security Check: Prevent public visitors from abusing the form
-            // Fetch dynamic PIN from Firebase
-            const snap = await firebase.database().ref('schoolDB/settings/registrationPin').once('value');
-            const secretPin = snap.val() || "0000";
-
-            const userInput = await prompt("الرجاء إدخال رمز الوصول السري الخاص بموظف التسجيل:", "", "رمز الحماية");
-
-            if (userInput !== secretPin) {
-                alert("🚫 رمز الوصول غير صحيح! غير مصرح لك بالدخول.");
-                return;
-            }
-
-            document.getElementById('auto-register-modal').style.display = 'flex';
-
-            // CRITICAL: Always force-set the branch to the current user's branch
-            // This prevents wrong branchId from being saved if the registrar doesn't manually change the dropdown
-            const registrarBranch = (currentUser && currentUser.branchId) ? currentUser.branchId : 'samawah';
-            const branchSelect = document.getElementById('auto-student-branch');
-            if (branchSelect) {
-                branchSelect.value = registrarBranch;
-                // If isSuperAdmin, keep select enabled so they can choose any branch
-                // Otherwise disable it to prevent the registrar from changing it
-                if (!currentUser.isSuperAdmin && currentUser.email !== 'hassanhadi19996@gmail.com') {
-                    branchSelect.disabled = true; // Lock to their assigned branch
-                } else {
-                    branchSelect.disabled = false; // Super admin can pick any branch
-                }
-            }
-
-            // Populate Departments
-            updateAutoRegisterDepartments();
-        }
 
         async function updateAutoRegisterDepartments() {
-            const bId = document.getElementById('auto-student-branch').value;
-            const deptSelect = document.getElementById('auto-student-dept');
-            deptSelect.innerHTML = '<option value="">جاري تحميل الأقسام...</option>';
+            const bSelect = document.getElementById('auto-student-branch');
+            const dSelect = document.getElementById('auto-student-dept');
+            const sSelect = document.getElementById('auto-student-stage');
+            
+            if (!bSelect || !dSelect) return;
+            
+            const bId = bSelect.value;
+            dSelect.innerHTML = '<option value="">جاري تحميل الأقسام...</option>';
+            sSelect.innerHTML = '<option value="">اختر القسم أولاً...</option>';
 
-            // Fetch structure for the selected branch
-            const snap = await firebase.database().ref('settings/branches/' + bId + '/structure').once('value');
             let structure = [];
-
-            if (snap.exists()) {
-                structure = snap.val();
-
-                // If it's primary and missing stages, auto-add them
-                if (bId === 'primary' && structure.length > 0 && structure[0].stages.length < 6) {
-                    const primaryStages = ["الصف الأول", "الصف الثاني", "الصف الثالث", "الصف الرابع", "الصف الخامس", "الصف السادس"];
-                    const existingNames = structure[0].stages.map(s => s.name);
-                    primaryStages.forEach(name => {
-                        if (!existingNames.includes(name)) {
-                            structure[0].stages.push({ name: name, sections: [] });
-                        }
-                    });
-                    // Save the corrected structure
-                    firebase.database().ref('settings/branches/' + bId + '/structure').set(structure);
+            try {
+                // Try fetching from both potential paths to be safe
+                let snap = await firebase.database().ref('settings/branches/' + bId + '/structure').once('value');
+                if (!snap.exists()) {
+                    snap = await firebase.database().ref('schoolDB/settings/branches/' + bId + '/structure').once('value');
                 }
-            } else {
-                // Fallback for Defaults
-                if (bId === 'primary') {
+                
+                if (snap.exists()) {
+                    structure = snap.val() || [];
+
+                    // If it's primary and missing stages, auto-add them
+                    if (bId === 'primary' && structure.length > 0 && structure[0].stages.length < 6) {
+                        const primaryStages = ["الصف الأول", "الصف الثاني", "الصف الثالث", "الصف الرابع", "الصف الخامس", "الصف السادس"];
+                        const existingNames = structure[0].stages.map(s => s.name);
+                        primaryStages.forEach(name => {
+                            if (!existingNames.includes(name)) {
+                                structure[0].stages.push({ name: name, sections: [] });
+                            }
+                        });
+                        // Save the corrected structure
+                        firebase.database().ref('settings/branches/' + bId + '/structure').set(structure);
+                    }
+                } else {
+                    // Fallback for Defaults
+                    if (bId === 'primary') {
                     structure = [{
                         name: "المرحلة الابتدائية",
                         stages: [
@@ -8907,21 +8908,19 @@
                     }));
                 }
             }
+        } catch (e) {
+            console.error("Error updating departments:", e);
+        }
 
-            // Sync with global variable if it's the active branch
-            if (currentUser && bId === currentUser.branchId) window.schoolStructure = structure;
+            // Sync with global variable
+            window.activeAutoRegisterStructure = structure;
 
             // Render to select
-            deptSelect.innerHTML = '<option value="">اختر القسم...</option>';
+            let html = '<option value="">القسم المختار...</option>';
             structure.forEach((dept, dIdx) => {
-                deptSelect.innerHTML += `<option value="${dIdx}">${dept.name}</option>`;
+                html += `<option value="${dIdx}">${dept.name}</option>`;
             });
-
-            // Reset stage
-            document.getElementById('auto-student-stage').innerHTML = '<option value="">المرحلة...</option>';
-
-            // Store current structure for use in submission
-            window.activeAutoRegisterStructure = structure;
+            dSelect.innerHTML = html;
         }
 
         function updateAutoRegisterStages() {
@@ -9435,6 +9434,7 @@
                     printStudentReceipt(receiptData);
                 }
 
+                const schoolFullName = (window.NAHRAIN_BRANCHES[bId] && window.NAHRAIN_BRANCHES[bId].name) ? window.NAHRAIN_BRANCHES[bId].name : "مدرسة النهرين";
                 broadcastNotification(`📝 <b>تسجيل طالب جديد</b>\nالاسم: ${name}\nالجنس: ${gender === 'male' ? 'ذكر' : 'أنثى'}\nالفرع: ${schoolFullName}\nالقسم: ${dept.name}\nالمرحلة: ${stage.name}\nالشعبة: ${assignedSectionName}\nرقم الهاتف: ${phone}\nتاريخ التسجيل: ${new Date().toLocaleString('ar-IQ')}`);
 
                 if (typeof loadAccountantData === 'function') loadAccountantData();
