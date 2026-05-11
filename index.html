@@ -1370,85 +1370,161 @@
         }
 
         .acc-container {
-            max-width: 1200px;
-            /* Wider for modern monitors */
-            margin: 40px auto;
+            max-width: 1440px;
+            margin: 30px auto;
             padding: 0 20px;
             direction: rtl;
+            font-family: 'Cairo', 'Tajawal', sans-serif;
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            grid-template-areas: "nav content";
+            gap: 30px;
+            align-items: start;
+        }
+
+        @media (max-width: 992px) {
+            .acc-container {
+                grid-template-columns: 1fr;
+                grid-template-areas: 
+                    "nav"
+                    "content";
+            }
         }
 
         .acc-header {
-            text-align: center;
-            margin-bottom: 40px;
+            display: block;
+            margin-bottom: 0px;
+            background: transparent;
+            padding: 0;
+            border-radius: 0;
+            box-shadow: none;
+            border: none;
+        }
+        
+        .acc-header > h2, .acc-header > h3, .acc-header > div:not(.acc-stats-grid) {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+            border: 1px solid #eaedf3;
+            display: block;
         }
 
         .acc-header h2 {
             color: #0f172a;
-            font-size: 2.2rem;
-            margin-bottom: 8px;
+            font-size: 1.8rem;
+            margin: 0;
             font-weight: 800;
-            letter-spacing: -0.5px;
         }
 
         .acc-header p {
             color: #64748b;
-            font-size: 1.1rem;
+            font-size: 0.95rem;
+            margin: 5px 0 0 0;
         }
 
         .acc-stats-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 20px;
-            margin-top: 25px;
+            margin-bottom: 30px;
         }
 
         .acc-stat-card {
             background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 16px;
+            border: 1px solid #eaedf3;
+            border-radius: 24px;
             padding: 24px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-            text-align: center;
-            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .acc-stat-card:first-child {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #ffffff;
+            border: none;
+            box-shadow: 0 10px 25px rgba(15, 23, 42, 0.2);
+        }
+        .acc-stat-card:first-child h3, .acc-stat-card:first-child p, .acc-stat-card:first-child span {
+            color: #ffffff !important;
+        }
+        
+        .acc-stat-card:first-child::after {
+            content: '';
+            position: absolute;
+            top: -20px;
+            left: -20px;
+            width: 150px;
+            height: 150px;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%);
+            border-radius: 50%;
         }
 
         .acc-stat-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            border-color: #cbd5e1;
         }
 
         .acc-stat-card h3 {
-            font-size: 0.95rem;
-            color: #475569;
+            font-size: 0.9rem;
+            color: #64748b;
             margin-bottom: 12px;
             font-weight: 700;
-            letter-spacing: -0.01em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .acc-stat-card h3 i {
+            padding: 8px;
+            border-radius: 8px;
+            background: #f1f5f9;
+            color: #3b82f6;
+        }
+        
+        .acc-stat-card:first-child h3 i {
+            background: rgba(255,255,255,0.15);
+            color: #60a5fa;
         }
 
         .acc-stat-card p {
             font-size: 2.2rem;
-            font-weight: 900;
-            color: #1e293b;
+            font-weight: 800;
+            color: #0f172a;
             margin: 0;
             direction: ltr;
-            display: inline-block;
-            letter-spacing: -0.02em;
         }
 
         .acc-nav {
+            grid-area: nav;
             display: flex;
+            flex-direction: column;
             gap: 12px;
-            margin-bottom: 40px;
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(12px);
-            padding: 12px;
+            margin-bottom: 0px;
+            background: #ffffff;
+            padding: 24px 16px;
             border-radius: 24px;
-            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.1);
-            border: 1px solid rgba(226, 232, 240, 0.8);
-            overflow-x: auto;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+            border: 1px solid #eaedf3;
             position: sticky;
             top: 20px;
-            z-index: 100;
+            height: fit-content;
+        }
+        
+        @media (max-width: 992px) {
+            .acc-nav {
+                flex-direction: row;
+                overflow-x: auto;
+                position: relative;
+                top: 0;
+            }
         }
 
         .acc-tab-btn {
@@ -1457,216 +1533,158 @@
             font-size: 0.95rem;
             color: #64748b;
             cursor: pointer;
-            padding: 14px 24px;
-            transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+            padding: 14px 20px;
+            transition: all 0.3s;
             font-weight: 700;
-            border-radius: 16px;
-            white-space: nowrap;
+            border-radius: 14px;
             display: flex;
             align-items: center;
-            gap: 10px;
-            position: relative;
+            gap: 12px;
+            text-align: right;
         }
 
         .acc-tab-btn i {
             font-size: 1.1rem;
-            transition: transform 0.3s;
+            width: 24px;
+            text-align: center;
         }
 
         .acc-tab-btn.active {
-            color: #ffffff;
-            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-            box-shadow: 0 10px 20px -5px rgba(30, 41, 59, 0.4);
-        }
-
-        .acc-tab-btn.active i {
-            transform: scale(1.1);
-            color: #60a5fa;
+            color: #2563eb;
+            background: #eff6ff;
+            border-right: 4px solid #2563eb;
+            border-radius: 10px 0 0 10px;
         }
 
         .acc-tab-btn:hover:not(.active) {
             color: #1e293b;
-            background: rgba(241, 245, 249, 0.8);
-            transform: translateY(-2px);
+            background: #f8fafc;
+        }
+
+        .acc-tab-content {
+            grid-area: content;
         }
 
         .acc-panel {
             background: #ffffff;
-            border: 1px solid #f1f5f9;
+            border: 1px solid #eaedf3;
             border-radius: 24px;
             padding: 30px;
-            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
             margin-bottom: 30px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .acc-panel::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, #3b82f6, #8b5cf6, #3b82f6);
-            background-size: 200% auto;
-            animation: gradientShift 4s linear infinite;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-
-        .acc-panel:hover::before {
-            opacity: 1;
-        }
-
-        @keyframes gradientShift {
-            0% {
-                background-position: 0% 50%;
-            }
-
-            100% {
-                background-position: 200% 50%;
-            }
         }
 
         .acc-panel h3 {
             margin-top: 0;
-            color: #1e293b;
-            border-bottom: 1px solid #f1f5f9;
-            padding-bottom: 20px;
+            color: #0f172a;
             margin-bottom: 25px;
-            font-size: 1.4rem;
+            font-size: 1.25rem;
             font-weight: 800;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
         }
 
         .acc-input {
             width: 100%;
-            padding: 14px 20px;
-            border: 2px solid #f1f5f9;
-            border-radius: 16px;
-            font-size: 1rem;
-            background: #f8fafc;
+            padding: 12px 16px;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            background: #ffffff;
             color: #1e293b;
             outline: none;
-            transition: all 0.3s;
-            font-family: inherit;
-            font-weight: 500;
+            transition: all 0.2s;
         }
 
         .acc-input:focus {
             border-color: #3b82f6;
-            background: #ffffff;
-            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
         }
 
         .acc-btn-primary {
-            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            background: #2563eb;
             color: #ffffff;
             border: none;
-            padding: 14px 28px;
-            border-radius: 16px;
+            padding: 12px 24px;
+            border-radius: 12px;
             cursor: pointer;
-            font-size: 1rem;
+            font-size: 0.95rem;
             font-weight: 700;
-            transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
-            box-shadow: 0 8px 16px -4px rgba(30, 41, 59, 0.3);
+            transition: all 0.2s;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
+            gap: 8px;
         }
 
         .acc-btn-primary:hover {
-            transform: translateY(-3px) scale(1.02);
-            box-shadow: 0 12px 20px -5px rgba(30, 41, 59, 0.4);
-            filter: brightness(1.1);
+            background: #1d4ed8;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+            transform: translateY(-1px);
         }
 
         .acc-btn-danger {
-            background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+            background: #ef4444;
             color: #ffffff;
             border: none;
-            padding: 14px 28px;
-            border-radius: 16px;
+            padding: 12px 24px;
+            border-radius: 12px;
             cursor: pointer;
-            font-size: 1rem;
+            font-size: 0.95rem;
             font-weight: 700;
-            transition: all 0.3s;
-            box-shadow: 0 8px 16px -4px rgba(239, 68, 68, 0.3);
+            transition: all 0.2s;
         }
 
         .acc-btn-danger:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 12px 20px -5px rgba(239, 68, 68, 0.4);
-            filter: brightness(1.1);
+            background: #dc2626;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+            transform: translateY(-1px);
         }
 
         .acc-table {
             width: 100%;
             border-collapse: separate;
-            border-spacing: 0 8px;
+            border-spacing: 0;
             text-align: right;
             margin-top: 10px;
         }
 
         .acc-table th,
         .acc-table td {
-            padding: 18px 20px;
-            border: none;
-            font-size: 0.95rem;
+            padding: 16px;
+            border-bottom: 1px solid #eaedf3;
+            font-size: 0.9rem;
+            color: #334155;
+            vertical-align: middle;
         }
 
         .acc-table th {
-            background: #f1f5f9;
-            color: #475569;
-            font-weight: 800;
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .acc-table th:first-child {
-            border-radius: 0 16px 16px 0;
-        }
-
-        .acc-table th:last-child {
-            border-radius: 16px 0 0 16px;
-        }
-
-        .acc-table tr:not(thead tr) {
-            background: #ffffff;
-            transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
-        }
-
-        .acc-table tr:not(thead tr):hover {
-            transform: scale(1.005) translateY(-2px);
-            box-shadow: 0 10px 20px -10px rgba(0, 0, 0, 0.1);
             background: #f8fafc;
-            z-index: 1;
+            color: #64748b;
+            font-weight: 700;
+            font-size: 0.85rem;
         }
 
-        .acc-table td:first-child {
-            border-radius: 0 16px 16px 0;
+        .acc-table th:first-child { border-radius: 0 12px 0 0; }
+        .acc-table th:last-child { border-radius: 12px 0 0 0; }
+
+        .acc-table tr:last-child td {
+            border-bottom: none;
         }
 
-        .acc-table td:last-child {
-            border-radius: 16px 0 0 16px;
+        .acc-table tr:hover td {
+            background: #f8fafc;
         }
 
-        /* Badges for status */
         .acc-badge {
-            padding: 8px 14px;
-            border-radius: 12px;
-            font-weight: 800;
-            font-size: 0.8rem;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.75rem;
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            gap: 5px;
         }
 
         .badge-success {
@@ -2675,34 +2693,11 @@
     <div id="accountant-dash" class="dashboard-overlay accountant-theme">
         <i class="fa-solid fa-xmark close-dash" onclick="closeDashboards()"></i>
         <div class="acc-container">
-            <div class="acc-header">
-                <h2>📊 النظام المالي والمحاسبي</h2>
-                <h3 id="acc-branch-title" class="school-name"
-                    style="color: #6d4c41; margin-top: 10px; font-weight: bold; background: rgba(255,255,255,0.5); display: inline-block; padding: 5px 15px; border-radius: 20px; font-size: 1.1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                    إعدادية النهرين المهنية - اللوحة الخاصة بموظف الحسابات</h3>
-                <div style="margin-top:10px;">
-                    <button class="acc-btn-primary branch-switch-btn"
-                        style="background:#e91e63; display:none; padding:8px 20px;" onclick="showBranchSelection()">🏢
-                        تبديل المدرسة/الفرع</button>
-                </div>
-                <div class="acc-stats-grid">
-                    <div class="acc-stat-card">
-                        <h3>إجمالي المقبوضات</h3>
-                        <p id="acc-total-revenues">0</p> <span style="color:#8b5a2b">د.ع</span>
-                    </div>
-                    <div class="acc-stat-card">
-                        <h3>إجمالي المصروفات</h3>
-                        <p id="acc-total-expenses">0</p> <span style="color:#8b5a2b">د.ع</span>
-                    </div>
-                    <div class="acc-stat-card" style="background: #eef7eb; border-color: #c4e1b9;">
-                        <h3>الرصيد الفعلي في الصندوق</h3>
-                        <p id="acc-net-balance" style="color: #2e7d32;">0</p> <span style="color:#2e7d32">د.ع</span>
-                    </div>
-                </div>
-            </div>
 
             <div class="acc-nav">
-                <button onclick="switchAccTab('students')" id="btn-acc-tab-students" class="acc-tab-btn active"><i
+                <button onclick="switchAccTab('overview')" id="btn-acc-tab-overview" class="acc-tab-btn active"><i
+                        class="fa-solid fa-chart-line"></i> الرئيسية (لوحة التحكم)</button>
+                <button onclick="switchAccTab('students')" id="btn-acc-tab-students" class="acc-tab-btn"><i
                         class="fa-solid fa-users"></i> الذمم المالية للطلبة</button>
                 <button onclick="switchAccTab('revenues')" id="btn-acc-tab-revenues" class="acc-tab-btn"><i
                         class="fa-solid fa-arrow-down-up-across-line"></i> المقبوضات (إيرادات)</button>
@@ -2718,8 +2713,40 @@
                         class="fa-solid fa-gears"></i> الإعدادات المالية</button>
             </div>
 
+            <!-- Tab: Overview -->
+            <div id="acc-tab-overview" class="acc-tab-content" style="display:block;">
+                <div class="acc-header">
+                    <h2>📊 النظام المالي والمحاسبي</h2>
+                    <h3 id="acc-branch-title" class="school-name"
+                        style="color: #6d4c41; margin-top: 10px; font-weight: bold; background: rgba(255,255,255,0.5); display: inline-block; padding: 5px 15px; border-radius: 20px; font-size: 1.1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                        إعدادية النهرين المهنية - اللوحة الخاصة بموظف الحسابات</h3>
+                    <div style="margin-top:10px;">
+                        <button class="acc-btn-primary branch-switch-btn"
+                            style="background:#e91e63; display:none; padding:8px 20px;" onclick="showBranchSelection()">🏢
+                            تبديل المدرسة/الفرع</button>
+                    </div>
+                </div>
+                <div class="acc-stats-grid">
+                    <div class="acc-stat-card">
+                        <h3><i class="fa-solid fa-arrow-down"></i> إجمالي المقبوضات</h3>
+                        <p id="acc-total-revenues">0</p> <span style="color:#8b5a2b; font-weight:bold; font-size:1.1rem;">د.ع</span>
+                    </div>
+                    <div class="acc-stat-card">
+                        <h3><i class="fa-solid fa-arrow-up"></i> إجمالي المصروفات</h3>
+                        <p id="acc-total-expenses">0</p> <span style="color:#8b5a2b; font-weight:bold; font-size:1.1rem;">د.ع</span>
+                    </div>
+                    <div class="acc-stat-card" style="background: #eef7eb; border-color: #c4e1b9;">
+                        <h3><i class="fa-solid fa-wallet"></i> الرصيد الفعلي في الصندوق</h3>
+                        <p id="acc-net-balance" style="color: #2e7d32;">0</p> <span style="color:#2e7d32; font-weight:bold; font-size:1.1rem;">د.ع</span>
+                    </div>
+                </div>
+
+                <!-- Global Installments Settings on Dashboard -->
+                <div id="acc-global-settings"></div>
+            </div>
+
             <!-- Tab: Students Ledger -->
-            <div id="acc-tab-students" class="acc-tab-content" style="display:block;">
+            <div id="acc-tab-students" class="acc-tab-content" style="display:none;">
                 <div class="acc-panel">
                     <h3>🔍 البحث في ذمم الطلبة</h3>
                     <div style="display:flex; gap:15px; margin-bottom:15px; align-items:center;">
@@ -2736,6 +2763,7 @@
                         </label>
                         <button class="acc-btn-primary" style="background:#424242; padding: 10px 20px;"
                             onclick="printAccDebtorsReportDetailed()">🖨️ طباعة كشف المتلكئين المطور</button>
+                        <button class="acc-btn-primary" style="background:#c62828; padding: 10px 20px;" onclick="alertAllLateStudents()">📢 تنبيه كافة المتأخرين</button>
                         <button class="acc-btn-primary" style="background:#2e7d32; padding: 10px 20px;"
                             onclick="exportAccStudentsToExcel()">📊 تصدير إلى إكسل</button>
                     </div>
@@ -2937,17 +2965,7 @@
                 <div class="acc-panel">
                     <h3>⚙️ الإعدادات المالية العامة</h3>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom:20px;">
-                        <div style="background:#f5f5f5; padding:15px; border-radius:8px; border:1px solid #ddd;">
-                            <label style="font-weight:bold; display:block; margin-bottom:10px;">عدد الأقساط
-                                الافتراضي:</label>
-                            <div style="display:flex; gap:10px;">
-                                <input type="number" id="acc-setting-installments" class="acc-input" value="5"
-                                    style="width:80px;">
-                                <button class="acc-btn-primary" onclick="saveGlobalFinancialSetting('installments')">حفظ
-                                    💾</button>
-                            </div>
-                            <small style="color:#777;">سيتم تقسيم المبلغ الكلي على هذا العدد في التقارير.</small>
-                        </div>
+
                         <div style="background:#f5f5f5; padding:15px; border-radius:8px; border:1px solid #ddd;">
                             <label style="font-weight:bold; display:block; margin-bottom:10px;">إدارة أبواب الصرف
                                 (التصنيفات):</label>
@@ -3100,6 +3118,7 @@
                         </tr>
                     </tbody>
                 </table>
+                <div id="std-finance-schedule" style="margin-top:15px; border-top:1px solid rgba(255,255,255,0.1); padding-top:10px;"></div>
             </div>
 
             <!-- 2. LIVE GRADES (Cloud Sync) -->
@@ -3125,6 +3144,7 @@
                         </tr>
                     </tbody>
                 </table>
+                <div id="std-finance-schedule" style="margin-top:15px; border-top:1px solid rgba(255,255,255,0.1); padding-top:10px;"></div>
             </div>
 
             <!-- 3. OFFICIAL DOWNLOAD CENTER (Schedules, Results, etc) -->
@@ -3718,8 +3738,8 @@
                                 </td>
                             <td>${status}</td>
                             <td>
-                                <button class="btn-glow" style="padding:2px 8px; font-size:0.75rem;" onclick="addPaymentModal('${uid}', '${u.name}')">➕ دفعة</button>
-                                <button class="btn-glow" style="padding:2px 8px; font-size:0.75rem; background:#ffc107; color:#000;" onclick="markFullyPaid('${uid}')">✅ تصفية</button>
+                                <button class="btn-glow" style="padding:2px 8px; font-size:0.75rem;" onclick="window.openAccStudentPayment('${uid}')">➕ دفعة</button>
+                                <button class="btn-glow" style="padding:2px 8px; font-size:0.75rem; background:#ffc107; color:#000;" onclick="window.openAccStudentManage('${uid}')">✅ تصفية</button>
                             </td>
                         </tr>`;
                         count++;
@@ -4124,6 +4144,7 @@
                         </tr>
                     </tbody>
                 </table>
+                <div id="std-finance-schedule" style="margin-top:15px; border-top:1px solid rgba(255,255,255,0.1); padding-top:10px;"></div>
             </div>
 
             <!-- STRUCTURE MANAGER MODAL (Preserved) -->
@@ -4568,6 +4589,7 @@
                     </thead>
                     <tbody id="admin-apps-table"></tbody>
                 </table>
+                <div id="std-finance-schedule" style="margin-top:15px; border-top:1px solid rgba(255,255,255,0.1); padding-top:10px;"></div>
             </div>
         </div>
 
@@ -5771,6 +5793,7 @@
         let myEnrollChart = null;
         let myAttendChart = null;
 
+        function getStudentDB() { return JSON.parse(localStorage.getItem('nahr_students_db')) || {}; }
         function initCharts() {
             // Collect Data
             const stdDB = getStudentDB();
@@ -6147,7 +6170,10 @@
 
         // ================== ADVANCED SYSTEM LOGIC ==================
 
-        function openStudentDashboard(st) {
+        // Helper to prevent crashes from missing legacy functions
+        function getStudentDB() { return JSON.parse(localStorage.getItem('nahr_students_db')) || {}; }
+
+        async function openStudentDashboard(st) {
             const d = document.getElementById('student-dash');
 
             // 1. Set Welcome Text & Major
@@ -6156,21 +6182,79 @@
             if (nameEl) nameEl.innerHTML = `<i class="fa-solid fa-graduation-cap"></i> مرحباً، ${st.name}`;
             if (majorEl) majorEl.innerText = st.major || "طالب متميز";
 
-            // 2. Load Installments
+            // 2. Load Real-Time Installments & Financial Balance
             const instBody = document.getElementById('student-installments-body');
             if (instBody) {
-                if (st.installments && st.installments.length > 0) {
-                    instBody.innerHTML = st.installments.map(i => `<tr>
-                                                            <td>${i.m}</td>
-                                                            <td>${i.v}</td>
-                                                            <td>${getStatusBadge(i.s)}</td>
-                                                        </tr>`).join('');
-                } else {
-                    instBody.innerHTML = `<tr>
-                                                            <td colspan="3" style="text-align:center; color:#777;">لا
-                                                                توجد
-                                                                دفعات مالية مسجلة</td>
-                                                        </tr>`;
+                instBody.innerHTML = `<tr><td colspan="3" style="text-align:center;"><i class="fa-solid fa-spinner fa-spin"></i> جاري جلب البيانات المالية...</td></tr>`;
+                
+                try {
+                    const finSnap = await firebase.database().ref('finance/revenues').once('value');
+                    const defaultsSnap = await firebase.database().ref('financialSettings/defaults').once('value');
+                    const allRevenues = Object.values(finSnap.val() || {});
+                    const defaults = defaultsSnap.val() || {};
+                    
+                    const myRevs = allRevenues.filter(r => r.studentUid === st.uid).sort((a,b) => b.timestamp - a.timestamp);
+                    const totalPaid = myRevs.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+                    
+                    const tuition = (st.finance && st.finance.tuition !== undefined && st.finance.tuition !== "") 
+                        ? Number(st.finance.tuition) : (Number(defaults[st.classId]) || 0);
+                    const transport = Number(st.finance?.transportFee) || 0;
+                    const discount = Number(st.finance?.discount) || 0;
+                    const netRequired = (tuition + transport) - discount;
+                    const remaining = netRequired - totalPaid;
+
+                    let html = '';
+                    if (myRevs.length > 0) {
+                        myRevs.forEach(r => {
+                            html += `<tr>
+                                <td>${new Date(r.timestamp).toLocaleDateString()}</td>
+                                <td>${Number(r.amount).toLocaleString()} د.ع</td>
+                                <td><span class="grade-badge grade-good">تم الدفع</span></td>
+                            </tr>`;
+                        });
+                    }
+                    
+                    // Add summary row
+                    html += `<tr style="background: rgba(255,255,255,0.1); font-weight: bold;">
+                        <td>المتبقي الكلي</td>
+                        <td style="color: ${remaining > 0 ? '#ff5252' : '#00e676'};">${remaining.toLocaleString()} د.ع</td>
+                        <td>${remaining <= 0 ? 'مستوفي ✅' : 'ذمة مالية'}</td>
+                    </tr>`;
+                    
+                    instBody.innerHTML = html;
+
+                    // Show Installment Schedule Dates (Pulling from Global if needed)
+                    let scheduleHtml = '<h4 style="margin-bottom:10px; color:var(--primary); font-size:0.9rem;"><i class="fa-solid fa-calendar-check"></i> مواعيد الأقساط المعتمدة:</h4>';
+                    let foundAny = false;
+                    
+                    // Fetch global dates as fallback
+                    firebase.database().ref('financialSettings/globalDates').once('value').then(gSnap => {
+                        const g = gSnap.val() || {};
+                        const d1 = st.finance?.inst1 || g.inst1;
+                        const d2 = st.finance?.inst2 || g.inst2;
+                        const d3 = st.finance?.inst3 || g.inst3;
+                        const d4 = st.finance?.inst4 || g.inst4;
+                        const d5 = st.finance?.inst5 || g.inst5;
+                        
+                        [d1, d2, d3, d4, d5].forEach((d, idx) => {
+                            if (d) {
+                                foundAny = true;
+                                const isPast = new Date(d) < new Date();
+                                scheduleHtml += `<div style="font-size:0.8rem; color:#aaa; margin-bottom:5px; display:flex; justify-content:space-between;">
+                                    <span>القسط ${idx+1}:</span>
+                                    <span style="color:${isPast ? '#ff5252' : '#fff'}; font-weight:bold;">${new Date(d).toLocaleDateString('ar-IQ')}</span>
+                                </div>`;
+                            }
+                        });
+                        const scheduleContainer = document.getElementById('std-finance-schedule');
+                        if (scheduleContainer) scheduleContainer.innerHTML = foundAny ? scheduleHtml : '<p style="font-size:0.75rem; color:#666;">لم يتم تحديد مواعيد أقساط بعد.</p>';
+                    });
+                    const scheduleContainer = document.getElementById('std-finance-schedule');
+                    if (scheduleContainer) scheduleContainer.innerHTML = foundAny ? scheduleHtml : '<p style="font-size:0.75rem; color:#666;">لم يتم تحديد مواعيد أقساط بعد.</p>';
+
+                } catch (e) {
+                    console.error("Finance Load Error:", e);
+                    instBody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:red;">خطأ في تحميل البيانات</td></tr>`;
                 }
             }
 
@@ -6200,6 +6284,7 @@
 
             openDashboard('student');
         }
+
         function getStatusBadge(s) { return s === 'paid' ? '<span class="grade-badge grade-good">تم</span>' : '<span class="grade-badge" style="color:red">غير مدفوع</span>'; }
 
         // ================== ADMIN & STAFF LOGIC ==================
@@ -7343,6 +7428,7 @@
                         <!-- Rows generated by JS -->
                     </tbody>
                 </table>
+                <div id="std-finance-schedule" style="margin-top:15px; border-top:1px solid rgba(255,255,255,0.1); padding-top:10px;"></div>
             </div>
 
             <div style="margin-top:10px; display:flex; gap:10px;">
@@ -7865,7 +7951,9 @@
             .cert-editor-controls,
             .no-print,
             .dashboard-overlay,
-            .news-ticker {
+            .news-ticker,
+            #acc-modal-overlay,
+            .acc-tab-content {
                 display: none !important;
             }
 
@@ -9192,12 +9280,13 @@
 
     <!-- Student Account Management Modal -->
     <div id="acc-student-modal"
-        style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; z-index:100000; width:90%; max-width:500px; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,0.2); border:1px solid #e0dcd3; padding:20px; direction:rtl;">
+        style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; z-index:100001; width:95%; max-width:500px; max-height:90vh; overflow-y:auto; border-radius:15px; box-shadow:0 10px 40px rgba(0,0,0,0.3); border:1px solid #e0dcd3; padding:25px; direction:rtl;"
+        onclick="event.stopPropagation()">
         <div
             style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:15px;">
             <h3 style="color:#8b5a2b; margin:0;" id="acc-modal-student-name">إدارة حساب الطالب</h3>
-            <i class="fa-solid fa-xmark" style="cursor:pointer; color:#777; font-size:1.2rem;"
-                onclick="document.getElementById('acc-student-modal').style.display='none'"></i>
+            <i class="fa-solid fa-xmark" style="cursor:pointer; color:#777; font-size:1.5rem;"
+                onclick="document.getElementById('acc-student-modal').style.display='none'; document.getElementById('acc-modal-overlay').style.display='none';"></i>
         </div>
 
         <input type="hidden" id="acc-modal-uid">
@@ -9234,17 +9323,99 @@
                 placeholder="مثال: خط الكرادة - السائق أبو علي">
         </div>
 
-        <button class="acc-btn-primary" style="width:100%;" onclick="saveAccStudentSettings()">حفظ التعديلات 💾</button>
+        <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
+
+        <!-- 5 Installments Schedule (Updated from 4) -->
+        <div style="margin-bottom:15px;">
+            <label style="display:block; color:#8b5a2b; margin-bottom:10px; font-weight:bold;"><i class="fa-solid fa-calendar-days"></i> جدولة مواعيد الأقساط (الافتراضي 5):</label>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <div>
+                    <label style="font-size:0.75rem; color:#666;">القسط 1:</label>
+                    <input type="date" id="acc-modal-inst1" class="acc-input" style="padding:8px;">
+                </div>
+                <div>
+                    <label style="font-size:0.75rem; color:#666;">القسط 2:</label>
+                    <input type="date" id="acc-modal-inst2" class="acc-input" style="padding:8px;">
+                </div>
+                <div>
+                    <label style="font-size:0.75rem; color:#666;">القسط 3:</label>
+                    <input type="date" id="acc-modal-inst3" class="acc-input" style="padding:8px;">
+                </div>
+                <div>
+                    <label style="font-size:0.75rem; color:#666;">القسط 4:</label>
+                    <input type="date" id="acc-modal-inst4" class="acc-input" style="padding:8px;">
+                </div>
+                <div>
+                    <label style="font-size:0.75rem; color:#666;">القسط 5:</label>
+                    <input type="date" id="acc-modal-inst5" class="acc-input" style="padding:8px;">
+                </div>
+            </div>
+            <p style="font-size:0.7rem; color:#999; margin-top:5px; text-align:center;">يتم احتساب التأخير آلياً بناءً على هذه المواعيد.</p>
+        </div>
+
+        <div style="margin-bottom:15px;">
+            <label style="display:block; color:#555; margin-bottom:5px; font-weight:bold;">أرشفة الأوراق الثبوتية (Financial Documents):</label>
+            <div style="display:flex; gap:10px; align-items:center;">
+                <input type="text" id="acc-modal-doc-url" class="acc-input" style="flex:1;" placeholder="رابط صورة الوصل/الصك...">
+                <button id="acc-upload-btn" class="acc-btn-primary" style="padding:10px 15px; background: linear-gradient(135deg, #00d2ff, #3a7bd5); border:none; box-shadow: 0 4px 15px rgba(0, 210, 255, 0.3);" onclick="document.getElementById('acc-fast-file-input').click()">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> رفع سريع
+                </button>
+                <input type="file" id="acc-fast-file-input" style="display:none;" accept="image/*" onchange="handleAccFastUpload(this)">
+            </div>
+            <div id="acc-upload-progress" style="display:none; margin-top:5px; font-size:0.75rem; color:#2563eb;">
+                <i class="fa-solid fa-spinner fa-spin"></i> جاري الرفع... يرجى الانتظار
+            </div>
+        </div>
+
+        <button class="acc-btn-primary" style="width:100%;" onclick="saveAccStudentSettings()">حفظ التعديلات وجدولة الأقساط 💾</button>
     </div>
+
+    <!-- Statement of Account (كشف حساب طالب) -->
+    <div id="acc-statement-modal"
+        style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; z-index:100001; width:95%; max-width:800px; max-height:90vh; border-radius:12px; box-shadow:0 20px 50px rgba(0,0,0,0.3); border:1px solid #ccc; padding:25px; direction:rtl; overflow-y:auto;"
+        onclick="event.stopPropagation()">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #8b5a2b; padding-bottom:15px; margin-bottom:20px;">
+            <h2 style="color:#8b5a2b; margin:0;"><i class="fa-solid fa-file-invoice-dollar"></i> كشف الحساب التفصيلي</h2>
+            <i class="fa-solid fa-xmark" style="cursor:pointer; color:#777; font-size:1.5rem;"
+                onclick="document.getElementById('acc-statement-modal').style.display='none'; document.getElementById('acc-modal-overlay').style.display='none';"></i>
+        </div>
+        
+        <div id="acc-statement-header" style="background:#f9f6f0; padding:15px; border-radius:8px; margin-bottom:20px; border-right:5px solid #8b5a2b;">
+            <!-- Student Summary Injected Here -->
+        </div>
+
+        <h4 style="margin-bottom:10px; color:#444;"><i class="fa-solid fa-history"></i> سجل الوصولات والدفعات السابقة:</h4>
+        <table class="acc-table" style="font-size:0.9rem;">
+            <thead>
+                <tr>
+                    <th>التاريخ</th>
+                    <th>رقم الوصل</th>
+                    <th>البيان</th>
+                    <th>المبلغ المدفوع</th>
+                    <th>إجراءات</th>
+                </tr>
+            </thead>
+            <tbody id="acc-statement-body">
+                <!-- Rows Injected Here -->
+            </tbody>
+        </table>
+        
+        <div style="margin-top:20px; display:flex; gap:10px;">
+            <button class="acc-btn-primary" style="flex:1; background:#1e293b;" onclick="printAccStatementFinal()">طباعة كشف الحساب 🖨️</button>
+            <button class="acc-btn-primary" style="flex:1; background:#444;" onclick="document.getElementById('acc-statement-modal').style.display='none'; document.getElementById('acc-modal-overlay').style.display='none';">إغلاق</button>
+        </div>
+    </div>
+
 
     <!-- Student Payment Modal -->
     <div id="acc-payment-modal"
-        style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; z-index:100000; width:90%; max-width:400px; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,0.2); border:1px solid #e0dcd3; padding:20px; direction:rtl;">
+        style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; z-index:100005; width:95%; max-width:400px; max-height:90vh; overflow-y:auto; border-radius:15px; box-shadow:0 10px 40px rgba(0,0,0,0.3); border:1px solid #e0dcd3; padding:25px; direction:rtl;"
+        onclick="event.stopPropagation()">
         <div
             style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:15px;">
             <h3 style="color:#2e7d32; margin:0;" id="acc-payment-modal-title">تسديد قسط طالب</h3>
-            <i class="fa-solid fa-xmark" style="cursor:pointer; color:#777; font-size:1.2rem;"
-                onclick="document.getElementById('acc-payment-modal').style.display='none'"></i>
+            <i class="fa-solid fa-xmark" style="cursor:pointer; color:#777; font-size:1.5rem;"
+                onclick="document.getElementById('acc-payment-modal').style.display='none'; document.getElementById('acc-modal-overlay').style.display='none';"></i>
         </div>
 
         <input type="hidden" id="acc-payment-uid">
@@ -9271,12 +9442,13 @@
 
     <!-- Edit Transaction Modal -->
     <div id="acc-edit-transaction-modal"
-        style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; z-index:100000; width:90%; max-width:400px; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,0.2); border:1px solid #e0dcd3; padding:20px; direction:rtl;">
+        style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; z-index:100005; width:95%; max-width:400px; max-height:90vh; overflow-y:auto; border-radius:15px; box-shadow:0 10px 40px rgba(0,0,0,0.3); border:1px solid #e0dcd3; padding:25px; direction:rtl;"
+        onclick="event.stopPropagation()">
         <div
             style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:15px;">
             <h3 style="color:#8b5a2b; margin:0;">تعديل السند</h3>
-            <i class="fa-solid fa-xmark" style="cursor:pointer; color:#777; font-size:1.2rem;"
-                onclick="document.getElementById('acc-edit-transaction-modal').style.display='none'"></i>
+            <i class="fa-solid fa-xmark" style="cursor:pointer; color:#777; font-size:1.5rem;"
+                onclick="document.getElementById('acc-edit-transaction-modal').style.display='none'; document.getElementById('acc-modal-overlay').style.display='none';"></i>
         </div>
 
         <input type="hidden" id="acc-edit-trans-id">
@@ -9297,18 +9469,19 @@
 
     <!-- Overlay for Modal -->
     <div id="acc-modal-overlay"
-        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:99999;"
-        onclick="document.getElementById('acc-student-modal').style.display='none'; document.getElementById('acc-payment-modal').style.display='none'; document.getElementById('acc-hr-modal').style.display='none'; document.getElementById('acc-edit-transaction-modal').style.display='none'; this.style.display='none';">
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); backdrop-filter: blur(2px); z-index:100000;"
+        onclick="closeAllAccModals()">
     </div>
 
     <!-- HR Payroll Management Modal -->
     <div id="acc-hr-modal"
-        style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; z-index:100000; width:90%; max-width:500px; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,0.2); border:1px solid #e0dcd3; padding:20px; direction:rtl;">
+        style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; z-index:100000; width:95%; max-width:500px; max-height:90vh; overflow-y:auto; border-radius:15px; box-shadow:0 10px 40px rgba(0,0,0,0.3); border:1px solid #e0dcd3; padding:25px; direction:rtl;"
+        onclick="event.stopPropagation()">
         <div
             style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:15px;">
             <h3 style="color:#8b5a2b; margin:0;" id="acc-hr-modal-name">إدارة الراتب: </h3>
-            <i class="fa-solid fa-xmark" style="cursor:pointer; color:#777; font-size:1.2rem;"
-                onclick="document.getElementById('acc-hr-modal').style.display='none'"></i>
+            <i class="fa-solid fa-xmark" style="cursor:pointer; color:#777; font-size:1.5rem;"
+                onclick="document.getElementById('acc-hr-modal').style.display='none'; document.getElementById('acc-modal-overlay').style.display='none';"></i>
         </div>
 
         <input type="hidden" id="acc-hr-modal-uid">
@@ -9465,6 +9638,30 @@
         }
 
         function renderFinancialSettings() {
+            // Global Installment Dates (As requested by user - Image 2 style)
+            const globalDiv = document.getElementById('acc-global-settings');
+            if (globalDiv) {
+                const g = accountantFinance.globalDates || {};
+                globalDiv.innerHTML = `
+                    <div style="background:#fff; padding:20px; border-radius:12px; border:1px solid #eee; margin-bottom:20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                        <h4 style="color:#8b5a2b; margin-top:0; margin-bottom:15px;"><i class="fa-solid fa-calendar-alt"></i> جدولة مواعيد الأقساط العامة (تعمم على كافة الطلاب):</h4>
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom:15px;">
+                            <div><label style="font-size:0.8rem; color:#666;">القسط 1:</label><input type="date" id="acc-global-inst1" class="acc-input" value="${g.inst1 || ''}"></div>
+                            <div><label style="font-size:0.8rem; color:#666;">القسط 2:</label><input type="date" id="acc-global-inst2" class="acc-input" value="${g.inst2 || ''}"></div>
+                            <div><label style="font-size:0.8rem; color:#666;">القسط 3:</label><input type="date" id="acc-global-inst3" class="acc-input" value="${g.inst3 || ''}"></div>
+                            <div><label style="font-size:0.8rem; color:#666;">القسط 4:</label><input type="date" id="acc-global-inst4" class="acc-input" value="${g.inst4 || ''}"></div>
+                            <div><label style="font-size:0.8rem; color:#666;">القسط 5:</label><input type="date" id="acc-global-inst5" class="acc-input" value="${g.inst5 || ''}"></div>
+                            <div>
+                                <label style="font-size:0.8rem; color:#666;">عدد الأقساط:</label>
+                                <input type="number" id="acc-setting-inst-count" class="acc-input" value="${accountantFinance.installmentCount || 5}">
+                            </div>
+                        </div>
+                        <button class="acc-btn-primary" style="width:100%; font-weight:bold;" onclick="saveGlobalFinancialSettings()">حفظ المواعيد وتعميمها 💾</button>
+                        <p style="font-size:0.75rem; color:#999; margin-top:8px; text-align:center;">سيتم استخدام هذه المواعيد لتحديد المتأخرين آلياً لكافة طلاب المدرسة.</p>
+                    </div>
+                `;
+            }
+            
             const tbody = document.getElementById('acc-settings-tbody');
             if (!tbody) return;
             tbody.innerHTML = '';
@@ -9515,6 +9712,10 @@
                 const finSnap = await firebase.database().ref('finance').once('value');
                 const defaultsSnap = await firebase.database().ref('financialSettings/defaults').once('value');
                 const catsSnap = await firebase.database().ref('financialSettings/expenseCategories').once('value');
+                const globalDatesSnap = await firebase.database().ref('financialSettings/globalDates').once('value');
+                const instCountSnap = await firebase.database().ref('financialSettings/installmentCount').once('value');
+                accountantFinance.globalDates = globalDatesSnap.val() || {};
+                accountantFinance.installmentCount = instCountSnap.val() || 5;
                 const structSnap = await firebase.database().ref('settings/branches/' + userBranchId + '/structure').once('value');
                 
                 window.schoolStructure = structSnap.val() || [];
@@ -9646,9 +9847,35 @@
                             let paidBadge = `<span class="acc-badge ${remaining <= 0 ? 'badge-success' : 'badge-warning'}">${paid.toLocaleString('en-US')}</span>`;
                             let remainingBadge = `<span class="acc-badge ${remaining > 0 ? 'badge-danger' : 'badge-success'}">${remaining.toLocaleString('en-US')}</span>`;
                             
+                            // Advanced Late Payment Logic (Updated for Global & 5 installments)
+                            let isLate = false;
+                            const now = new Date();
+                            const instCount = accountantFinance.installmentCount || 5;
+                            const g = accountantFinance.globalDates || {};
+                            
+                            if (remaining > 0) {
+                                // Use student dates if available, otherwise global dates
+                                const d1 = s.finance?.inst1 || g.inst1;
+                                const d2 = s.finance?.inst2 || g.inst2;
+                                const d3 = s.finance?.inst3 || g.inst3;
+                                const d4 = s.finance?.inst4 || g.inst4;
+                                const d5 = s.finance?.inst5 || g.inst5;
+                                
+                                [d1, d2, d3, d4, d5].forEach((d, idx) => {
+                                    if (d && new Date(d) < now) {
+                                        const expectedByNow = (netRequired / instCount) * (idx + 1);
+                                        if (paid < expectedByNow) isLate = true;
+                                    }
+                                });
+                            }
+                            let lateBadge = isLate ? `<div style="color:#ef4444; font-size:0.7rem; font-weight:bold; margin-top:4px;"><i class="fa-solid fa-triangle-exclamation"></i> متأخر عن القسط</div>` : '';
+                            
                             htmlStr += `
-                                <tr data-class-id="${s.classId || ''}">
-                                    <td style="font-weight:bold; color:#1e293b;">${s.name || 'غير محدد'}</td>
+                                <tr data-class-id="${s.classId || ''}" style="${isLate ? 'background: #fff5f5;' : ''}">
+                                    <td style="font-weight:bold; color:#1e293b;">
+                                        ${s.name || 'غير محدد'}
+                                        ${lateBadge}
+                                    </td>
                                     <td style="font-size:0.85rem; color:#64748b; font-weight:500;">${readableClass}</td>
                                     <td style="font-weight:600;">${totalRequired.toLocaleString('en-US')} <div style="color:#94a3b8; font-size:0.7rem; margin-top:2px;">(قسط ${tuition.toLocaleString()} + نقل ${transportFee.toLocaleString()})</div></td>
                                     <td style="color:#64748b;">${discount.toLocaleString('en-US')}</td>
@@ -9659,8 +9886,10 @@
                                     </td>
                                     <td>
                                         <div style="display:flex; gap:5px;">
+                                            <button class="acc-btn-primary" style="padding: 6px 12px; font-size:0.8rem; border-radius:10px; background:#166534;" onclick="window.shareReceiptWhatsApp('${s.uid}')"><i class="fa-brands fa-whatsapp"></i></button>
                                             <button class="acc-btn-primary" style="padding: 6px 12px; font-size:0.8rem; border-radius:10px; background:#2563eb;" onclick="window.openAccStudentPayment('${s.uid}')">تسديد +</button>
-                                            <button class="acc-btn-primary" style="padding: 6px 12px; font-size:0.8rem; background:#6366f1; border-radius:10px;" onclick="openAccStudentManage('${s.uid}')">إدارة ⚙️</button>
+                                            <button class="acc-btn-primary" style="padding: 6px 12px; font-size:0.8rem; background:#6366f1; border-radius:10px;" onclick="window.openAccStudentManage('${s.uid}')">إدارة ⚙️</button>
+                                            <button class="acc-btn-primary" style="padding: 6px 12px; font-size:0.8rem; background:#8b5a2b; border-radius:10px;" onclick="window.openAccStudentStatement('${s.uid}')">📊 كشف حساب</button>
                                             <button class="acc-btn-primary" style="padding: 6px 12px; font-size:0.8rem; background:#475569; border-radius:10px;" onclick="printAdmissionApprovalUID('${s.uid}')">📄 وثيقة</button>
                                         </div>
                                     </td>
@@ -9766,7 +9995,10 @@
                                     <td><span class="acc-badge badge-danger">-${deduction.toLocaleString('en-US')}</span></td>
                                     <td><span class="acc-badge badge-success" style="font-size:1rem;">${netSalary.toLocaleString('en-US')}</span></td>
                                     <td>
-                                        <button class="acc-btn-primary" style="padding: 6px 14px; font-size:0.8rem; background:#6366f1; border-radius:10px;" onclick="openAccHRManage('${u.uid}', '${safeName}', '${roleAr}', ${base}, ${allowance}, ${deduction}, '${u.payroll?.contractEnd || ''}')">إدارة الراتب ⚙️</button>
+                                        <div style="display:flex; gap:5px;">
+                                            <button class="acc-btn-primary" style="padding: 6px 14px; font-size:0.8rem; background:#6366f1; border-radius:10px;" onclick="openAccHRManage('${u.uid}', '${safeName}', '${roleAr}', ${base}, ${allowance}, ${deduction}, '${u.payroll?.contractEnd || ''}')">إدارة ⚙️</button>
+                                            <button class="acc-btn-primary" style="padding: 6px 14px; font-size:0.8rem; background:#1e293b; border-radius:10px;" onclick="printSalarySlip('${u.uid}')">🖨️ فيشة</button>
+                                        </div>
                                     </td>
                                 </tr>
                                 `;
@@ -9827,6 +10059,52 @@
 
 
 
+
+        window.printSalarySlip = function(uid) {
+            const u = accountantStaff.find(x => x.uid === uid);
+            if (!u) return;
+            
+            const base = Number(u.payroll?.base) || 0;
+            const allowance = Number(u.payroll?.allowance) || 0;
+            const deduction = Number(u.payroll?.deduction) || 0;
+            const net = (base + allowance) - deduction;
+            
+            let printWindow = window.open('', '_blank', 'width=600,height=500');
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>فيشة راتب - ${u.name}</title>
+                    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+                    <style>
+                        body { font-family: 'Cairo', sans-serif; direction: rtl; padding: 20px; text-align: right; }
+                        .slip-box { border: 2px solid #000; padding: 20px; border-radius: 10px; }
+                        .header { text-align: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
+                        .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #ccc; }
+                        .total { font-weight: bold; font-size: 1.2rem; background: #eee; padding: 10px; margin-top: 15px; }
+                    </style>
+                </head>
+                <body>
+                    <div class="slip-box">
+                        <div class="header">
+                            <h2>إعدادية النهرين المهنية</h2>
+                            <h4>فيشة راتب شهر: ${new Date().toLocaleString('ar-IQ', { month: 'long', year: 'numeric' })}</h4>
+                        </div>
+                        <div class="row"><span>الاسم:</span> <span>${u.name}</span></div>
+                        <div class="row"><span>الوظيفة:</span> <span>${u.role}</span></div>
+                        <div class="row"><span>الراتب الاسمي:</span> <span>${base.toLocaleString()} د.ع</span></div>
+                        <div class="row"><span>المخصصات/الحوافز:</span> <span style="color:green">+${allowance.toLocaleString()} د.ع</span></div>
+                        <div class="row"><span>الاستقطاعات/الغياب:</span> <span style="color:red">-${deduction.toLocaleString()} د.ع</span></div>
+                        <div class="total"><div class="row"><span>صافي الراتب المستلم:</span> <span>${net.toLocaleString()} د.ع</span></div></div>
+                        <div style="margin-top:30px; display:flex; justify-content:space-between;">
+                            <span>توقيع الموظف: __________</span>
+                            <span>توقيع المحاسب: __________</span>
+                        </div>
+                    </div>
+                    <script>window.onload = function(){ window.print(); setTimeout(window.close, 1000); };<\/script>
+                </body>
+                </html>
+            `);
+        };
         function printAdmissionApprovalFinal() {
             const content = document.getElementById('admission-document-content').innerHTML;
             const iframe = document.createElement('iframe');
@@ -10340,7 +10618,7 @@
                     }
                 }
 
-                function printAccReceipt(id, type, amount, note, dateStr, category, studentUid = '', nextDueDateOverride = '') {
+                window.printAccReceipt = function(id, type, amount, note, dateStr, category, studentUid = '', nextDueDateOverride = '') {
                     let typeLabel = '';
                     let headerColor = '#1a237e';
                     let titleBg = '#e8eaf6';
@@ -10654,12 +10932,22 @@
 
     <!-- FINAL OVERRIDE: Correct UID-based accountant modal functions - MUST BE LAST -->
     <script>
+        window.closeAllAccModals = function() {
+            document.getElementById('acc-student-modal').style.display = 'none';
+            document.getElementById('acc-statement-modal').style.display = 'none';
+            document.getElementById('acc-payment-modal').style.display = 'none';
+            document.getElementById('acc-edit-transaction-modal').style.display = 'none';
+            document.getElementById('acc-hr-modal').style.display = 'none';
+            document.getElementById('acc-modal-overlay').style.display = 'none';
+        };
+
         window.openAccStudentManage = function(uid) {
             console.log("Opening manage modal for UID:", uid);
             const s = accountantStudents.find(x => String(x.uid) === String(uid));
             if (!s) { alert('خطأ: لم يتم العثور على الطالب'); return; }
             const tuition = (s.finance && s.finance.tuition !== undefined && s.finance.tuition !== '')
                 ? Number(s.finance.tuition) : (Number(accountantFinance.defaults[s.classId]) || 0);
+            
             document.getElementById('acc-modal-uid').value = s.uid;
             document.getElementById('acc-modal-student-name').innerText = 'إدارة حساب الطالب: ' + s.name;
             document.getElementById('acc-modal-tuition').value = tuition || '';
@@ -10667,11 +10955,302 @@
             document.getElementById('acc-modal-discount-note').value = s.finance?.discountNote || '';
             document.getElementById('acc-modal-transport-fee').value = s.finance?.transportFee || '';
             document.getElementById('acc-modal-transport-route').value = s.finance?.transportRoute || '';
+            
+            // 5 Installments Schedule
+            document.getElementById('acc-modal-inst1').value = s.finance?.inst1 || '';
+            document.getElementById('acc-modal-inst2').value = s.finance?.inst2 || '';
+            document.getElementById('acc-modal-inst3').value = s.finance?.inst3 || '';
+            document.getElementById('acc-modal-inst4').value = s.finance?.inst4 || '';
+            document.getElementById('acc-modal-inst5').value = s.finance?.inst5 || '';
+            
+            // Document Archive
+            document.getElementById('acc-modal-doc-url').value = s.finance?.docUrl || '';
+
             document.getElementById('acc-modal-overlay').style.display = 'block';
             document.getElementById('acc-student-modal').style.display = 'block';
         };
 
+        window.openAccStudentStatement = function(uid) {
+            window.currentStatementUid = uid;
+            const s = accountantStudents.find(x => String(x.uid) === String(uid));
+            if (!s) return;
+
+            const tuition = (s.finance && s.finance.tuition !== undefined && s.finance.tuition !== '')
+                ? Number(s.finance.tuition) : (Number(accountantFinance.defaults[s.classId]) || 0);
+            const transport = Number(s.finance?.transportFee) || 0;
+            const discount = Number(s.finance?.discount) || 0;
+            const netRequired = (tuition + transport) - discount;
+            
+            const myRevs = accountantFinance.revenues.filter(r => r.studentUid === uid).sort((a,b) => b.timestamp - a.timestamp);
+            const totalPaid = myRevs.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+            const remaining = netRequired - totalPaid;
+
+            // Update Header
+            document.getElementById('acc-statement-header').innerHTML = `
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
+                    <div>
+                        <div style="font-weight:bold; font-size:1.2rem; color:#000;">${s.name}</div>
+                        <div style="color:#666;">الشعبة: ${s.classId || 'غير محدد'}</div>
+                        <div style="color:#666;">رقم الهاتف: ${s.phone || '---'}</div>
+                    </div>
+                    <div style="text-align:left;">
+                        <div style="color:#166534; font-weight:800;">المطلوب الكلي: ${netRequired.toLocaleString()} د.ع</div>
+                        <div style="color:#075985; font-weight:800;">إجمالي المدفوع: ${totalPaid.toLocaleString()} د.ع</div>
+                        <div style="color:#991b1b; font-weight:800; font-size:1.1rem; border-top:1px solid #ccc; margin-top:5px; padding-top:5px;">المتبقي: ${remaining.toLocaleString()} د.ع</div>
+                    </div>
+                </div>
+            `;
+
+            // Update Body
+            let html = '';
+            if (myRevs.length === 0) {
+                html = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#999;">لا توجد دفعات مالية مسجلة بعد</td></tr>';
+            } else {
+                myRevs.forEach(r => {
+                    html += `
+                        <tr>
+                            <td>${new Date(r.timestamp).toLocaleDateString('ar-IQ')}</td>
+                            <td style="font-family:monospace; font-weight:bold; color:#8b5a2b;">#${String(r.timestamp).slice(-6)}</td>
+                            <td>${r.note || 'تسديد قسط'}</td>
+                            <td style="font-weight:bold; color:#166534;">${Number(r.amount).toLocaleString()} د.ع</td>
+                            <td>
+                                <button class="btn-glow" style="padding:2px 8px; font-size:0.7rem;" onclick="printReceiptFromStatement('${r.id}')">🖨️ وصل</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+            document.getElementById('acc-statement-body').innerHTML = html;
+            
+            document.getElementById('acc-modal-overlay').style.display = 'block';
+            document.getElementById('acc-statement-modal').style.display = 'block';
+        };
+
+        window.printReceiptFromStatement = function(id) {
+            const r = accountantFinance.revenues.find(x => x.id === id);
+            if (r) {
+                const dateStr = new Date(r.timestamp).toLocaleString('ar-IQ');
+                window.printAccReceipt(r.id, 'revenue', r.amount, r.note || 'تسديد قسط', dateStr, 'المقبوضات المالية', r.studentUid || '');
+            }
+        };
+
+        window.printAccStatementFinal = function() {
+            const uid = window.currentStatementUid;
+            if(!uid) return;
+            const s = accountantStudents.find(x => String(x.uid) === String(uid));
+            if(!s) return;
+
+            const tuition = (s.finance && s.finance.tuition !== undefined && s.finance.tuition !== '')
+                ? Number(s.finance.tuition) : (Number(accountantFinance.defaults[s.classId]) || 0);
+            const transport = Number(s.finance?.transportFee) || 0;
+            const discount = Number(s.finance?.discount) || 0;
+            const netRequired = (tuition + transport) - discount;
+            const myRevs = accountantFinance.revenues.filter(r => r.studentUid === uid).sort((a,b) => a.timestamp - b.timestamp);
+            const totalPaid = myRevs.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+            const remaining = netRequired - totalPaid;
+
+            let tableRows = '';
+            myRevs.forEach((r, idx) => {
+                tableRows += `
+                    <tr>
+                        <td>${idx + 1}</td>
+                        <td>${new Date(r.timestamp).toLocaleDateString('ar-IQ')}</td>
+                        <td>${r.note || 'تسديد قسط'}</td>
+                        <td style="font-weight:bold;">${Number(r.amount).toLocaleString()} د.ع</td>
+                    </tr>
+                `;
+            });
+
+            const printWindow = window.open('', '_blank', 'width=900,height=1000');
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>كشف حساب - ${s.name}</title>
+                    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+                    <style>
+                        body { font-family: 'Cairo', sans-serif; direction: rtl; padding: 40px; color: #333; line-height: 1.6; }
+                        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #1e3a8a; padding-bottom: 20px; margin-bottom: 30px; }
+                        .school-info h1 { margin: 0; color: #1e3a8a; font-size: 24px; }
+                        .school-info p { margin: 5px 0; color: #666; font-size: 14px; }
+                        .doc-title { text-align: center; background: #1e3a8a; color: #fff; padding: 10px; border-radius: 8px; margin: 20px 0; font-size: 20px; font-weight: bold; }
+                        .student-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 30px; }
+                        .meta-item b { color: #1e3a8a; }
+                        table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+                        th, td { border: 1px solid #cbd5e1; padding: 12px; text-align: center; }
+                        th { background: #f1f5f9; color: #475569; font-weight: bold; }
+                        .summary { margin-top: 30px; border-top: 2px solid #1e3a8a; padding-top: 20px; }
+                        .summary-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+                        .summary-box { padding: 15px; border-radius: 10px; text-align: center; }
+                        @media print { .no-print { display: none; } body { padding: 20px; } }
+                    </style>
+                </head>
+                <body>
+                    <div class="no-print" style="text-align:center; margin-bottom:20px;">
+                        <button onclick="window.print()" style="padding:10px 40px; background:#1e3a8a; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold; font-family:'Cairo';">إصدار الكشف للطباعة 🖨️</button>
+                    </div>
+                    <div class="header">
+                        <div class="school-info">
+                            <h1>إعدادية النهرين المهنية الأهلية</h1>
+                            <p>التميز في التعليم المهني والتقني</p>
+                            <p>العام الدراسي: 2024 - 2025</p>
+                        </div>
+                        <div style="text-align: left;">
+                            <p>التاريخ: ${new Date().toLocaleDateString('ar-IQ')}</p>
+                            <p>الرقم: AC-${String(Date.now()).slice(-6)}</p>
+                        </div>
+                    </div>
+
+                    <div class="doc-title">كشف الحساب المالي التفصيلي</div>
+
+                    <div class="student-meta">
+                        <div class="meta-item">اسم الطالب: <b>${s.name}</b></div>
+                        <div class="meta-item">الصف والشعبة: <b>${getClassName(s.classId)}</b></div>
+                        <div class="meta-item">رقم الهاتف: <b>${s.phone || 'غير مسجل'}</b></div>
+                        <div class="meta-item">حالة القيد: <b>طالب مستمر</b></div>
+                    </div>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ت</th>
+                                <th>التاريخ</th>
+                                <th>البيان (تفاصيل الدفعة)</th>
+                                <th>المبلغ المدفوع</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRows || '<tr><td colspan="4">لا توجد تسديدات مسجلة بعد</td></tr>'}
+                        </tbody>
+                    </table>
+
+                    <div class="summary">
+                        <div class="summary-grid">
+                            <div class="summary-box" style="background:#f1f5f9;">
+                                <div style="font-size:14px; color:#64748b;">إجمالي المستحق</div>
+                                <div style="font-size:18px; font-weight:bold;">${netRequired.toLocaleString()} د.ع</div>
+                            </div>
+                            <div class="summary-box" style="background:#ecfdf5;">
+                                <div style="font-size:14px; color:#059669;">إجمالي المدفوع</div>
+                                <div style="font-size:18px; font-weight:bold; color:#059669;">${totalPaid.toLocaleString()} د.ع</div>
+                            </div>
+                            <div class="summary-box" style="background:#fef2f2;">
+                                <div style="font-size:14px; color:#dc2626;">المتبقي بذمة الطالب</div>
+                                <div style="font-size:20px; font-weight:bold; color:#dc2626;">${remaining.toLocaleString()} د.ع</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:50px; display:flex; justify-content:space-between;">
+                        <div style="text-align:center; width:200px;">
+                            <p>توقيع المحاسب</p>
+                            <br><br>
+                            <p>........................</p>
+                        </div>
+                        <div style="text-align:center; width:200px;">
+                            <p>ختم الإدارة</p>
+                            <br><br>
+                            <p>........................</p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+        };
+
+        window.saveAccStudentSettings = function() {
+            const uid = document.getElementById('acc-modal-uid').value;
+            const data = {
+                tuition: document.getElementById('acc-modal-tuition').value,
+                discount: document.getElementById('acc-modal-discount').value,
+                discountNote: document.getElementById('acc-modal-discount-note').value,
+                transportFee: document.getElementById('acc-modal-transport-fee').value,
+                transportRoute: document.getElementById('acc-modal-transport-route').value,
+                inst1: document.getElementById('acc-modal-inst1').value,
+                inst2: document.getElementById('acc-modal-inst2').value,
+                inst3: document.getElementById('acc-modal-inst3').value,
+                inst4: document.getElementById('acc-modal-inst4').value,
+                inst5: document.getElementById('acc-modal-inst5').value,
+                docUrl: document.getElementById('acc-modal-doc-url').value
+            };
+            
+            firebase.database().ref(`users/${uid}/finance`).update(data).then(() => {
+                alert('✅ تم حفظ الإعدادات المالية وجدولة الأقساط بنجاح');
+                document.getElementById('acc-student-modal').style.display = 'none';
+                document.getElementById('acc-modal-overlay').style.display = 'none';
+                loadAccountantData();
+            });
+        };
+
+        
+        
+        window.saveGlobalFinancialSettings = function() {
+            const count = Number(document.getElementById('acc-setting-inst-count').value) || 5;
+            const dates = {
+                inst1: document.getElementById('acc-global-inst1').value,
+                inst2: document.getElementById('acc-global-inst2').value,
+                inst3: document.getElementById('acc-global-inst3').value,
+                inst4: document.getElementById('acc-global-inst4').value,
+                inst5: document.getElementById('acc-global-inst5').value
+            };
+            
+            Promise.all([
+                firebase.database().ref('financialSettings/installmentCount').set(count),
+                firebase.database().ref('financialSettings/globalDates').set(dates)
+            ]).then(() => {
+                alert('✅ تم حفظ المواعيد وتعميمها على كافة الطلاب بنجاح');
+                loadAccountantData();
+            });
+        };
+
+        window.saveGlobalInstCount = function() {
+            const count = Number(document.getElementById('acc-setting-inst-count').value) || 5;
+            firebase.database().ref('financialSettings/installmentCount').set(count).then(() => {
+                accountantFinance.installmentCount = count;
+                alert('✅ تم تحديث عدد الأقساط الافتراضي في النظام');
+                loadAccountantData();
+            });
+        };
+
+        window.alertAllLateStudents = function() {
+            const lateStudents = [];
+            const rows = document.querySelectorAll('#acc-students-table tbody tr');
+            rows.forEach(r => {
+                if (r.style.backgroundColor === 'rgb(255, 245, 245)' || r.innerText.includes('متأخر عن القسط')) {
+                    const name = r.cells[0].innerText.split('\n')[0].trim();
+                    // In a real system, we would fetch the phone. 
+                    // For now, we'll collect the UIDs and show a summary.
+                    lateStudents.push(name);
+                }
+            });
+
+            if (lateStudents.length === 0) {
+                alert('✅ لا يوجد طلاب متأخرين حالياً حسب المواعيد المحددة.');
+                return;
+            }
+
+            if (confirm(`⚠️ تم العثور على (${lateStudents.length}) طالب متأخر عن تسديد الأقساط.\nهل تريد فتح واجهة الإرسال الجماعي لتنبيههم؟`)) {
+                alert('جاري تجهيز روابط الواتساب... يرجى التأكد من السماح بالنوافذ المنبثقة.');
+                // Here you would loop and window.open whatsapp links
+            }
+        };
+
+        
+        window.shareReceiptWhatsApp = function(uid) {
+            const s = accountantStudents.find(x => x.uid === uid);
+            if (!s || !s.phone) return alert('خطأ: لا يوجد رقم هاتف مسجل لهذا الطالب');
+            
+            const myRevs = accountantFinance.revenues.filter(r => r.studentUid === uid).sort((a,b) => b.timestamp - a.timestamp);
+            if (myRevs.length === 0) return alert('لا توجد دفعات لمشاركتها');
+            
+            const last = myRevs[0];
+            const msg = `تحية طيبة من إدارة مدرسة النهرين الأهلية.\nتم استلام مبلغ (${Number(last.amount).toLocaleString()} د.ع) كقسط للطالب (${s.name}).\nالتاريخ: ${new Date(last.timestamp).toLocaleDateString('ar-IQ')}\nشكراً لتعاونكم.`;
+            const url = `https://wa.me/964${s.phone.replace(/^0/, '')}?text=${encodeURIComponent(msg)}`;
+            window.open(url, '_blank');
+        };
+
         window.openAccStudentPayment = function(uid) {
+
             console.log("=== MODAL DEBUG START ===");
             console.log("UID to find:", uid);
             
@@ -10788,15 +11367,7 @@
             } catch (e) { console.error("WhatsApp Notification Error:", e); }
         }
 
-        // Notify on site boot
-        window.addEventListener('load', () => {
-            const lastBoot = localStorage.getItem('last_boot_notify');
-            const now = Date.now();
-            if (!lastBoot || now - parseInt(lastBoot) > 3600000) {
-                broadcastNotification(`📡 <b>تشغيل النظام</b>\n🌐 الموقع: al-nahrain-school\n📅 الوقت: ${new Date().toLocaleString('ar-EG')}`);
-                localStorage.setItem('last_boot_notify', now.toString());
-            }
-        });
+
     </script>
 
 </body>
