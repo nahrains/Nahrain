@@ -8235,16 +8235,16 @@
 
             // ضمان وجود جلسة Firebase Auth قبل تحميل البيانات
             const _fbCurrent = firebase.auth().currentUser;
-            // إذا لا يوجد مستخدم أو الجلسة anonymous (uid مؤقت لا يطابق أي دور) → أعد تسجيل الدخول
             if (!_fbCurrent || _fbCurrent.isAnonymous) {
                 const _fbEmail = u.email && u.email.includes('@') ? u.email : null;
-                const _fbPass  = _lastLoginPass || null;
+                // كلمة مرور ثابتة مشتقة من الإيميل — لا تتأثر بطول كلمة المرور الأصلية
+                const _fbPass  = _fbEmail ? ('nhr_' + btoa(_fbEmail).replace(/[^a-z0-9]/gi,'') + '_2024') : null;
                 try {
                     if (_fbEmail && _fbPass) {
                         try {
                             await firebase.auth().signInWithEmailAndPassword(_fbEmail, _fbPass);
                         } catch(err) {
-                            if (err.code === 'auth/user-not-found') {
+                            if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
                                 await firebase.auth().createUserWithEmailAndPassword(_fbEmail, _fbPass);
                             } else {
                                 await firebase.auth().signInAnonymously();
@@ -8253,7 +8253,7 @@
                     } else {
                         await firebase.auth().signInAnonymously();
                     }
-                } catch(e) {}
+                } catch(e) { console.warn('Firebase Auth error:', e); }
             }
 
             // كتابة سجل المرآة دائماً — يربط Firebase Auth uid بالدور الصحيح في قواعد الأمان
@@ -8484,11 +8484,7 @@
                         } else {
                             localStorage.removeItem('nahrain_manual_auth');
                         }
-                        // Sign into Firebase Auth in background so security rules (auth != null) work
                         _lastLoginPass = pass;
-                        if (foundUserMatch.email && foundUserMatch.email.includes('@')) {
-                            firebase.auth().signInWithEmailAndPassword(foundUserMatch.email, pass).catch(() => {});
-                        }
                         completeLogin(foundUserMatch);
                         return;
                     } else if (identifier.includes('@')) {
