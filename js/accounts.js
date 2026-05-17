@@ -2315,19 +2315,6 @@
             }).catch(e => alert('خطأ في الحفظ: ' + e.message));
         };
 
-        window.openAccStudentPayment = function(uid) {
-            const s = accountantStudents.find(x => String(x.uid) === String(uid));
-            if (!s) return;
-            document.getElementById('acc-payment-uid').value = s.uid;
-            document.getElementById('acc-payment-name').value = s.name;
-            document.getElementById('acc-payment-modal-title').innerText = 'استلام مبلغ من: ' + s.name;
-            document.getElementById('acc-payment-amount').value = '';
-            document.getElementById('acc-payment-note').value = 'تسديد قسط الطالب ' + s.name;
-            document.getElementById('acc-payment-next-date').value = '';
-            document.getElementById('acc-modal-overlay').style.display = 'block';
-            document.getElementById('acc-payment-modal').style.display = 'block';
-        };
-
         window.printReceiptFromStatement = function(txId) {
             const r = accountantFinance.revenues.find(x => x.id === txId);
             if (!r) return alert('خطأ: لم يتم العثور على بيانات الوصل');
@@ -3394,14 +3381,6 @@
 
 
 
-        window.printSalarySlip = function(uid) {
-            const u = accountantStaff.find(x => x.uid === uid); if (!u) return;
-            const net = (Number(u.payroll?.base)||0) + (Number(u.payroll?.allowance)||0) - (Number(u.payroll?.deduction)||0);
-            const win = window.open('', '_blank');
-            win.document.write(`<html><body><h2>فيشة راتب: ${u.name}</h2><p>الصافي: ${net.toLocaleString()} د.ع</p><button onclick="window.print()">طباعة</button></body></html>`);
-            win.document.close();
-        };
-
         window.calculateNetSalaryLive = function() {
             const b = parseFloat(document.getElementById('acc-hr-base').value) || 0;
             const a = parseFloat(document.getElementById('acc-hr-allowance').value) || 0;
@@ -3793,17 +3772,49 @@
             if (!s) return alert('خطأ: تعذر العثور على بيانات الطالب');
             
             let dept = "-", stage = "-", section = "-";
-            if (s.classId && s.classId.includes('_')) {
-                const parts = s.classId.split('_');
-                if (parts.length >= 3) {
-                    dept = parts[0];
-                    stage = parts[1];
-                    section = parts[2];
-                    if (window.NAHRAIN_DEPARTMENTS && window.NAHRAIN_DEPARTMENTS[dept]) dept = window.NAHRAIN_DEPARTMENTS[dept].name;
-                    if (window.NAHRAIN_STAGES && window.NAHRAIN_STAGES[stage]) stage = window.NAHRAIN_STAGES[stage].name;
+
+            function _lookupInStructure(struct, classId) {
+                if (!struct || !Array.isArray(struct)) return null;
+                for (const d of struct) {
+                    if (!d.stages) continue;
+                    for (const st of d.stages) {
+                        const secs = Array.isArray(st.sections) ? st.sections : Object.values(st.sections || {});
+                        for (const sc of secs) {
+                            if (sc.id === classId) return { dept: d.name, stage: st.name, section: sc.name };
+                        }
+                    }
                 }
-            } else {
-                dept = getClassName(s.classId);
+                return null;
+            }
+
+            if (s.classId) {
+                // 1. Try local schoolStructure first
+                const local = _lookupInStructure(window.schoolStructure, s.classId);
+                if (local) {
+                    dept = local.dept; stage = local.stage; section = local.section;
+                } else {
+                    // 2. Try fetching the student's own branch structure from Firebase
+                    const studentBranch = s.branchId || (s.classId.includes('_') ? s.classId.split('_')[1] : null);
+                    if (studentBranch) {
+                        try {
+                            const snap = await _restGet('settings/branches/' + studentBranch + '/structure');
+                            const remote = _lookupInStructure(snap.val(), s.classId);
+                            if (remote) { dept = remote.dept; stage = remote.stage; section = remote.section; }
+                        } catch(e) { /* ignore */ }
+                    }
+                    // 3. If still not found, use getClassName fallback
+                    if (dept === "-") {
+                        const full = getClassName(s.classId);
+                        if (full && !full.includes('محذوف') && !full.includes('محدث')) {
+                            const p = full.split(' - ');
+                            dept = p[0] || s.classId;
+                            stage = p[1] || "-";
+                            section = p[2] || "-";
+                        } else {
+                            dept = s.classId;
+                        }
+                    }
+                }
             }
 
             printStudentReceipt({
