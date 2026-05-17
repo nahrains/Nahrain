@@ -36,9 +36,8 @@
             if (branchTitleElem && branchInfo) branchTitleElem.innerText = `فرع: ${branchInfo.name}`;
 
             try {
-                // جلب كل البيانات بالتوازي عبر REST API (أسرع بكثير من SDK)
-                const [usersSnap, finSnap, defaultsSnap, catsSnap, globalDatesSnap,
-                       instCountSnap, globalPercentsSnap, academicYearSnap, structSnap] = await Promise.all([
+                // allSettled: فشل مسار واحد لا يوقف الباقين
+                const results = await Promise.allSettled([
                     _restGet('users'),
                     _restGet('finance'),
                     _restGet('financialSettings/defaults'),
@@ -50,10 +49,15 @@
                     _restGet('settings/branches/' + userBranchId + '/structure')
                 ]);
 
+                const get = (i) => results[i].status === 'fulfilled' ? results[i].value : { val: () => null, exists: () => false };
+                const [usersSnap, finSnap, defaultsSnap, catsSnap, globalDatesSnap,
+                       instCountSnap, globalPercentsSnap, academicYearSnap, structSnap] =
+                    results.map((_, i) => get(i));
+
                 accountantFinance.globalDates = globalDatesSnap.val() || {};
                 accountantFinance.installmentCount = instCountSnap.val() || (userBranchId === 'primary' ? 3 : 5);
                 accountantFinance.globalPercents = globalPercentsSnap.val() || {};
-                
+
                 window.schoolStructure = structSnap.val() || [];
                 const users = usersSnap.val() || {};
                 const finance = finSnap.val() || { revenues: {}, expenses: {} };
