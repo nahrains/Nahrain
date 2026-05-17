@@ -137,7 +137,8 @@
         async function _restGet(path, opts) {
             let qs = '';
             try {
-                const u = firebase.auth().currentUser;
+                let u = firebase.auth().currentUser;
+                if (!u) { const c = await firebase.auth().signInAnonymously(); u = c.user; }
                 if (u) qs = '?auth=' + await u.getIdToken();
             } catch(_) {}
             const r = await fetch(`${firebaseConfig.databaseURL}/${path}.json${qs}`);
@@ -213,7 +214,11 @@
 
         async function _restUpdate(path, data) {
             let qs = '';
-            try { const u = firebase.auth().currentUser; if (u) qs = '?auth=' + await u.getIdToken(); } catch(_) {}
+            try {
+                let u = firebase.auth().currentUser;
+                if (!u) { const c = await firebase.auth().signInAnonymously(); u = c.user; }
+                if (u) qs = '?auth=' + await u.getIdToken();
+            } catch(_) {}
             const r = await fetch(`${firebaseConfig.databaseURL}/${path}.json${qs}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
