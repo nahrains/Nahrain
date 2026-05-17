@@ -50,26 +50,60 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="اعدادية النهرين">
 
+    <!-- SEO Core -->
+    <meta name="description" content="إعدادية النهرين المهنية الأهلية — السماوة، العراق. أقسام: الأمن السيبراني، الأجهزة الطبية، تكرير النفط، الصناعات البتروكيماوية، الاتصالات، الكهرباء. منصة إلكترونية لمتابعة الدرجات والحضور.">
+    <meta name="keywords" content="إعدادية النهرين, مدرسة مهنية, السماوة, العراق, أمن سيبراني, أجهزة طبية, تكرير نفط, تعليم مهني, اعدادية النهرين المهنية">
+    <meta name="robots" content="index, follow">
+    <meta name="author" content="إعدادية النهرين المهنية الأهلية">
+    <link rel="canonical" href="https://nahrain.0n1.workers.dev/">
+
     <!-- Open Graph / Social Sharing (WhatsApp, Telegram, Facebook) -->
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://al-nahrain-school.web.app/">
-    <meta property="og:title" content="اعدادية النهرين المهنية للبنين">
-    <meta property="og:description"
-        content="اقسامنا: الأمن السيبراني (علوم) | تكرير النفط | الأجهزة الطبية. المستقبل يبدأ هنا.">
-    <meta property="og:image" content="https://al-nahrain-school.web.app/logo.jpg">
+    <meta property="og:url" content="https://nahrain.0n1.workers.dev/">
+    <meta property="og:title" content="إعدادية النهرين المهنية الأهلية — السماوة">
+    <meta property="og:description" content="أقسام: الأمن السيبراني | الأجهزة الطبية | تكرير النفط | الكهرباء | الاتصالات. منصة إلكترونية لمتابعة الدرجات والحضور.">
+    <meta property="og:image" content="https://nahrain.0n1.workers.dev/logo.jpg">
+    <meta property="og:locale" content="ar_IQ">
+    <meta property="og:site_name" content="إعدادية النهرين المهنية">
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="اعدادية النهرين المهنية">
-    <meta name="twitter:description" content="منصة التعليم الإلكتروني وسجل الدرجات.">
+    <meta name="twitter:title" content="إعدادية النهرين المهنية الأهلية">
+    <meta name="twitter:description" content="منصة التعليم الإلكتروني وسجل الدرجات — السماوة، العراق.">
+    <meta name="twitter:image" content="https://nahrain.0n1.workers.dev/logo.jpg">
+
+    <!-- Structured Data — Google تعرف إنه مدرسة -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "EducationalOrganization",
+      "name": "إعدادية النهرين المهنية الأهلية",
+      "alternateName": "Al-Nahrain Vocational School",
+      "url": "https://nahrain.0n1.workers.dev/",
+      "logo": "https://nahrain.0n1.workers.dev/logo.jpg",
+      "description": "مدرسة مهنية أهلية في السماوة، العراق. أقسام: الأمن السيبراني، الأجهزة الطبية، تكرير النفط، الصناعات البتروكيماوية، الكهرباء، الاتصالات.",
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "السماوة",
+        "addressRegion": "المثنى",
+        "addressCountry": "IQ"
+      },
+      "educationalLevel": "Secondary",
+      "teaches": ["الأمن السيبراني","الأجهزة الطبية","تكرير النفط","الصناعات البتروكيماوية","الكهرباء","الاتصالات"]
+    }
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Tajawal:wght@400;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+          integrity="sha384-iw3OoTErCYJJB9mCa8LNS2hbsQ7M3C0EpIsO/H5+EGAkPGc6rk+V8i04oW/K5xq0"
+          crossorigin="anonymous">
     <!-- FIREBASE SDKs (Cloud & Auth) -->
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-storage-compat.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"
+            integrity="sha384-NrKB+u6Ts6AtkIhwPixiKTzgSKNblyhlk0Sohlgar9UHUBzai/sgnNNWWd291xqt"
+            crossorigin="anonymous"></script>
     <link rel="stylesheet" href="css/accounts.css">
     <script src="js/accounts.js"></script>
 
@@ -101,11 +135,7 @@
         // opts (optional) emulates Firebase queries client-side (no .indexOn needed):
         //   { orderByChild, equalTo, limitToLast, limitToFirst }
         async function _restGet(path, opts) {
-            let qs = '';
-            try {
-                const u = firebase.auth().currentUser;
-                if (u) qs = '?auth=' + await u.getIdToken();
-            } catch(_) {}
+            let qs = await _getAuthQs();
             const r = await fetch(`${firebaseConfig.databaseURL}/${path}.json${qs}`);
             if (!r.ok) throw new Error('HTTP ' + r.status);
             let data = await r.json();
@@ -152,9 +182,17 @@
         }
 
         // REST write helpers — replace Firebase SDK writes that hang on WebSocket-blocked networks.
+        async function _getAuthQs() {
+            try {
+                let u = firebase.auth().currentUser;
+                if (!u) { const c = await firebase.auth().signInAnonymously(); u = c.user; }
+                if (u) return '?auth=' + await u.getIdToken();
+            } catch(_) {}
+            return '';
+        }
+
         async function _restSet(path, data) {
-            let qs = '';
-            try { const u = firebase.auth().currentUser; if (u) qs = '?auth=' + await u.getIdToken(); } catch(_) {}
+            const qs = await _getAuthQs();
             const r = await fetch(`${firebaseConfig.databaseURL}/${path}.json${qs}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
@@ -165,8 +203,7 @@
         }
 
         async function _restPush(path, data) {
-            let qs = '';
-            try { const u = firebase.auth().currentUser; if (u) qs = '?auth=' + await u.getIdToken(); } catch(_) {}
+            const qs = await _getAuthQs();
             const r = await fetch(`${firebaseConfig.databaseURL}/${path}.json${qs}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -178,8 +215,7 @@
         }
 
         async function _restUpdate(path, data) {
-            let qs = '';
-            try { const u = firebase.auth().currentUser; if (u) qs = '?auth=' + await u.getIdToken(); } catch(_) {}
+            const qs = await _getAuthQs();
             const r = await fetch(`${firebaseConfig.databaseURL}/${path}.json${qs}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
@@ -8194,13 +8230,46 @@
         }
         function _resetLoginAttempts() { _loginAttempts.count = 0; _loginAttempts.lockedUntil = 0; }
 
-        function completeLogin(u) {
+        async function completeLogin(u) {
             if (_loginDone) return;   // prevent double-call
             _loginDone = true;
             if (_loginSafetyTimer) { clearTimeout(_loginSafetyTimer); _loginSafetyTimer = null; }
-            // ضمان وجود جلسة Firebase Auth حتى تعمل Security Rules
-            if (!firebase.auth().currentUser) {
-                firebase.auth().signInAnonymously().catch(() => {});
+
+            // ضمان وجود جلسة Firebase Auth قبل تحميل البيانات
+            const _fbCurrent = firebase.auth().currentUser;
+            if (!_fbCurrent || _fbCurrent.isAnonymous) {
+                const _fbEmail = u.email && u.email.includes('@') ? u.email : null;
+                // كلمة مرور ثابتة مشتقة من الإيميل — لا تتأثر بطول كلمة المرور الأصلية
+                const _fbPass  = _fbEmail ? ('nhr_' + btoa(_fbEmail).replace(/[^a-z0-9]/gi,'') + '_2024') : null;
+                try {
+                    if (_fbEmail && _fbPass) {
+                        try {
+                            await firebase.auth().signInWithEmailAndPassword(_fbEmail, _fbPass);
+                        } catch(err) {
+                            if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+                                await firebase.auth().createUserWithEmailAndPassword(_fbEmail, _fbPass);
+                            } else {
+                                await firebase.auth().signInAnonymously();
+                            }
+                        }
+                    } else {
+                        await firebase.auth().signInAnonymously();
+                    }
+                } catch(e) { console.warn('Firebase Auth error:', e); }
+            }
+
+            // كتابة سجل المرآة دائماً — يربط Firebase Auth uid بالدور الصحيح في قواعد الأمان
+            const _fbUser = firebase.auth().currentUser;
+            if (_fbUser && _fbUser.uid !== u.uid) {
+                try {
+                    const _token = await _fbUser.getIdToken();
+                    const _mResp = await fetch(
+                        `${firebaseConfig.databaseURL}/users/${_fbUser.uid}.json?auth=${_token}`,
+                        { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ role: u.role || 'student', isSuperAdmin: u.isSuperAdmin || false, _mirror: u.uid }) }
+                    );
+                    if (!_mResp.ok) console.warn('Mirror write HTTP', _mResp.status);
+                } catch(e) { console.warn('Mirror write error:', e); }
             }
             _resetLoginAttempts();
             const _loginBtn = document.getElementById('login-btn');
@@ -8417,11 +8486,7 @@
                         } else {
                             localStorage.removeItem('nahrain_manual_auth');
                         }
-                        // Sign into Firebase Auth in background so security rules (auth != null) work
                         _lastLoginPass = pass;
-                        if (foundUserMatch.email && foundUserMatch.email.includes('@')) {
-                            firebase.auth().signInWithEmailAndPassword(foundUserMatch.email, pass).catch(() => {});
-                        }
                         completeLogin(foundUserMatch);
                         return;
                     } else if (identifier.includes('@')) {
@@ -12373,27 +12438,59 @@
 
         async function processBulkImport() {
             const major = document.getElementById('import-class-select').value;
-            const text = document.getElementById('import-names-area').value.trim();
+            const text  = document.getElementById('import-names-area').value.trim();
             if (!major || !text) return alert("يرجى اختيار الشعبة ولصق الأسماء");
 
-            const updates = {};
-            let count = 0;
-            text.split('\n').forEach(line => {
-                const name = line.trim();
-                if (name) {
-                    const uid = 'std_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
-                    updates['users/' + uid] = { name, role: 'student', classId: major, branchId: currentUser.branchId || 'samawah', joined: new Date().toISOString() };
-                    count++;
-                }
-            });
+            const names = text.split('\n').map(l => l.trim()).filter(Boolean);
+            if (!names.length) return;
+            if (!await confirm(`إضافة ${names.length} طالب؟`)) return;
 
-            if (count > 0 && await confirm(`إضافة ${count} طالب؟`)) {
-                _restUpdate('', updates).then(() => {
-                    alert("✅ تم الحفظ بنجاح");
-                    document.getElementById('import-names-area').value = '';
-                    renderAdminLists();
-                }).catch(err => alert("خطأ في الحفظ: " + err.message));
+            const branchId = currentUser.branchId || 'samawah';
+            const updates  = {};
+            const report   = [];   // لعرض الكودات للأدمن بعد الإضافة
+            let failed = 0;
+
+            for (const name of names) {
+                // توليد كود دخول وكلمة مرور منفصلة تماماً
+                const code     = 'NHR' + Math.floor(100000 + Math.random() * 900000);
+                const rawPass  = Math.random().toString(36).slice(2, 6).toUpperCase() +
+                                 Math.floor(10 + Math.random() * 90);   // مثال: KX7F42
+                const email    = code + '@nahrain.iq';
+
+                // إنشاء حساب Firebase Auth عبر REST API (لا يُخرج الأدمن من جلسته)
+                try {
+                    const resp = await fetch(
+                        `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${firebaseConfig.apiKey}`,
+                        { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ email, password: rawPass, returnSecureToken: false }) }
+                    );
+                    const data = await resp.json();
+                    if (!data.localId) throw new Error(data.error?.message || 'فشل إنشاء الحساب');
+
+                    const uid      = data.localId;
+                    const passHash = await hashPassword(rawPass);
+
+                    updates['users/' + uid] = {
+                        name, role: 'student', classId: major, branchId,
+                        loginCode: code, email, password: passHash,
+                        joined: new Date().toISOString()
+                    };
+                    report.push(`${name} | كود: ${code} | كلمة المرور: ${rawPass}`);
+                } catch (err) {
+                    failed++;
+                    report.push(`❌ ${name} — فشل: ${err.message}`);
+                }
             }
+
+            if (Object.keys(updates).length) {
+                await _restUpdate('', updates);
+            }
+
+            document.getElementById('import-names-area').value = '';
+            renderAdminLists();
+
+            const summary = `✅ تمت إضافة ${report.length - failed} طالب${failed ? `\n❌ فشل ${failed}` : ''}\n\n` + report.join('\n');
+            alert(summary);
         }
 
         function saveNewsTicker() {
@@ -15416,18 +15513,32 @@
                 // Generate guaranteed-unique loginCode
                 let loginCode;
                 do {
-                    loginCode = `NHR-${Math.floor(100000 + Math.random() * 900000)}`;
+                    loginCode = 'NHR' + Math.floor(100000 + Math.random() * 900000);
                 } while (existingCodes.has(loginCode));
 
-                const password = customPass || Math.floor(100000 + Math.random() * 900000).toString();
+                const password = customPass || (
+                    Math.random().toString(36).slice(2, 6).toUpperCase() +
+                    Math.floor(10 + Math.random() * 90)
+                );
                 const passwordHash = await hashPassword(password);
-                const email = `student_${loginCode.toLowerCase()}@nahrain.edu`;
+                const email = loginCode + '@nahrain.iq';
 
-                // Generate guaranteed-unique uid
+                // إنشاء حساب Firebase Auth عبر REST API → uid حقيقي
                 let uid;
-                do {
-                    uid = 'student_' + Date.now() + '_' + Math.floor(Math.random() * 9999);
-                } while (existingUids.has(uid));
+                try {
+                    const authResp = await fetch(
+                        `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${firebaseConfig.apiKey}`,
+                        { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ email, password, returnSecureToken: false }) }
+                    );
+                    const authData = await authResp.json();
+                    if (!authData.localId) throw new Error(authData.error?.message || 'فشل Firebase Auth');
+                    uid = authData.localId;
+                } catch (authErr) {
+                    // fallback: uid يدوي لو فشل الاتصال
+                    do { uid = 'std_' + Date.now() + '_' + Math.floor(Math.random() * 9999); }
+                    while (existingUids.has(uid));
+                }
 
                 const sectionCounts = {};
                 const sectionGenders = {};
@@ -15571,7 +15682,7 @@
 
         function printStudentReceipt(data) {
             // Sanitize: never print a hashed password (64 hex chars)
-            const safePassword = data.password && !/^[0-9a-f]{64}$/i.test(data.password) ? data.password : null;
+            const safePassword = data.tempPass || data.loginPassword || (data.password && !/^[0-9a-f]{64}$/i.test(data.password) ? data.password : null);
             const bId = currentUser ? (currentUser.branchId || 'samawah') : 'samawah';
             const branch = window.NAHRAIN_BRANCHES[bId];
             const schoolFullName = branch.name || 'إعدادية النهرين المهنية الأهلية';
