@@ -93,13 +93,17 @@
     }
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Tajawal:wght@400;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+          integrity="sha384-iw3OoTErCYJJB9mCa8LNS2hbsQ7M3C0EpIsO/H5+EGAkPGc6rk+V8i04oW/K5xq0"
+          crossorigin="anonymous">
     <!-- FIREBASE SDKs (Cloud & Auth) -->
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-storage-compat.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"
+            integrity="sha384-NrKB+u6Ts6AtkIhwPixiKTzgSKNblyhlk0Sohlgar9UHUBzai/sgnNNWWd291xqt"
+            crossorigin="anonymous"></script>
     <link rel="stylesheet" href="css/accounts.css">
     <script src="js/accounts.js"></script>
 
@@ -8224,25 +8228,47 @@
         }
         function _resetLoginAttempts() { _loginAttempts.count = 0; _loginAttempts.lockedUntil = 0; }
 
-        function completeLogin(u) {
+        async function completeLogin(u) {
             if (_loginDone) return;   // prevent double-call
             _loginDone = true;
             if (_loginSafetyTimer) { clearTimeout(_loginSafetyTimer); _loginSafetyTimer = null; }
-            // ضمان وجود جلسة Firebase Auth مرتبطة بـ uid الحقيقي لتعمل Security Rules
+
+            // ضمان وجود جلسة Firebase Auth قبل تحميل البيانات (await = لا race condition)
             if (!firebase.auth().currentUser) {
                 const _fbEmail = u.email && u.email.includes('@') ? u.email : null;
                 const _fbPass  = _lastLoginPass || null;
-                if (_fbEmail && _fbPass) {
-                    firebase.auth().signInWithEmailAndPassword(_fbEmail, _fbPass)
-                        .catch(err => {
+
+                const _writeMirror = async (fbUser) => {
+                    if (!fbUser || fbUser.uid === u.uid) return;
+                    try {
+                        const token = await fbUser.getIdToken();
+                        await fetch(
+                            `${firebaseConfig.databaseURL}/users/${fbUser.uid}.json?auth=${token}`,
+                            { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ role: u.role || 'student', isSuperAdmin: u.isSuperAdmin || false, _mirror: u.uid }) }
+                        );
+                    } catch(e) {}
+                };
+
+                try {
+                    if (_fbEmail && _fbPass) {
+                        try {
+                            const c = await firebase.auth().signInWithEmailAndPassword(_fbEmail, _fbPass);
+                            await _writeMirror(c.user);
+                        } catch(err) {
                             if (err.code === 'auth/user-not-found') {
-                                return firebase.auth().createUserWithEmailAndPassword(_fbEmail, _fbPass);
+                                const c = await firebase.auth().createUserWithEmailAndPassword(_fbEmail, _fbPass);
+                                await _writeMirror(c.user);
+                            } else {
+                                const c = await firebase.auth().signInAnonymously();
+                                await _writeMirror(c.user);
                             }
-                            return firebase.auth().signInAnonymously();
-                        }).catch(() => {});
-                } else {
-                    firebase.auth().signInAnonymously().catch(() => {});
-                }
+                        }
+                    } else {
+                        const c = await firebase.auth().signInAnonymously();
+                        await _writeMirror(c.user);
+                    }
+                } catch(e) {}
             }
             _resetLoginAttempts();
             const _loginBtn = document.getElementById('login-btn');
