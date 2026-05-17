@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nahrain-app-v17.1';
+const CACHE_NAME = 'nahrain-app-v18.3';
 const ASSETS = [
     './',
     './index.html',

@@ -61,7 +61,7 @@
                 accountantFinance.expenseCategories = catsSnap.val() || ['صيانة', 'قرطاسية', 'وقود', 'أخرى'];
 
                 accountantStudents = Object.keys(users)
-                    .filter(k => users[k].role === 'student' && users[k].branchId === userBranchId)
+                    .filter(k => users[k].role === 'student' && users[k].branchId === userBranchId && !users[k].graduated)
                     .map(k => ({ uid: k, ...users[k] }));
 
                 accountantStaff = Object.keys(users)
@@ -2169,7 +2169,6 @@
 
                     <div class="rh">
                         <div class="rh-logo">
-                            <img src="${logoUrl}" onerror="this.style.display='none'">
                             <div class="rh-logo-text">
                                 <h2>مؤسسة النهرين التعليمية</h2>
                                 <p>AL-NAHRAIN EDUCATIONAL INSTITUTION</p>
@@ -2257,8 +2256,8 @@
                     </div>
 
                     <div class="rf">
-                        <div class="fi"><i class="fa-solid fa-location-dot"></i> السماوة، العراق</div>
-                        <div class="fi"><i class="fa-solid fa-graduation-cap"></i> مؤسسة النهرين التعليمية الدولية</div>
+                        <div class="fi"><i class="fa-solid fa-location-dot"></i> ${branch.address || 'العراق'}</div>
+                        <div class="fi"><i class="fa-solid fa-phone"></i> ${branch.phone || ''}</div>
                         <div class="fi"><i class="fa-solid fa-heart"></i> شكراً لثقتكم بنا</div>
                     </div>
                 </div>
@@ -2650,6 +2649,7 @@
                 <div class="r-top-bar">
                     <div class="r-school">${branch.name}</div>
                     <div class="r-subtitle">وصل استلام أجور نقل</div>
+                    <div class="r-subtitle" style="font-size:0.62rem;opacity:0.9;">📍 ${branch.address || ''} &nbsp;|&nbsp; ☎ ${branch.phone || ''}</div>
                 </div>
 
                 <div class="r-meta-row">
@@ -3082,7 +3082,7 @@
                 <body onload="window.print()">
                     <div class="a4-container">
                         <div class="header">
-                            <div class="header-info"><h1>${branch.name}</h1><p>الحسابات المالية</p></div>
+                            <div class="header-info"><h1>${branch.name}</h1><p>الحسابات المالية</p><p style="font-size:0.72rem;color:#475569;margin-top:3px;">📍 ${branch.address || ''} &nbsp;|&nbsp; ☎ ${branch.phone || ''}</p></div>
                             <div class="header-logo"><img src="${branch.logo}"></div>
                             <div style="text-align:left; font-size:0.8rem;">
                                 <div>التاريخ: ${new Date().toLocaleDateString('ar-IQ')}</div>
@@ -3813,7 +3813,7 @@
                 sectionName: section,
                 documentStatus: s.documentStatus || "تم الجلب",
                 loginCode: s.loginCode || "---",
-                password: null,
+                password: s.loginPassword || null,
                 phone: s.phone || "---"
             });
         };

@@ -340,6 +340,8 @@
         html {
             scrollbar-width: thin;
             scrollbar-color: #cbd5e1 transparent;
+            overflow-x: hidden;
+            max-width: 100vw;
         }
 
         body {
@@ -819,11 +821,14 @@
             top: 0;
             left: 0;
             width: 100%;
+            max-width: 100vw;
             height: 100%;
+            box-sizing: border-box;
             background: rgba(0, 0, 0, 0.95);
             z-index: 2000;
             padding: 50px 20px 150px 20px;
             overflow-y: auto;
+            overflow-x: hidden;
             display: none;
             backdrop-filter: blur(10px);
         }
@@ -3793,54 +3798,43 @@
     </div>
 
     <!-- Auth Overlay (Login) -->
-    <div id="auth-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:10001; background:rgba(2,8,23,0.82); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); justify-content:center; align-items:center; overflow:hidden;">
-
-        <!-- Subtle grid overlay (transparent — site still shows behind) -->
-        <div style="position:absolute;inset:0;z-index:0;pointer-events:none;opacity:0.07;background-image:linear-gradient(rgba(0,242,255,1) 1px,transparent 1px),linear-gradient(90deg,rgba(0,242,255,1) 1px,transparent 1px);background-size:40px 40px;"></div>
-        <!-- Glowing orbs (semi-transparent only) -->
-        <div style="position:absolute;top:-60px;right:-60px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(112,0,255,0.12),transparent 70%);z-index:0;pointer-events:none;animation:orbFloat 8s ease-in-out infinite;"></div>
-        <div style="position:absolute;bottom:-80px;left:-40px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(0,242,255,0.08),transparent 70%);z-index:0;pointer-events:none;animation:orbFloat 10s ease-in-out infinite reverse;"></div>
+    <div id="auth-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:10001; background:rgba(2,8,23,0.45); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); justify-content:center; align-items:center; overflow:hidden;">
 
         <style>
-        @keyframes orbFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-20px)} }
-        @keyframes loginSlideIn { from{opacity:0;transform:translateY(30px) scale(0.96)} to{opacity:1;transform:translateY(0) scale(1)} }
-        @keyframes logoSpin { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
-        @keyframes borderGlow { 0%,100%{box-shadow:0 0 0 0 rgba(0,242,255,0.4),0 25px 60px rgba(0,0,0,0.7)} 50%{box-shadow:0 0 30px 4px rgba(0,242,255,0.15),0 25px 60px rgba(0,0,0,0.7)} }
+        @keyframes loginSlideIn { from{opacity:0;transform:translateY(24px) scale(0.97)} to{opacity:1;transform:translateY(0) scale(1)} }
         @keyframes loginShake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-8px)} 40%,80%{transform:translateX(8px)} }
         .login-field-wrap { position:relative; margin-bottom:14px; }
         .login-field-wrap input {
-            width:100%; padding:14px 48px 14px 16px; background:rgba(255,255,255,0.04);
-            border:1.5px solid rgba(255,255,255,0.08); border-radius:14px; color:#fff;
-            font-family:'Cairo',sans-serif; font-size:0.9rem; outline:none;
-            transition:border-color 0.25s,background 0.25s; box-sizing:border-box; text-align:right;
+            width:100%; padding:14px 46px 14px 16px; background:#f8faff;
+            border:1.5px solid #e2e8f0; border-radius:14px; color:#1e293b;
+            font-family:'Cairo',sans-serif; font-size:0.92rem; outline:none;
+            transition:border-color 0.2s,background 0.2s,box-shadow 0.2s; box-sizing:border-box; text-align:right;
         }
-        .login-field-wrap input:focus { border-color:rgba(0,242,255,0.55); background:rgba(0,242,255,0.04); }
-        .login-field-wrap input.field-error { border-color:rgba(255,82,82,0.7) !important; background:rgba(255,82,82,0.05) !important; }
-        .login-field-icon { position:absolute; right:15px; top:50%; transform:translateY(-50%); color:rgba(255,255,255,0.3); font-size:0.9rem; pointer-events:none; transition:color 0.25s; }
-        .login-field-wrap input:focus ~ .login-field-icon { color:rgba(0,242,255,0.7); }
+        .login-field-wrap input::placeholder { color:#94a3b8; }
+        .login-field-wrap input:focus { border-color:#1a56db; background:#fff; box-shadow:0 0 0 3px rgba(26,86,219,0.1); }
+        .login-field-wrap input.field-error { border-color:#ef4444 !important; background:#fef2f2 !important; }
+        .login-field-icon { position:absolute; right:15px; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:0.9rem; pointer-events:none; transition:color 0.2s; }
+        .login-field-wrap input:focus ~ .login-field-icon { color:#1a56db; }
         </style>
 
         <!-- Login Card -->
-        <div id="login-fields" style="width:92%; max-width:400px; position:relative; z-index:1; animation:loginSlideIn 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards; animation:borderGlow 4s ease-in-out infinite;">
+        <div id="login-fields" style="width:92%; max-width:400px; position:relative; z-index:1; animation:loginSlideIn 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards;">
 
-            <div style="background:rgba(8,15,35,0.85); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border:1px solid rgba(0,242,255,0.15); border-radius:28px; padding:38px 32px 28px; box-shadow:0 0 60px rgba(0,242,255,0.06),0 30px 80px rgba(0,0,0,0.7); text-align:center; position:relative; overflow:hidden;">
+            <div style="background:#ffffff; border:1px solid #e8edf8; border-radius:24px; padding:36px 30px 26px; box-shadow:0 24px 60px rgba(15,28,60,0.28); text-align:center; position:relative; overflow:hidden;">
 
-                <!-- Top glow line -->
-                <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,rgba(0,242,255,0.8),rgba(112,0,255,0.8),transparent);"></div>
+                <!-- Top accent bar -->
+                <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#1a56db,#6366f1);"></div>
 
                 <!-- Logo -->
-                <div style="position:relative; width:76px; height:76px; margin:0 auto 22px;">
-                    <div style="position:absolute;inset:0;border-radius:50%;border:2px solid transparent;background:linear-gradient(#08102a,#08102a) padding-box, linear-gradient(135deg,rgba(0,242,255,0.8),rgba(112,0,255,0.8)) border-box;"></div>
-                    <div style="position:absolute;inset:6px;border-radius:50%;background:linear-gradient(135deg,rgba(0,242,255,0.12),rgba(112,0,255,0.18));display:flex;align-items:center;justify-content:center;">
-                        <i class="fa-solid fa-shield-halved" style="font-size:1.7rem;background:linear-gradient(135deg,#00f2ff,#7000ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;"></i>
-                    </div>
+                <div style="width:72px; height:72px; margin:6px auto 20px; border-radius:50%; background:linear-gradient(135deg,#1a56db,#6366f1); display:flex; align-items:center; justify-content:center; box-shadow:0 8px 20px rgba(26,86,219,0.35);">
+                    <i class="fa-solid fa-graduation-cap" style="font-size:1.8rem; color:#fff;"></i>
                 </div>
 
-                <h2 style="color:#fff; font-size:1.45rem; font-weight:900; margin:0 0 4px; letter-spacing:0.5px;">تسجيل الدخول</h2>
-                <p style="color:rgba(255,255,255,0.35); font-size:0.8rem; margin:0 0 28px; font-weight:600;">إعدادية النهرين المهنية</p>
+                <h2 style="color:#1e293b; font-size:1.4rem; font-weight:900; margin:0 0 4px;">تسجيل الدخول</h2>
+                <p style="color:#64748b; font-size:0.82rem; margin:0 0 26px; font-weight:600;">إعدادية النهرين المهنية</p>
 
                 <!-- Error (only shown for real errors, not steps) -->
-                <div id="modal-error" style="display:none; align-items:center; gap:10px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:12px; padding:11px 14px; color:#fca5a5; font-size:0.82rem; margin-bottom:16px; text-align:right; direction:rtl;"></div>
+                <div id="modal-error" style="display:none; align-items:center; gap:10px; background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:11px 14px; color:#dc2626; font-size:0.82rem; margin-bottom:16px; text-align:right; direction:rtl;"></div>
 
                 <!-- Email -->
                 <div class="login-field-wrap">
@@ -3857,28 +3851,25 @@
 
                 <!-- Remember Me -->
                 <div style="display:flex; align-items:center; gap:8px; margin-bottom:22px; justify-content:flex-end;">
-                    <label style="color:rgba(255,255,255,0.4); font-size:0.78rem; cursor:pointer;" for="modal-remember">تذكرني</label>
-                    <input type="checkbox" id="modal-remember" style="accent-color:#00f2ff; width:15px; height:15px; cursor:pointer;">
+                    <label style="color:#64748b; font-size:0.8rem; cursor:pointer; font-weight:600;" for="modal-remember">تذكرني</label>
+                    <input type="checkbox" id="modal-remember" style="accent-color:#1a56db; width:15px; height:15px; cursor:pointer;">
                 </div>
 
                 <!-- Login Button -->
-                <button id="login-btn" onclick="validateLogin()" style="width:100%; padding:15px; border:none; border-radius:14px; font-family:'Cairo',sans-serif; font-size:1rem; font-weight:800; cursor:pointer; position:relative; overflow:hidden; transition:transform 0.2s,box-shadow 0.2s; background:linear-gradient(135deg,#00c2cc,#7000ff); color:#fff; box-shadow:0 0 30px rgba(0,194,204,0.25),0 4px 20px rgba(0,0,0,0.4);"
-                    onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 0 40px rgba(0,194,204,0.4),0 8px 30px rgba(0,0,0,0.5)'"
-                    onmouseout="this.style.transform='';this.style.boxShadow='0 0 30px rgba(0,194,204,0.25),0 4px 20px rgba(0,0,0,0.4)'">
+                <button id="login-btn" onclick="validateLogin()" style="width:100%; padding:15px; border:none; border-radius:14px; font-family:'Cairo',sans-serif; font-size:1rem; font-weight:800; cursor:pointer; transition:transform 0.2s,box-shadow 0.2s; background:linear-gradient(135deg,#1a56db,#6366f1); color:#fff; box-shadow:0 8px 22px rgba(26,86,219,0.35);"
+                    onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 12px 28px rgba(26,86,219,0.45)'"
+                    onmouseout="this.style.transform='';this.style.boxShadow='0 8px 22px rgba(26,86,219,0.35)'">
                     <span id="login-btn-text"><i class="fa-solid fa-right-to-bracket" style="margin-left:8px;"></i>دخول النظام</span>
                     <span id="login-btn-spinner" style="display:none;"><i class="fa-solid fa-circle-notch fa-spin" style="margin-left:8px;"></i>جاري التحقق...</span>
                 </button>
 
                 <!-- Cancel -->
                 <button onclick="document.getElementById('auth-overlay').style.display='none'"
-                    style="background:none; border:none; color:rgba(255,255,255,0.25); margin-top:16px; cursor:pointer; font-family:'Cairo',sans-serif; font-size:0.8rem; transition:color 0.2s; display:block; width:100%;"
-                    onmouseover="this.style.color='rgba(255,255,255,0.6)'"
-                    onmouseout="this.style.color='rgba(255,255,255,0.25)'">
+                    style="background:none; border:none; color:#94a3b8; margin-top:14px; cursor:pointer; font-family:'Cairo',sans-serif; font-size:0.82rem; transition:color 0.2s; display:block; width:100%; font-weight:600;"
+                    onmouseover="this.style.color='#475569'"
+                    onmouseout="this.style.color='#94a3b8'">
                     <i class="fa-solid fa-xmark" style="margin-left:5px;"></i> إلغاء
                 </button>
-
-                <!-- Bottom glow -->
-                <div style="position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(112,0,255,0.5),transparent);"></div>
             </div>
         </div>
     </div>
@@ -3957,7 +3948,7 @@
             </select>
 
             <div class="staff-actions">
-                <button class="btn-save" onclick="saveNewStaff()"><i class="fa-solid fa-user-plus"></i> إنشاء الحساب</button>
+                <button class="btn-save" onclick="saveNewStaff(this)"><i class="fa-solid fa-user-plus"></i> إنشاء الحساب</button>
                 <button class="btn-cancel" onclick="document.getElementById('add-staff-modal').style.display='none'">إلغاء</button>
             </div>
         </div>
@@ -5978,6 +5969,7 @@
                 <button class="adm-subtab" onclick="showSubTab('academic','attendance',this)"><i class="fa-solid fa-clipboard-user"></i> الحضور</button>
                 <button class="adm-subtab" onclick="showSubTab('academic','results',this)"><i class="fa-solid fa-file-pdf"></i> النتائج</button>
                 <button class="adm-subtab" onclick="showSubTab('academic','honor-admin',this)"><i class="fa-solid fa-medal"></i> الأوائل</button>
+                <button class="adm-subtab" onclick="showSubTab('academic','promotion',this); initPromotionPanel()"><i class="fa-solid fa-arrow-up-right-dots"></i> ترحيل الطلاب</button>
                 <button class="adm-subtab" onclick="openStructureManager();this.closest('.adm-subtab-bar').querySelectorAll('.adm-subtab').forEach(b=>b.classList.remove('active'));this.classList.add('active');"><i class="fa-solid fa-sitemap"></i> الهيكلية</button>
             </div>
             <div id="adm-academic-content"></div>
@@ -6059,7 +6051,7 @@
                 }
                 const chatIds = chatRaw.split(',').map(s => s.trim()).filter(Boolean);
                 try {
-                    await firebase.database().ref('schoolDB/notifConfig').set({ botToken: token, chatIds });
+                    await _restSet('schoolDB/notifConfig', { botToken: token, chatIds });
                     document.getElementById('tg-bot-token-input').value = '';
                     if (msgEl) { msgEl.style.display='block'; msgEl.style.color='#15803d'; msgEl.textContent='✅ تم حفظ إعدادات تيليجرام بنجاح'; }
                     setTimeout(() => { if (msgEl) msgEl.style.display='none'; }, 3000);
@@ -6078,7 +6070,7 @@
                     await current.updatePassword(newPass);
                     // Also update hashed password in database to keep manual login in sync
                     if (currentUser?.uid) {
-                        await firebase.database().ref('users/' + currentUser.uid).update({ password: await hashPassword(newPass) });
+                        await _restUpdate('users/' + currentUser.uid, { password: await hashPassword(newPass) });
                         currentUser.password = await hashPassword(newPass);
                     }
                     alert("✅ تم تغيير كلمة السر بنجاح. يرجى تذكرها جيداً!");
@@ -6109,10 +6101,10 @@
                     });
 
                     if (Object.keys(updates).length > 0) {
-                        firebase.database().ref().update(updates).then(() => {
+                        _restUpdate('', updates).then(() => {
                             alert(`✅ اكتملت الصيانة. تم إصلاح ${fixCount} سجل بنجاح.`);
                             location.reload();
-                        });
+                        }).catch(err => alert("خطأ: " + err.message));
                     } else {
                         alert("✅ قاعدة البيانات سليمة، لا توجد أخطاء لإصلاحها.");
                     }
@@ -6138,10 +6130,10 @@
 
                 try {
                     // Delete Finance & Attendance & Notifications
-                    await firebase.database().ref('finance').set(null);
-                    await firebase.database().ref('attendance').set(null);
-                    await firebase.database().ref('notifications').set(null);
-                    await firebase.database().ref('messages').set(null);
+                    await _restSet('finance', null);
+                    await _restSet('attendance', null);
+                    await _restSet('notifications', null);
+                    await _restSet('messages', null);
 
                     // Delete Users except admins/superadmins
                     const snap = await _restGet('users');
@@ -6153,7 +6145,7 @@
                             updates[uid] = null;
                         }
                     });
-                    await firebase.database().ref('users').update(updates);
+                    await _restUpdate('users', updates);
 
                     showCustomAlert("نجاح", "تم تصفير النظام بالكامل بنجاح ✅", "success");
                     setTimeout(() => location.reload(), 1500);
@@ -6978,9 +6970,9 @@
                 if (vSnap.val() === VOC_VERSION) return; // Already initialized
                 const VOC_BRANCHES = ['samawah', 'evening'];
                 for (const branchId of VOC_BRANCHES) {
-                    await firebase.database().ref('settings/branches/' + branchId + '/structure').set(window.VOC_STRUCTURE);
+                    await _restSet('settings/branches/' + branchId + '/structure', window.VOC_STRUCTURE);
                 }
-                await firebase.database().ref('settings/vocStructureVersion').set(VOC_VERSION);
+                await _restSet('settings/vocStructureVersion', VOC_VERSION);
                 console.log('✅ تمت تهيئة الاختصاصات الـ12 للفروع المهنية');
                 if (typeof updateFiltersAndSelects === 'function') updateFiltersAndSelects();
                 if (typeof loadAdminStructure === 'function') loadAdminStructure();
@@ -6990,9 +6982,9 @@
             window.resetVocStructure = async function () {
                 const VOC_BRANCHES = ['samawah', 'evening'];
                 for (const branchId of VOC_BRANCHES) {
-                    await firebase.database().ref('settings/branches/' + branchId + '/structure').set(window.VOC_STRUCTURE);
+                    await _restSet('settings/branches/' + branchId + '/structure', window.VOC_STRUCTURE);
                 }
-                await firebase.database().ref('settings/vocStructureVersion').set(VOC_VERSION);
+                await _restSet('settings/vocStructureVersion', VOC_VERSION);
                 showCustomAlert('تم', 'تم إعادة تهيئة الاختصاصات الـ12 لفرعي السماوة والمسائية', 'success');
                 if (typeof updateFiltersAndSelects === 'function') updateFiltersAndSelects();
                 if (typeof loadAdminStructure === 'function') loadAdminStructure();
@@ -7001,9 +6993,9 @@
             // 7. SAVE
             // 7. SAVE
             window.saveStructureConfig = function () {
-                if (typeof firebase !== 'undefined') {
+                {
                     let bId = currentUser ? (currentUser.branchId || 'samawah') : 'samawah';
-                    firebase.database().ref('settings/branches/' + bId + '/structure').set(window.schoolStructure);
+                    _restSet('settings/branches/' + bId + '/structure', window.schoolStructure).catch(err => alert("خطأ في الحفظ: " + err.message));
                 }
                 updateFiltersAndSelects();
 
@@ -7231,6 +7223,50 @@
                 </div>
                 <button class="btn-glow" onclick="saveHonorSettings()" style="width:100%; margin-top:20px;">💾 حفظ قائمة
                     الأوائل</button>
+            </div>
+        </div>
+
+        <!-- TAB: STUDENT PROMOTION (year-end) -->
+        <div id="tab-promotion" class="admin-tab" style="display:none;">
+            <div class="glass-panel">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:10px;">
+                    <h3 style="margin:0;"><i class="fa-solid fa-arrow-up-right-dots" style="margin-left:8px;"></i> ترحيل الطلاب الناجحين</h3>
+                    <span style="background:#fef9c3; color:#a16207; border:1px solid #fde68a; border-radius:20px; padding:4px 14px; font-size:0.78rem; font-weight:800;">عملية نهاية السنة</span>
+                </div>
+                <p style="color:#64748b; margin:0 0 18px; font-size:0.88rem;">اختر القسم والمرحلة وحدّد درجة النجاح، ثم اضغط «تحليل». النظام يقترح الناجحين تلقائياً حسب معدّل الدرجات — راجع القائمة وعدّلها يدوياً قبل التأكيد. طلاب المرحلة الأخيرة يُوسَمون «متخرّج» ويُؤرشفون.</p>
+
+                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr)); gap:14px; align-items:end; background:#f8faff; border:1px solid #e8edf8; border-radius:14px; padding:16px; margin-bottom:18px;">
+                    <div>
+                        <label style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:6px;">القسم</label>
+                        <select id="promo-dept" class="cyber-input" onchange="onPromoDeptChange()" style="width:100%;"><option value="">— اختر القسم —</option></select>
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:6px;">المرحلة</label>
+                        <select id="promo-stage" class="cyber-input" style="width:100%;"><option value="">— اختر المرحلة —</option></select>
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:6px;">درجة النجاح (معدّل ≥)</label>
+                        <input type="number" id="promo-threshold" class="cyber-input" value="50" min="0" max="100" style="width:100%; text-align:center; font-weight:800;">
+                    </div>
+                    <div>
+                        <button onclick="analyzePromotion()" class="btn-glow" style="width:100%; padding:12px; font-weight:800;">
+                            <i class="fa-solid fa-magnifying-glass-chart" style="margin-left:6px;"></i> تحليل
+                        </button>
+                    </div>
+                </div>
+
+                <div id="promotion-result"></div>
+            </div>
+
+            <div class="glass-panel" style="margin-top:18px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                    <h3 style="margin:0;"><i class="fa-solid fa-box-archive" style="margin-left:8px;"></i> أرشيف المتخرّجين</h3>
+                    <button onclick="showGraduatesArchive()" class="btn-glow" style="padding:8px 18px; font-size:0.85rem;">
+                        <i class="fa-solid fa-eye" style="margin-left:6px;"></i> عرض المتخرّجين
+                    </button>
+                </div>
+                <p style="color:#64748b; margin:8px 0 0; font-size:0.84rem;">الطلاب المتخرّجون مؤرشفون ومخفيون من القوائم النشطة. يمكنك إرجاع أي طالب للنشاط عند الحاجة.</p>
+                <div id="graduates-archive-result" style="margin-top:14px;"></div>
             </div>
         </div>
 
@@ -7614,7 +7650,7 @@
             // Cloud Admin Init
             _restGet('settings/adminEmails').then(snap => {
                 if (!snap.exists())
-                    firebase.database().ref('settings/adminEmails').set(['manager1@nahrain.edu']);
+                    _restSet('settings/adminEmails', ['manager1@nahrain.edu']).catch(() => {});
             }).catch(() => {});
         });
 
@@ -7636,14 +7672,16 @@
 
         // Compare a plain-text input against a stored value (hashed or legacy plain-text).
         // If stored is plain-text and matches, auto-upgrade it in Firebase and return true.
-        async function verifyPassword(plain, stored, upgradeRef) {
+        // upgradeUid: optional user uid — if the stored password is legacy plain-text and matches,
+        // auto-upgrade it to a hash via REST (SDK .update() hangs on WebSocket-blocked network).
+        async function verifyPassword(plain, stored, upgradeUid) {
             if (isHashed(stored)) {
                 return (await hashPassword(plain)) === stored;
             }
             if (String(plain) === String(stored)) {
-                // Auto-upgrade plain-text → hash (fire-and-forget, don't await — SDK may be slow)
-                if (upgradeRef) {
-                    hashPassword(plain).then(h => upgradeRef.update({ password: h })).catch(() => {});
+                // Auto-upgrade plain-text → hash (fire-and-forget)
+                if (upgradeUid) {
+                    hashPassword(plain).then(h => _restUpdate('users/' + upgradeUid, { password: h })).catch(() => {});
                 }
                 return true;
             }
@@ -7797,22 +7835,30 @@
             'samawah': {
                 name: 'إعدادية النهرين المهنية الأهلية - السماوة',
                 logo: 'logo.jpg',
-                color: '#003366'
+                color: '#003366',
+                address: 'السماوة - الحيدرية، مجاور ملعب الحيدرية',
+                phone: '07870777892'
             },
             'primary': {
                 name: 'مدرسة النهرين الابتدائية الدولية - السماوة',
                 logo: 'logo.jpg',
-                color: '#e91e63'
+                color: '#e91e63',
+                address: 'السماوة - الحيدرية، مجاور ملعب الحيدرية',
+                phone: '07870777892'
             },
             'babylon': {
                 name: 'إعدادية النهرين المهنية الأهلية - بابل',
                 logo: 'logo.jpg',
-                color: '#004d40'
+                color: '#004d40',
+                address: 'بابل - حي الصحة، مجاور مسبح مارينا',
+                phone: '07870777891'
             },
             'evening': {
                 name: 'إعدادية النهرين المهنية - المسائية',
                 logo: 'logo.jpg',
-                color: '#1a237e'
+                color: '#1a237e',
+                address: 'السماوة - الحيدرية، مجاور ملعب الحيدرية',
+                phone: '07870777892'
             }
         };
 
@@ -8302,10 +8348,9 @@
                 if (foundUserMatch) {
                     // ACCOUNT EXISTS - CHECK PASSWORD
                     setStep('التحقق من كلمة المرور');
-                    const userRef = firebase.database().ref('users/' + foundUid);
                     // Skip DB password check if no password stored (Firebase Auth-only accounts)
                     const hasDbPassword = foundUserMatch.password != null && foundUserMatch.password !== '';
-                    if (hasDbPassword && await verifyPassword(pass, foundUserMatch.password, userRef)) {
+                    if (hasDbPassword && await verifyPassword(pass, foundUserMatch.password, foundUid)) {
                         currentUser = foundUserMatch;
                         currentUser.uid = foundUid;
                         if (rememberMe) {
@@ -9733,7 +9778,7 @@
                 return;
             }
             try {
-                await firebase.database().ref('users/' + currentUser.uid).update({ name: newName, phone: newPhone });
+                await _restUpdate('users/' + currentUser.uid, { name: newName, phone: newPhone });
                 currentUser.name = newName; currentUser.phone = newPhone;
                 const wEl = document.getElementById('std-welcome-name');
                 if (wEl) wEl.innerHTML = `<i class="fa-solid fa-graduation-cap"></i> مرحباً، ${escHtml(newName)}`;
@@ -9801,7 +9846,7 @@
             };
 
             // Push directly to Firebase to ensure Admin receives it
-            firebase.database().ref('schoolDB/apps').push(appData)
+            _restPush('schoolDB/apps', appData)
                 .then(() => {
                     alert("تم إرسال طلبك بنجاح! \nبياناتك محفوظة في النظام المركزي وستتصل بك الإدارة قريباً.");
                     // Clear Fields
@@ -9829,7 +9874,7 @@
 
         async function deleteApp(key) {
             if (await confirm("هل أنت متأكد من حذف هذا الطلب؟")) {
-                firebase.database().ref('schoolDB/apps/' + key).remove()
+                _restSet('schoolDB/apps/' + key, null)
                     .then(() => {
                         alert("تم الحذف بنجاح");
                         renderAdminApps();
@@ -9876,7 +9921,7 @@
         const ADM_GROUPS = {
             home:     { tabs: ['stats'],                           default: 'stats'        },
             users:    { tabs: ['students','staff','apps'],         default: 'students'     },
-            academic: { tabs: ['timetable','attendance','results','honor-admin'], default: 'timetable' },
+            academic: { tabs: ['timetable','attendance','results','honor-admin','promotion'], default: 'timetable' },
             comms:    { tabs: ['broadcast','gallery-admin'],       default: 'broadcast'    },
             system:   { tabs: ['site-settings','nfc','actlog'],   default: 'site-settings'}
         };
@@ -9892,7 +9937,7 @@
             };
             move('stats', 'adm-group-home');
             ['students','staff','apps'].forEach(t => move(t, 'adm-users-content'));
-            ['timetable','attendance','results','honor-admin'].forEach(t => move(t, 'adm-academic-content'));
+            ['timetable','attendance','results','honor-admin','promotion'].forEach(t => move(t, 'adm-academic-content'));
             ['broadcast','gallery-admin'].forEach(t => move(t, 'adm-comms-content'));
             ['site-settings','nfc','actlog'].forEach(t => move(t, 'adm-system-content'));
             // Show default (home → stats)
@@ -10049,6 +10094,7 @@
                     const u = users[uid];
                     if (u.role === 'student') {
                         if (u.branchId !== currentUser.branchId) return;
+                        if (u.graduated) return; // archived graduates hidden from active list
                         const nameMatch = (u.name || '').toLowerCase().includes(searchVal);
                         const emailMatch = (u.email || '').toLowerCase().includes(searchVal);
                         if (searchVal && !nameMatch && !emailMatch) return;
@@ -10369,16 +10415,44 @@
                 .catch(err => alert('فشل الحفظ: ' + err.message));
         }
 
+        // Compute the % of total fees that should have been paid by today,
+        // from the per-branch schedule the accountant actually fills (globalDates/globalPercents),
+        // falling back to the legacy installmentSchedule node.
+        async function _computeRequiredPct() {
+            const branchId = currentUser?.branchId || 'samawah';
+            const today = new Date().toISOString().slice(0, 10);
+            const [datesSnap, pctSnap, countSnap, legacySnap] = await Promise.all([
+                _restGet(`financialSettings/branches/${branchId}/globalDates`),
+                _restGet(`financialSettings/branches/${branchId}/globalPercents`),
+                _restGet(`financialSettings/branches/${branchId}/installmentCount`),
+                _restGet('financialSettings/installmentSchedule')
+            ]);
+            const gDates = datesSnap.val() || {};
+            const gPct   = pctSnap.val()  || {};
+            const instCount = Number(countSnap.val()) || 5;
+
+            let requiredPct = 0, used = false;
+            for (let i = 1; i <= instCount; i++) {
+                const d = gDates['inst' + i];
+                if (d && d <= today) { requiredPct += (Number(gPct['p' + i]) || 0); used = true; }
+            }
+            if (!used) {
+                const legacy = legacySnap.val() || {};
+                Object.values(legacy).forEach(e => {
+                    if (e && e.dueDate && e.dueDate <= today) requiredPct += (Number(e.pct) || 0);
+                });
+            }
+            return requiredPct;
+        }
+
         async function applyAutoBlock() {
             const resultEl = document.getElementById('auto-block-result');
             if (resultEl) resultEl.innerText = 'جاري المعالجة...';
-            const today = new Date().toISOString().slice(0, 10);
-            const [schedSnap, usersSnap, revsSnap] = await Promise.all([
-                _restGet('financialSettings/installmentSchedule'),
+            const [requiredPct, usersSnap, revsSnap] = await Promise.all([
+                _computeRequiredPct(),
                 _restGet('users'),
                 _restGet('finance/revenues')
             ]);
-            const schedule = schedSnap.val() || {};
             const users = usersSnap.val() || {};
             const revenues = revsSnap.val() || {};
 
@@ -10388,14 +10462,8 @@
                 if (r.studentUid) paidMap[r.studentUid] = (paidMap[r.studentUid] || 0) + (r.amount || 0);
             });
 
-            // Calculate required amount by today based on schedule
-            let requiredPct = 0;
-            Object.values(schedule).forEach(entry => {
-                if (entry.dueDate && entry.dueDate <= today) requiredPct += (entry.pct || 0);
-            });
-
             if (requiredPct <= 0) {
-                if (resultEl) resultEl.innerText = 'لا توجد أقساط مستحقة حتى اليوم.';
+                if (resultEl) resultEl.innerText = 'لا توجد أقساط مستحقة حتى اليوم (تأكد من ضبط مواعيد ونسب الأقساط في الإعدادات المالية).';
                 return;
             }
 
@@ -10429,24 +10497,17 @@
         async function applyAutoUnblock() {
             const resultEl = document.getElementById('auto-block-result');
             if (resultEl) resultEl.innerText = 'جاري المعالجة...';
-            const today = new Date().toISOString().slice(0, 10);
-            const [schedSnap, usersSnap, revsSnap] = await Promise.all([
-                _restGet('financialSettings/installmentSchedule'),
+            const [requiredPct, usersSnap, revsSnap] = await Promise.all([
+                _computeRequiredPct(),
                 _restGet('users'),
                 _restGet('finance/revenues')
             ]);
-            const schedule = schedSnap.val() || {};
             const users = usersSnap.val() || {};
             const revenues = revsSnap.val() || {};
 
             const paidMap = {};
             Object.values(revenues).forEach(r => {
                 if (r.studentUid) paidMap[r.studentUid] = (paidMap[r.studentUid] || 0) + (r.amount || 0);
-            });
-
-            let requiredPct = 0;
-            Object.values(schedule).forEach(entry => {
-                if (entry.dueDate && entry.dueDate <= today) requiredPct += (entry.pct || 0);
             });
 
             const updates = {};
@@ -10578,7 +10639,8 @@
                 return;
             }
             if (!await confirm(`هل أنت متأكد من حذف الحساب (${name}) نهائياً؟\nلا يمكن التراجع عن هذا الإجراء.`, "تأكيد حذف موظف")) return;
-            firebase.database().ref('users/' + uid).remove().then(() => {
+            // REST delete — SDK .remove() hangs on WebSocket-blocked network
+            _restSet('users/' + uid, null).then(() => {
                 alert("تم حذف الموظف بنجاح.");
                 renderAdminLists();
             }).catch(e => alert("خطأ أثناء الحذف: " + e.message));
@@ -10957,7 +11019,7 @@
                 const defaults = defaultsSnap.val() || {};
 
                 const students = Object.entries(allUsers)
-                    .filter(([,u]) => u.role === 'student' && u.branchId === bId)
+                    .filter(([,u]) => u.role === 'student' && u.branchId === bId && !u.graduated)
                     .map(([uid,u]) => ({ uid, ...u }));
 
                 let totalRequired = 0, totalPaid = 0, paidCount = 0;
@@ -11281,9 +11343,9 @@
                 const keys = Object.keys(dayData);
                 let key = keys[pIdx];
                 if (!key) {
-                    key = firebase.database().ref('schoolDB/schedule/'+_ttClassId+'/'+day).push().key;
+                    key = 'p_' + Date.now() + '_' + Math.floor(Math.random()*9999);
                 }
-                await firebase.database().ref('schoolDB/schedule/'+_ttClassId+'/'+day+'/'+key).set({ subject, teacher });
+                await _restSet('schoolDB/schedule/'+_ttClassId+'/'+day+'/'+key, { subject, teacher });
                 // Refresh local data
                 const freshSnap = await _restGet('schoolDB/schedule/'+_ttClassId);
                 _ttData = freshSnap.val() || {};
@@ -11327,7 +11389,7 @@
         // ==================== ACTIVITY LOG ====================
         async function logActivity(action, detail) {
             try {
-                await firebase.database().ref('activityLog').push({
+                await _restPush('activityLog', {
                     action, detail,
                     by: currentUser?.name || currentUser?.email || '---',
                     branchId: currentUser?.branchId || '---',
@@ -11721,11 +11783,11 @@
                 // Remove existing entry for same day+period first
                 const dayData = _ttData[day] || {};
                 const existing = Object.entries(dayData).find(([,v]) => v.period == period);
-                const ref = firebase.database().ref(`schoolDB/schedule/${_ttClassId}/${day}`);
-                if (existing) await ref.child(existing[0]).remove();
+                const basePath = `schoolDB/schedule/${_ttClassId}/${day}`;
+                if (existing) await _restSet(`${basePath}/${existing[0]}`, null);
                 // Add new
-                const newKey = ref.push().key;
-                await ref.child(newKey).set({ subject, teacher, period });
+                const newKey = 'p_' + Date.now() + '_' + Math.floor(Math.random()*9999);
+                await _restSet(`${basePath}/${newKey}`, { subject, teacher, period });
                 logActivity('تعديل جدول', `${_ttClassId} - ${TT_DAYS.find(d=>d.key===day)?.label} - ${TT_PERIODS[period]}: ${subject}`);
                 // Reload local data
                 const snap = await _restGet('schoolDB/schedule/' + _ttClassId);
@@ -11763,7 +11825,7 @@
         // ══════════════════════════════════════════════════════════
         function logActivity(action, detail) {
             if (!currentUser) return;
-            firebase.database().ref('activityLog').push({
+            _restPush('activityLog', {
                 action, detail: detail||'',
                 by: currentUser.name || currentUser.email || 'مجهول',
                 branchId: currentUser.branchId || '',
@@ -11929,7 +11991,8 @@
             // Fetch name before delete for log
             const nameSnap = await _restGet('users/'+uid+'/name').catch(()=>null);
             const sName = nameSnap?.val() || uid;
-            firebase.database().ref('users/' + uid).remove().then(() => {
+            // REST delete — SDK .remove() hangs on WebSocket-blocked network
+            _restSet('users/' + uid, null).then(() => {
                 logActivity('حذف طالب', sName);
                 alert("تم الحذف بنجاح");
                 renderAdminLists();
@@ -11939,10 +12002,226 @@
         async function editStudentName(uid, type) {
             let newName = await prompt("أدخل الاسم الجديد للطالب:");
             if (!newName) return;
-            firebase.database().ref('users/' + uid).update({ name: newName.trim() }).then(() => {
+            // REST update — SDK .update() hangs on WebSocket-blocked network
+            _restUpdate('users/' + uid, { name: newName.trim() }).then(() => {
                 alert("تم التحديث بنجاح");
                 renderAdminLists();
             }).catch(e => alert("خطأ: " + e.message));
+        }
+
+        // ════════════════ STUDENT PROMOTION (year-end) ════════════════
+        let _promoStructure = null;
+        const _asArr = (x) => Array.isArray(x) ? x : Object.values(x || {});
+
+        async function initPromotionPanel() {
+            const bId = currentUser?.branchId || 'samawah';
+            try {
+                const snap = await _restGet('settings/branches/' + bId + '/structure');
+                _promoStructure = snap.val() || [];
+            } catch (e) { _promoStructure = []; }
+            const deptSel = document.getElementById('promo-dept');
+            const stageSel = document.getElementById('promo-stage');
+            if (!deptSel) return;
+            deptSel.innerHTML = '<option value="">— اختر القسم —</option>' +
+                _promoStructure.map((d, i) => `<option value="${i}">${d.name || ('قسم ' + (i + 1))}</option>`).join('');
+            if (stageSel) stageSel.innerHTML = '<option value="">— اختر المرحلة —</option>';
+            const res = document.getElementById('promotion-result');
+            if (res) res.innerHTML = '';
+        }
+
+        function onPromoDeptChange() {
+            const di = document.getElementById('promo-dept').value;
+            const stageSel = document.getElementById('promo-stage');
+            if (di === '' || !_promoStructure[di]) { stageSel.innerHTML = '<option value="">— اختر المرحلة —</option>'; return; }
+            const stages = _asArr(_promoStructure[di].stages);
+            stageSel.innerHTML = '<option value="">— اختر المرحلة —</option>' +
+                stages.map((s, i) => {
+                    const last = (i === stages.length - 1) ? ' (الأخيرة — تخرّج)' : '';
+                    return `<option value="${i}">${s.name || ('مرحلة ' + (i + 1))}${last}</option>`;
+                }).join('');
+        }
+
+        async function analyzePromotion() {
+            const di = document.getElementById('promo-dept').value;
+            const si = document.getElementById('promo-stage').value;
+            const threshold = parseFloat(document.getElementById('promo-threshold').value) || 50;
+            const resEl = document.getElementById('promotion-result');
+            if (di === '' || si === '') { showCustomAlert('تنبيه', 'اختر القسم والمرحلة', 'error'); return; }
+
+            const dept = _promoStructure[di];
+            const stages = _asArr(dept.stages);
+            const stage = stages[si];
+            const stageSections = _asArr(stage.sections);
+            const stageSectionIds = stageSections.map(s => s.id);
+            const isLastStage = (Number(si) === stages.length - 1);
+            const nextStage = isLastStage ? null : stages[Number(si) + 1];
+            const bId = currentUser?.branchId || 'samawah';
+
+            resEl.innerHTML = '<div style="text-align:center;padding:30px;color:#94a3b8;"><i class="fa-solid fa-spinner fa-spin"></i> جاري التحليل...</div>';
+
+            const snap = await _restGet('users');
+            const users = snap.val() || {};
+
+            const secName = (cid) => { const s = stageSections.find(x => x.id === cid); return s ? (s.name || '') : ''; };
+            const rows = [];
+            Object.keys(users).forEach(uid => {
+                const u = users[uid];
+                if (u.role !== 'student' || u.branchId !== bId || u.graduated) return;
+                if (!stageSectionIds.includes(u.classId)) return;
+                const g = u.grades || {};
+                const vals = Object.values(g).map(v => Number(v)).filter(v => !isNaN(v));
+                const avg = vals.length ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10 : null;
+                const passed = avg !== null && avg >= threshold;
+                rows.push({ uid, name: u.name || '—', section: secName(u.classId), avg, passed, hasGrades: vals.length > 0 });
+            });
+
+            if (!rows.length) {
+                resEl.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8;"><i class="fa-solid fa-user-slash" style="font-size:2rem;display:block;margin-bottom:10px;"></i>لا يوجد طلاب في هذه المرحلة</div>';
+                return;
+            }
+            rows.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+
+            const targetTxt = isLastStage
+                ? '<span style="color:#a16207;font-weight:800;">المرحلة الأخيرة → سيُوسَم المحدَّدون «متخرّج» ويُؤرشفون</span>'
+                : `سيُنقل المحدَّدون إلى: <span style="color:#1a56db;font-weight:800;">${dept.name} — ${nextStage.name || 'المرحلة التالية'}</span>`;
+
+            let html = `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:12px 16px;margin-bottom:14px;font-size:0.86rem;color:#1e3a8a;">${targetTxt}</div>
+                <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+                    <button onclick="_promoToggleAll(true)" class="btn-glow" style="padding:7px 16px;font-size:0.8rem;background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;">تحديد الكل</button>
+                    <button onclick="_promoToggleAll(false)" class="btn-glow" style="padding:7px 16px;font-size:0.8rem;background:#fee2e2;color:#dc2626;border:1px solid #fecaca;">إلغاء الكل</button>
+                    <span style="margin-right:auto;color:#64748b;font-size:0.82rem;font-weight:700;align-self:center;">إجمالي: ${rows.length} طالب — مقترح ناجح: ${rows.filter(r => r.passed).length}</span>
+                </div>
+                <div style="overflow-x:auto;border:1px solid #e8edf8;border-radius:12px;">
+                <table class="acc-table" style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+                    <thead><tr style="background:#f8faff;">
+                        <th style="padding:10px;width:50px;">ترحيل</th><th style="padding:10px;">الاسم</th>
+                        <th style="padding:10px;">الشعبة</th><th style="padding:10px;">المعدّل</th><th style="padding:10px;">الحالة</th>
+                    </tr></thead><tbody>`;
+            rows.forEach(r => {
+                const avgTxt = r.avg === null ? '<span style="color:#94a3b8;">لا توجد درجات</span>' : `<b>${r.avg}%</b>`;
+                const stat = r.passed
+                    ? '<span style="background:#dcfce7;color:#15803d;padding:2px 10px;border-radius:20px;font-weight:800;font-size:0.75rem;">ناجح</span>'
+                    : (r.hasGrades ? '<span style="background:#fee2e2;color:#dc2626;padding:2px 10px;border-radius:20px;font-weight:800;font-size:0.75rem;">راسب</span>'
+                                   : '<span style="background:#fef9c3;color:#a16207;padding:2px 10px;border-radius:20px;font-weight:800;font-size:0.75rem;">مراجعة</span>');
+                html += `<tr style="border-top:1px solid #f1f5f9;">
+                    <td style="padding:8px;text-align:center;"><input type="checkbox" class="promo-chk" data-uid="${r.uid}" data-section="${r.section}" ${r.passed ? 'checked' : ''} style="width:18px;height:18px;accent-color:#1a56db;cursor:pointer;"></td>
+                    <td style="padding:8px;font-weight:700;">${r.name}</td>
+                    <td style="padding:8px;">${r.section || '—'}</td>
+                    <td style="padding:8px;">${avgTxt}</td>
+                    <td style="padding:8px;">${stat}</td>
+                </tr>`;
+            });
+            html += `</tbody></table></div>
+                <button onclick="applyPromotion(${di},${si})" class="btn-glow" style="margin-top:16px;width:100%;padding:14px;font-weight:800;background:linear-gradient(135deg,#1a56db,#6366f1);">
+                    <i class="fa-solid fa-circle-check" style="margin-left:8px;"></i> ${isLastStage ? 'تخريج وأرشفة المحدَّدين' : 'ترحيل المحدَّدين للمرحلة التالية'}
+                </button>`;
+            resEl.innerHTML = html;
+        }
+
+        function _promoToggleAll(state) {
+            document.querySelectorAll('.promo-chk').forEach(c => { c.checked = state; });
+        }
+
+        async function applyPromotion(di, si) {
+            const dept = _promoStructure[di];
+            const stages = _asArr(dept.stages);
+            const isLastStage = (Number(si) === stages.length - 1);
+            const nextStage = isLastStage ? null : stages[Number(si) + 1];
+            const nextSections = nextStage ? _asArr(nextStage.sections) : [];
+
+            if (!isLastStage && nextSections.length === 0) {
+                showCustomAlert('خطأ', 'المرحلة التالية لا تحتوي على شُعب — أضف شعبة أولاً من الهيكلية', 'error');
+                return;
+            }
+
+            const checked = Array.from(document.querySelectorAll('.promo-chk:checked'));
+            if (!checked.length) { showCustomAlert('تنبيه', 'لم تحدد أي طالب', 'info'); return; }
+
+            const verb = isLastStage ? 'تخريج وأرشفة' : 'ترحيل';
+            if (!await confirm(`سيتم ${verb} ${checked.length} طالب${isLastStage ? '' : ' إلى ' + (nextStage.name || 'المرحلة التالية')}.\nهذا الإجراء يغيّر بيانات الطلاب — هل أنت متأكد؟`)) return;
+
+            const updates = {};
+            const ts = new Date().toISOString();
+            checked.forEach(c => {
+                const uid = c.getAttribute('data-uid');
+                if (isLastStage) {
+                    updates[`users/${uid}/graduated`] = true;
+                    updates[`users/${uid}/graduatedAt`] = ts;
+                } else {
+                    const curName = c.getAttribute('data-section') || '';
+                    const match = nextSections.find(s => (s.name || '') === curName);
+                    const target = match || nextSections[0];
+                    updates[`users/${uid}/classId`] = target.id;
+                }
+            });
+
+            try {
+                await _restUpdate('', updates);
+                logActivity(isLastStage ? 'تخريج طلاب' : 'ترحيل طلاب', `${dept.name} — ${checked.length} طالب`, currentUser?.branchId || '');
+                showCustomAlert('تم', `✅ تم ${verb} ${checked.length} طالب بنجاح`, 'success');
+                analyzePromotion();
+                if (typeof renderAdminLists === 'function') renderAdminLists();
+            } catch (e) {
+                showCustomAlert('خطأ', 'فشل التنفيذ: ' + e.message, 'error');
+            }
+        }
+
+        async function showGraduatesArchive() {
+            const el = document.getElementById('graduates-archive-result');
+            if (!el) return;
+            el.innerHTML = '<div style="text-align:center;padding:24px;color:#94a3b8;"><i class="fa-solid fa-spinner fa-spin"></i> جاري التحميل...</div>';
+            const bId = currentUser?.branchId || 'samawah';
+            const snap = await _restGet('users');
+            const users = snap.val() || {};
+            const grads = [];
+            Object.keys(users).forEach(uid => {
+                const u = users[uid];
+                if (u.role === 'student' && u.branchId === bId && u.graduated) {
+                    let cls = u.classId || '';
+                    try { if (typeof getClassName === 'function') cls = getClassName(u.classId); } catch (_) {}
+                    const gd = u.graduatedAt ? new Date(u.graduatedAt).toLocaleDateString('ar-IQ') : '—';
+                    grads.push({ uid, name: u.name || '—', cls, gd });
+                }
+            });
+            if (!grads.length) {
+                el.innerHTML = '<div style="text-align:center;padding:24px;color:#94a3b8;"><i class="fa-solid fa-box-open" style="font-size:1.8rem;display:block;margin-bottom:8px;"></i>لا يوجد طلاب متخرّجون مؤرشفون</div>';
+                return;
+            }
+            grads.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+            let html = `<div style="color:#64748b;font-size:0.82rem;font-weight:700;margin-bottom:10px;">إجمالي المتخرّجين: ${grads.length}</div>
+                <div style="overflow-x:auto;border:1px solid #e8edf8;border-radius:12px;">
+                <table class="acc-table" style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+                <thead><tr style="background:#f8faff;">
+                    <th style="padding:10px;">الاسم</th><th style="padding:10px;">آخر مرحلة</th>
+                    <th style="padding:10px;">تاريخ التخرّج</th><th style="padding:10px;width:120px;">إجراء</th>
+                </tr></thead><tbody>`;
+            grads.forEach(g => {
+                html += `<tr style="border-top:1px solid #f1f5f9;">
+                    <td style="padding:8px;font-weight:700;">${g.name}</td>
+                    <td style="padding:8px;">${g.cls || '—'}</td>
+                    <td style="padding:8px;">${g.gd}</td>
+                    <td style="padding:8px;text-align:center;">
+                        <button onclick="restoreGraduate('${g.uid}','${(g.name || '').replace(/'/g, "\\'")}')" style="background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;border-radius:8px;padding:5px 12px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:'Cairo',sans-serif;">
+                            <i class="fa-solid fa-rotate-left"></i> إرجاع للنشاط
+                        </button>
+                    </td>
+                </tr>`;
+            });
+            html += '</tbody></table></div>';
+            el.innerHTML = html;
+        }
+
+        async function restoreGraduate(uid, name) {
+            if (!await confirm(`إرجاع الطالب «${name}» إلى القوائم النشطة؟\nسيعود بنفس آخر مرحلة كان فيها.`)) return;
+            try {
+                await _restUpdate('users/' + uid, { graduated: null, graduatedAt: null });
+                logActivity('إرجاع متخرّج', name, currentUser?.branchId || '');
+                showCustomAlert('تم', `✅ تم إرجاع «${name}» للنشاط`, 'success');
+                showGraduatesArchive();
+                if (typeof renderAdminLists === 'function') renderAdminLists();
+            } catch (e) {
+                showCustomAlert('خطأ', 'فشل الإرجاع: ' + e.message, 'error');
+            }
         }
 
         // === TEACHER SUBJECT MANAGEMENT ===
@@ -12020,7 +12299,7 @@
             // Only update password if a new one was entered; hash it before saving
             if (newPass) updates.password = await hashPassword(newPass);
 
-            firebase.database().ref('users/' + currentEditingTeacherUID).update(updates).then(() => {
+            _restUpdate('users/' + currentEditingTeacherUID, updates).then(() => {
                 alert("✅ تم تحديث بيانات المعلم بنجاح");
                 document.getElementById('subject-edit-modal').style.display = 'none';
                 renderAdminLists();
@@ -12044,18 +12323,18 @@
             });
 
             if (count > 0 && await confirm(`إضافة ${count} طالب؟`)) {
-                firebase.database().ref().update(updates).then(() => {
+                _restUpdate('', updates).then(() => {
                     alert("✅ تم الحفظ بنجاح");
                     document.getElementById('import-names-area').value = '';
                     renderAdminLists();
-                });
+                }).catch(err => alert("خطأ في الحفظ: " + err.message));
             }
         }
 
         function saveNewsTicker() {
             const txt = document.getElementById('news-input').value;
             if (!txt) return;
-            firebase.database().ref('schoolDB/news').set(txt).then(() => alert("✅ تم النشر"));
+            _restSet('schoolDB/news', txt).then(() => alert("✅ تم النشر")).catch(err => alert("خطأ: " + err.message));
         }
 
         function embeddedLogin() {
@@ -12166,7 +12445,7 @@
                     const target = selectedClassKey.toString().trim();
 
                     // Match Logic: Check ClassID OR Major (for legacy compatibility)
-                    if (uRole === 'student' && (uClassId === target || uMajor === target)) {
+                    if (uRole === 'student' && !u.graduated && (uClassId === target || uMajor === target)) {
                         students.push({
                             uid: uid,
                             name: u.name || "بدون اسم",
@@ -12227,7 +12506,7 @@
                 e.target.innerText = 'جاري الحفظ...';
                 e.target.disabled = true;
 
-                firebase.database().ref('users/' + uid + '/grades/' + sub).set(val).then(() => {
+                _restSet('users/' + uid + '/grades/' + sub, val).then(() => {
                     alert('✅ تم رصد الدرجة بنجاح');
                     e.target.innerText = 'رصد الدرجة';
                     e.target.disabled = false;
@@ -12331,7 +12610,7 @@
                         const uClassId = (u.classId || "").toString().trim();
                         const uMajor = (u.major || "").toString().trim();
                         const target = window.gbSubject ? window.gbClassId.trim() : ""; // Safety
-                        return uRole === 'student' && (uClassId === target || uMajor === target);
+                        return uRole === 'student' && !u.graduated && (uClassId === target || uMajor === target);
                     })
                     .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
@@ -12443,7 +12722,7 @@
             let val = parseFloat(el.value);
             if (isNaN(val)) val = ''; else if (val < 0) val = 0; else if (val > 100) val = 100;
             el.value = val;
-            firebase.database().ref(`users/${uid}/gradesDetail/${window.gbSubject}/${key}`).set(val).then(() => {
+            _restSet(`users/${uid}/gradesDetail/${window.gbSubject}/${key}`, val).then(() => {
                 el.style.background = '#e8f5e9';
                 setTimeout(() => el.style.background = '', 500);
             });
@@ -12485,7 +12764,7 @@
                     if (!isNaN(grade)) {
                         const student = window.gbStudents.find(s => normalize(s.name) === name);
                         if (student) {
-                            firebase.database().ref(`users/${student.uid}/gradesDetail/${window.gbSubject}/${targetCol}`).set(grade);
+                            _restSet(`users/${student.uid}/gradesDetail/${window.gbSubject}/${targetCol}`, grade);
                             count++;
                         }
                     }
@@ -12795,7 +13074,10 @@
             document.getElementById('new-staff-pass').value = '';
         }
 
-        async function saveNewStaff() {
+        let _savingStaff = false;
+        async function saveNewStaff(btn) {
+            if (_savingStaff) return; // guard against double-click duplicate
+
             const name = document.getElementById('new-staff-name').value.trim();
             const email = document.getElementById('new-staff-email').value.trim().toLowerCase();
             const pass = document.getElementById('new-staff-pass').value.trim();
@@ -12803,31 +13085,44 @@
 
             if (!name || !email || !pass) return alert("يرجى ملء كافة الحقول");
 
-            // Check if email already exists
-            const snap = await _restGet('users');
-            const users = snap.val() || {};
-            const emailExists = Object.values(users).some(u => u.email && u.email.toLowerCase() === email);
-
-            if (emailExists) return alert("⚠️ هذا البريد مسجل مسبقاً لمستخدم آخر");
-
-            const branchForStaff = document.getElementById('new-staff-branch') ? document.getElementById('new-staff-branch').value : (currentUser.branchId || 'samawah');
-            const uid = 'staff_' + Date.now();
-            const staffData = {
-                name: name,
-                email: email,
-                password: await hashPassword(pass),
-                role: role,
-                branchId: branchForStaff,
-                joined: new Date().toISOString(),
-                subjects: []
+            _savingStaff = true;
+            const _origHtml = btn ? btn.innerHTML : '';
+            if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري الإنشاء...'; }
+            const _restore = () => {
+                _savingStaff = false;
+                if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.innerHTML = _origHtml; }
             };
 
-            await _restSet('users/' + uid, staffData);
-            logActivity('إضافة مستخدم', `${name} — ${role} — ${branchForStaff}`);
-            broadcastNotification(`👤 <b>إضافة موظف جديد</b>\nالاسم: ${name}\nالرتبة: ${role === 'admin' ? 'مدير' : role}\nالفرع: ${branchForStaff}\nالبريد: ${email}\nتاريخ الإضافة: ${new Date().toLocaleString('ar-IQ')}`);
-            alert(`تم إنشاء حساب الـ ${role === 'admin' ? 'مدير' : 'أستاذ'} بنجاح ✅\nالبريد: ${email}\nالآن يمكنه الدخول مباشرة من صفحة الدخول.`);
-            document.getElementById('add-staff-modal').style.display = 'none';
-            renderAdminLists();
+            try {
+                // Check if email already exists
+                const snap = await _restGet('users');
+                const users = snap.val() || {};
+                const emailExists = Object.values(users).some(u => u.email && u.email.toLowerCase() === email);
+                if (emailExists) { alert("⚠️ هذا البريد مسجل مسبقاً لمستخدم آخر"); _restore(); return; }
+
+                const branchForStaff = document.getElementById('new-staff-branch') ? document.getElementById('new-staff-branch').value : (currentUser.branchId || 'samawah');
+                const uid = 'staff_' + Date.now() + '_' + Math.floor(Math.random() * 9999);
+                const staffData = {
+                    name: name,
+                    email: email,
+                    password: await hashPassword(pass),
+                    role: role,
+                    branchId: branchForStaff,
+                    joined: new Date().toISOString(),
+                    subjects: []
+                };
+
+                await _restSet('users/' + uid, staffData);
+                logActivity('إضافة مستخدم', `${name} — ${role} — ${branchForStaff}`);
+                broadcastNotification(`👤 <b>إضافة موظف جديد</b>\nالاسم: ${name}\nالرتبة: ${role === 'admin' ? 'مدير' : role}\nالفرع: ${branchForStaff}\nالبريد: ${email}\nتاريخ الإضافة: ${new Date().toLocaleString('ar-IQ')}`);
+                alert(`تم إنشاء حساب الـ ${role === 'admin' ? 'مدير' : 'أستاذ'} بنجاح ✅\nالبريد: ${email}\nالآن يمكنه الدخول مباشرة من صفحة الدخول.`);
+                document.getElementById('add-staff-modal').style.display = 'none';
+                renderAdminLists();
+                _restore();
+            } catch (e) {
+                alert("خطأ أثناء إنشاء الحساب: " + e.message);
+                _restore();
+            }
         }
 
         async function updateUserRole(uid, newRole) {
@@ -12864,7 +13159,7 @@
         const originalShowAdminTab = window.showAdminTab;
         // --- FINANCE SYSTEM ---
         function updateAtt(uid, status) {
-            firebase.database().ref(`users/${uid}/attendance/${new Date().toISOString().split('T')[0]}`).set(status);
+            _restSet(`users/${uid}/attendance/${new Date().toISOString().split('T')[0]}`, status).catch(()=>{});
 
             // --- NEW: Export and WhatsApp Logic ---
             function exportAccStudentsToExcel() {
@@ -13489,7 +13784,7 @@
                 Object.keys(users).forEach(uid => {
                     if (users[uid].role === 'student') updates[`users/${uid}`] = null;
                 });
-                return firebase.database().ref().update(updates);
+                return _restUpdate('', updates);
             }).then(() => {
                 alert('تم الحذف بنجاح');
                 renderAdminLists();
@@ -13806,6 +14101,11 @@
             document.getElementById('auto-student-name').value = '';
             document.getElementById('auto-student-phone').value = '';
 
+            // Reset submit button + guard (so a 2nd student can be registered without reload)
+            _savingStudent = false;
+            const _sb = document.getElementById('btn-submit-register');
+            if (_sb) { _sb.disabled = false; _sb.innerHTML = '<i class="fa-solid fa-rocket" style="margin-left:8px;"></i>تسجيل وحفظ نهائي'; }
+
             document.getElementById('auto-register-modal').style.display = 'flex';
 
             const branchSelect = document.getElementById('auto-student-branch');
@@ -13870,7 +14170,7 @@
 
         function saveResultToDB(title, url) {
             const rid = 'res_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
-            firebase.database().ref('schoolDB/results/' + rid).set({
+            _restSet('schoolDB/results/' + rid, {
                 title: title,
                 url: url,
                 date: new Date().toISOString()
@@ -13886,7 +14186,7 @@
 
         async function deleteResultLink(rid) {
             if (await confirm("هل تريد حذف هذا الرابط؟")) {
-                firebase.database().ref('schoolDB/results/' + rid).remove();
+                _restSet('schoolDB/results/' + rid, null).catch(err => alert("خطأ: " + err.message));
             }
         }
 
@@ -13907,7 +14207,7 @@
                     .filter(u => {
                         const role    = (u.role || '').toLowerCase();
                         const uClass  = (u.classId || u.major || '').toString().trim();
-                        return role === 'student' && uClass === classId;
+                        return role === 'student' && !u.graduated && uClass === classId;
                     })
                     .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
@@ -13976,7 +14276,7 @@
                 if (s.tempStatus === 'late')   lateCount++;
             });
 
-            firebase.database().ref().update(updates).then(() => {
+            _restUpdate('', updates).then(() => {
                 const msg = `تم حفظ الحضور ✓  غياب: ${absentCount}  متأخر: ${lateCount}`;
                 showCustomAlert('تم الحفظ', msg, 'success');
                 closeAttendanceModal();
@@ -14065,7 +14365,7 @@
             if (!classId) return showCustomAlert('تنبيه', 'اختر الشعبة أولاً', 'error');
             if (!subject) return showCustomAlert('تنبيه', 'أدخل اسم المادة', 'error');
 
-            firebase.database().ref(`schoolDB/schedule/${classId}/${day}`).push({
+            _restPush(`schoolDB/schedule/${classId}/${day}`, {
                 subject, time, period, teacher: currentUser ? currentUser.name : ''
             }).then(() => {
                 document.getElementById('sch-subject-input').value = '';
@@ -14077,7 +14377,7 @@
 
         function deleteSchedulePeriod(classId, day, key) {
             if (!confirm('حذف هذه الحصة؟')) return;
-            firebase.database().ref(`schoolDB/schedule/${classId}/${day}/${key}`).remove()
+            _restSet(`schoolDB/schedule/${classId}/${day}/${key}`, null)
                 .then(() => loadScheduleDay())
                 .catch(err => showCustomAlert('خطأ', err.message, 'error'));
         }
@@ -14091,13 +14391,12 @@
             if (!title) return showCustomAlert('تنبيه', 'أدخل عنوان الإعلان', 'error');
             if (!body)  return showCustomAlert('تنبيه', 'أدخل نص الإعلان', 'error');
 
-            const ref = firebase.database().ref('schoolDB/announcements').push();
-            ref.set({
+            _restPush('schoolDB/announcements', {
                 title,
                 body,
                 branchId,
                 author: currentUser ? currentUser.name : 'معلم',
-                timestamp: firebase.database.ServerValue.TIMESTAMP
+                timestamp: Date.now()
             }).then(() => {
                 document.getElementById('ann-title-input').value = '';
                 document.getElementById('ann-body-input').value  = '';
@@ -14184,7 +14483,7 @@
                 snap.forEach(c => {
                     const u = c.val();
                     const uClass = (u.classId || u.major || '').toString().trim();
-                    if ((u.role||'').toLowerCase() === 'student' && uClass === classId) {
+                    if ((u.role||'').toLowerCase() === 'student' && !u.graduated && uClass === classId) {
                         students.push({ uid: c.key, name: u.name || '—' });
                     }
                 });
@@ -14352,7 +14651,7 @@
                     document.getElementById('upload-link').value = '';
                 }
 
-                await firebase.database().ref('schoolDB/uploads').push(record);
+                await _restPush('schoolDB/uploads', record);
                 document.getElementById('upload-title').value = '';
                 showCustomAlert('تم', 'تم النشر بنجاح ✓', 'success');
                 loadTeacherUploads();
@@ -14410,7 +14709,7 @@
 
         function deleteUpload(id) {
             if (!confirm('حذف هذا الملف؟')) return;
-            firebase.database().ref('schoolDB/uploads/' + id).remove()
+            _restSet('schoolDB/uploads/' + id, null)
                 .then(() => loadTeacherUploads())
                 .catch(err => showCustomAlert('خطأ', err.message, 'error'));
         }
@@ -14583,7 +14882,7 @@
                 waPrimary: document.getElementById('setting-wa-primary').value
             };
 
-            firebase.database().ref('schoolDB/settings').set(data).then(() => {
+            _restSet('schoolDB/settings', data).then(() => {
                 alert("✅ تم حفظ إعدادات الموقع وتحديث الواجهة بنجاح!");
             }).catch(err => alert("خطأ في الحفظ: " + err.message));
         }
@@ -14720,7 +15019,9 @@
             }
         }
 
+        let _savingStudent = false;
         async function submitAutoRegister() {
+            if (_savingStudent) return; // guard against double-click duplicate
             const name = document.getElementById('auto-student-name').value.trim();
             if (name === 'جاري المعالجة والفرز...') return;
 
@@ -14766,7 +15067,8 @@
             let sections = stage.sections || [];
             if (!Array.isArray(sections)) sections = Object.values(sections);
 
-            // --- All validation passed — now disable the button ---
+            // --- All validation passed — now lock against double-submit ---
+            _savingStudent = true;
             const submitBtn = document.getElementById('btn-submit-register');
             if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="margin-left:8px;"></i>جاري الحفظ...'; }
             
@@ -14866,6 +15168,7 @@
                     email: email,
                     loginCode: loginCode,
                     password: passwordHash,
+                    loginPassword: password,
                     phone: phone,
                     classId: assignedSectionId,
                     branchId: branchId,
@@ -14882,7 +15185,8 @@
                 };
 
                 await _restSet('users/' + uid, studentData);
-                
+                _savingStudent = false; // write done — duplicate window closed
+
                 // CRITICAL: Close modal immediately after success
                 document.getElementById('auto-register-modal').style.display = 'none';
 
@@ -14932,6 +15236,7 @@
                 console.error("Registration Error Detail:", err);
                 alert("حدث خطأ أثناء عملية التسجيل: " + err.message);
                 document.getElementById('auto-student-name').value = originalName;
+                _savingStudent = false; // allow retry after failure
                 if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="fa-solid fa-rocket" style="margin-left:8px;"></i>تسجيل وحفظ نهائي'; }
             }
         }
@@ -15055,6 +15360,8 @@
                                 <div style="text-align: right; font-size: 0.95rem; font-weight: bold; color: #000;">
                                     <p>مؤسسة النهرين التعليمية الدولية</p>
                                     <p>بالتعاون مع الشركة اللبنانية الدولية</p>
+                                    <p style="font-size:0.8rem;font-weight:normal;">📍 ${branch.address || ''}</p>
+                                    <p style="font-size:0.8rem;font-weight:normal;">☎ ${branch.phone || ''}</p>
                                 </div>
                                 <div class="header-text">
                                     <img src="${logo}" class="logo">
@@ -15169,7 +15476,7 @@
                             }
                         });
                         // Save back to firebase
-                        await firebase.database().ref('settings/branches/' + bId + '/structure').set(structure);
+                        await _restSet('settings/branches/' + bId + '/structure', structure);
                     }
                 }
                 
