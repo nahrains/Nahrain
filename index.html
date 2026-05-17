@@ -15681,8 +15681,11 @@
         }
 
         function printStudentReceipt(data) {
-            // Sanitize: never print a hashed password (64 hex chars)
-            const safePassword = data.tempPass || data.loginPassword || (data.password && !/^[0-9a-f]{64}$/i.test(data.password) ? data.password : null);
+            const _isHash = v => typeof v === 'string' && /^[0-9a-f]{64}$/i.test(v);
+            let safePassword = null;
+            if (data.tempPass && !_isHash(data.tempPass)) safePassword = data.tempPass;
+            else if (data.loginPassword && !_isHash(data.loginPassword)) safePassword = data.loginPassword;
+            else if (data.password && !_isHash(data.password)) safePassword = String(data.password);
             const bId = currentUser ? (currentUser.branchId || 'samawah') : 'samawah';
             const branch = window.NAHRAIN_BRANCHES[bId];
             const schoolFullName = branch.name || 'إعدادية النهرين المهنية الأهلية';

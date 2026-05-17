@@ -3821,6 +3821,9 @@
                 }
             }
 
+            const _rawPass = s.loginPassword ||
+                (s.password && !/^[0-9a-f]{64}$/i.test(s.password) ? s.password : null) ||
+                null;
             printStudentReceipt({
                 name: s.name,
                 deptName: dept,
@@ -3828,7 +3831,7 @@
                 sectionName: section,
                 documentStatus: s.documentStatus || "تم الجلب",
                 loginCode: s.loginCode || "---",
-                password: s.loginPassword || null,
+                password: _rawPass,
                 phone: s.phone || "---"
             });
         };
