@@ -1,3 +1,11 @@
+        // SECURITY: Never display raw passwords from DB — always run through this function.
+        // SHA-256 hashes are 64 lowercase hex chars. If the value looks like a hash, block it.
+        function _safePass(val) {
+            if (!val) return null;
+            if (/^[0-9a-f]{64}$/i.test(String(val))) return null;
+            return String(val);
+        }
+
         function switchAccTab(tabId) {
             document.querySelectorAll('.acc-tab-content').forEach(el => el.style.display = 'none');
             document.querySelectorAll('.acc-tab-btn').forEach(el => el.classList.remove('active'));
@@ -2238,7 +2246,6 @@
                             <div class="cred">
                                 <span class="cred-t">🔐 بيانات الدخول للمنصة</span>
                                 <div class="cred-p"><span>اسم المستخدم: </span><b>${loginCode || '---'}</b></div>
-                                <div class="cred-p"><span>كلمة المرور: </span><b>${studentPassword || '---'}</b></div>
                             </div>` : ''}
                         </div>
                     </div>
@@ -3806,7 +3813,7 @@
                 sectionName: section,
                 documentStatus: s.documentStatus || "تم الجلب",
                 loginCode: s.loginCode || "---",
-                password: s.password || "---",
+                password: null,
                 phone: s.phone || "---"
             });
         };
@@ -3942,25 +3949,22 @@
         };
 
         window.goToAccSearchResult = function (type, id) {
+            // Close the search dropdown first
+            const resBox = document.getElementById('acc-search-results');
+            const inBox  = document.getElementById('acc-global-search-input');
+            if (resBox) resBox.style.display = 'none';
+            if (inBox)  inBox.value = '';
+
             if (type === 'student') {
-                switchAccTab('students');
-                setTimeout(() => {
-                    const stdSearch = document.getElementById('acc-search-students');
-                    if (stdSearch) {
-                        const s = accountantStudents.find(x => String(x.uid) === String(id));
-                        if (s) {
-                            stdSearch.value = s.name;
-                            filterAccStudents();
-                        }
-                    }
-                }, 200);
+                // Open the financial statement (كشف الحساب) directly — it already exists
+                if (typeof window.openAccStudentStatement === 'function') {
+                    window.openAccStudentStatement(id);
+                }
             } else if (type === 'revenue') {
                 switchAccTab('revenues');
             } else if (type === 'expense') {
                 switchAccTab('expenses');
             }
-            document.getElementById('acc-search-results').style.display = 'none';
-            document.getElementById('acc-global-search-input').value = '';
         };
 
         // --- TRANSACTION EDIT LOGIC ---
