@@ -3401,6 +3401,11 @@
             document.getElementById('acc-hr-deduction').value = deduction || '';
             document.getElementById('acc-hr-contract-start').value = contractStart || '';
             document.getElementById('acc-hr-contract').value = contractEnd || '';
+            // Default pay month to current month
+            const _now = new Date();
+            const _monthVal = `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}`;
+            const _payMonthEl = document.getElementById('acc-hr-pay-month');
+            if (_payMonthEl) _payMonthEl.value = _monthVal;
             calculateNetSalaryLive();
             document.getElementById('acc-modal-overlay').style.display = 'block';
             document.getElementById('acc-hr-modal').style.display = 'block';
@@ -3429,45 +3434,53 @@
         };
 
         window.payAccSalary = async function() {
-            let uid = document.getElementById('acc-hr-modal-uid').value;
-            let name = document.getElementById('acc-hr-modal-name').innerText.replace('إدارة الراتب: ', '');
-            let b = parseFloat(document.getElementById('acc-hr-base').value) || 0;
-            let a = parseFloat(document.getElementById('acc-hr-allowance').value) || 0;
-            let d = parseFloat(document.getElementById('acc-hr-deduction').value) || 0;
-            let net = (b + a) - d;
-            if (confirm(`صرف راتب بقيمة ${net.toLocaleString()} للموظف ${name}؟`)) {
-                await window.addAccTransaction('expense', uid, `صرف راتب الموظف ${name}`, net, 'رواتب وأجور');
+            const uid = document.getElementById('acc-hr-modal-uid').value;
+            const fullTitle = document.getElementById('acc-hr-modal-name').innerText.replace('إدارة الراتب: ', '');
+            const name = fullTitle.split(' (')[0];
+            const b = parseFloat(document.getElementById('acc-hr-base').value) || 0;
+            const a = parseFloat(document.getElementById('acc-hr-allowance').value) || 0;
+            const d = parseFloat(document.getElementById('acc-hr-deduction').value) || 0;
+            const net = (b + a) - d;
+
+            const payMonthEl = document.getElementById('acc-hr-pay-month');
+            const payMonthVal = payMonthEl ? payMonthEl.value : '';
+            if (!payMonthVal) return alert('يرجى تحديد الشهر المراد صرف راتبه');
+
+            const [yr, mo] = payMonthVal.split('-');
+            const monthName = new Date(Number(yr), Number(mo)-1, 1).toLocaleString('ar-IQ', { month: 'long', year: 'numeric' });
+            const manualTimestamp = new Date(Number(yr), Number(mo)-1, 28).getTime();
+
+            if (!await confirm(`صرف راتب شهر (${monthName}) للموظف ${name} بقيمة ${net.toLocaleString()} د.ع؟`)) return;
+
+            try {
+                const txId = await window.addAccTransaction('expense', uid, `صرف راتب شهر ${monthName} - ${name}`, net, 'رواتب وأجور', name, 'نقداً', '-', manualTimestamp);
+                showCustomAlert('تم الصرف', `تم صرف راتب ${monthName} بنجاح ✅`, 'success');
                 loadAccountantData();
                 window.closeAllAccModals();
+                setTimeout(() => {
+                    const dateStr = new Date().toLocaleDateString('ar-IQ');
+                    window.printAccReceipt(txId, 'expense', net, `راتب شهر ${monthName}`, dateStr, 'رواتب وأجور', '', '', name, 'نقداً', '');
+                }, 500);
+            } catch (err) {
+                alert('خطأ أثناء الصرف: ' + err.message);
             }
         };
 
         window.openSalaryStatement = function(uid) {
-            console.log("Opening Salary Statement for UID:", uid);
             if (!uid) return;
 
             const u = accountantStaff.find(x => String(x.uid) === String(uid));
-            if (!u) {
-                console.error("Staff member not found for salary statement:", uid);
-                alert("خطأ: لم يتم العثور على بيانات الموظف.");
-                return;
-            }
+            if (!u) { alert("خطأ: لم يتم العثور على بيانات الموظف."); return; }
 
-            const start = u.payroll?.contractStart || '2024-09-01';
-            const end = u.payroll?.contractEnd || new Date().toISOString().split('T')[0];
             const netMonthly = (Number(u.payroll?.base)||0) + (Number(u.payroll?.allowance)||0) - (Number(u.payroll?.deduction)||0);
-            
+
             const headerElem = document.getElementById('acc-salary-header');
             const bodyElem = document.getElementById('acc-salary-body');
             const modal = document.getElementById('acc-salary-modal');
-
-            if (!headerElem || !bodyElem || !modal) {
-                console.error("Salary modal elements missing from DOM");
-                return;
-            }
+            if (!headerElem || !bodyElem || !modal) return;
 
             headerElem.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                     <div>
                         <div style="font-size:1.2rem; font-weight:900; color:#1e3a8a;">الموظف: ${u.name}</div>
                         <div style="font-size:0.9rem; color:#64748b; margin-top:4px;">الصافي الشهري المعتمد: <b style="color:#0f172a;">${netMonthly.toLocaleString()} د.ع</b></div>
@@ -3476,47 +3489,65 @@
                         <i class="fa-solid fa-print"></i> طباعة كشف عام
                     </button>
                 </div>`;
-            
-            let curr = new Date(start); 
-            let months = [];
-            let stopDate = new Date(end);
+
+            // Build month list: from contractStart (or 2 years ago) to today
             const now = new Date();
-            if (stopDate > now) stopDate = now;
-            
-            // Loop to get up to 24 months
-            while(curr <= stopDate) { 
-                months.push(new Date(curr)); 
-                curr.setMonth(curr.getMonth()+1); 
-                if (months.length > 24) break;
+            let startDate = null;
+            if (u.payroll?.contractStart) {
+                const parsed = new Date(u.payroll.contractStart);
+                if (!isNaN(parsed.getTime())) startDate = parsed;
             }
-            
-            const myPayments = (accountantFinance.expenses || []).filter(e => String(e.studentUid) === String(uid) && e.category === 'رواتب وأجور');
+            if (!startDate) {
+                startDate = new Date(now.getFullYear() - 2, now.getMonth(), 1);
+            }
+
+            let endDate = now;
+            if (u.payroll?.contractEnd) {
+                const parsed = new Date(u.payroll.contractEnd);
+                if (!isNaN(parsed.getTime()) && parsed < now) endDate = parsed;
+            }
+
+            // Normalize both to 1st of the month
+            startDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+            endDate   = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+
+            const months = [];
+            let curr = new Date(startDate);
+            while (curr <= endDate && months.length < 36) {
+                months.push(new Date(curr));
+                curr.setMonth(curr.getMonth() + 1);
+            }
+            months.reverse();
+
+            const myPayments = (accountantFinance.expenses || []).filter(e =>
+                String(e.studentUid) === String(uid) && e.category === 'رواتب وأجور'
+            );
+
             let html = '';
-            
-            months.reverse().forEach(m => {
+            months.forEach(m => {
                 const mStr = m.toLocaleString('ar-IQ', { month: 'long', year: 'numeric' });
                 const pay = myPayments.find(p => {
-                    const d = new Date(p.timestamp);
+                    const d = new Date(Number(p.timestamp));
                     return d.getMonth() === m.getMonth() && d.getFullYear() === m.getFullYear();
                 });
-                
+
                 html += `
                     <tr>
                         <td style="font-weight:700; color:#334155;">${mStr}</td>
                         <td style="font-weight:800; color:#0f172a;">${netMonthly.toLocaleString()} <small>د.ع</small></td>
                         <td>
-                            ${pay 
-                                ? '<span style="color:#059669; font-weight:800; background:#f0fdf4; padding:4px 12px; border-radius:20px; font-size:0.8rem;"><i class="fa-solid fa-check-circle"></i> تم الصرف</span>' 
+                            ${pay
+                                ? '<span style="color:#059669; font-weight:800; background:#f0fdf4; padding:4px 12px; border-radius:20px; font-size:0.8rem;"><i class="fa-solid fa-check-circle"></i> تم الصرف</span>'
                                 : `<button class="acc-btn-primary" style="padding:5px 15px; font-size:0.8rem; background:#10b981;" onclick="paySalaryForMonth('${uid}', ${m.getTime()}, '${mStr}')">صرف الآن</button>`
                             }
                         </td>
-                        <td style="font-size:0.85rem; color:#64748b; font-weight:600;">${pay ? new Date(pay.timestamp).toLocaleDateString('ar-IQ') : '---'}</td>
-                        <td style="font-family:monospace; font-size:0.8rem; color:#94a3b8;">${pay ? '#' + pay.id.substring(0,8).toUpperCase() : '---'}</td>
+                        <td style="font-size:0.85rem; color:#64748b; font-weight:600;">${pay ? new Date(Number(pay.timestamp)).toLocaleDateString('ar-IQ') : '---'}</td>
+                        <td style="font-family:monospace; font-size:0.8rem; color:#94a3b8;">${pay ? '#' + String(pay.id||'').substring(0,8).toUpperCase() : '---'}</td>
                     </tr>`;
             });
-            
-            bodyElem.innerHTML = html || '<tr><td colspan="5" style="text-align:center; padding:40px; color:#94a3b8;"><i class="fa-solid fa-circle-info" style="font-size:2rem; display:block; margin-bottom:10px; opacity:0.3;"></i> لا توجد سجلات رواتب متاحة في الفترة المحددة.</td></tr>';
-            
+
+            bodyElem.innerHTML = html || '<tr><td colspan="5" style="text-align:center; padding:40px; color:#94a3b8;"><i class="fa-solid fa-circle-info" style="font-size:2rem; display:block; margin-bottom:10px; opacity:0.3;"></i> لا توجد أشهر لعرضها — يرجى ضبط تواريخ العقد في إدارة الراتب.</td></tr>';
+
             modal.style.display = 'flex';
         };
 
@@ -3524,16 +3555,20 @@
             const u = accountantStaff.find(x => String(x.uid) === String(uid));
             if (!u) return;
             const net = (Number(u.payroll?.base)||0) + (Number(u.payroll?.allowance)||0) - (Number(u.payroll?.deduction)||0);
-            
-            if (confirm(`هل تريد صرف راتب شهر (${monthName}) للموظف ${u.name} بقيمة ${net.toLocaleString()} د.ع؟`)) {
-                try {
-                    // Correctly passing the historical timestamp as the manualDate argument (9th argument)
-                    await window.addAccTransaction('expense', uid, `صرف راتب شهر ${monthName} للموظف ${u.name}`, net, 'رواتب وأجور', '-', 'نقداً', '-', time);
-                    showCustomAlert('تم الصرف', `تم تسجيل صرف راتب شهر ${monthName} بنجاح.`, 'success');
-                    window.openSalaryStatement(uid); 
-                } catch (err) {
-                    alert("خطأ أثناء الصرف: " + err.message);
-                }
+
+            if (!await confirm(`هل تريد صرف راتب شهر (${monthName}) للموظف ${u.name} بقيمة ${net.toLocaleString()} د.ع؟`)) return;
+            try {
+                const txId = await window.addAccTransaction('expense', uid, `صرف راتب شهر ${monthName} - ${u.name}`, net, 'رواتب وأجور', u.name, 'نقداً', '-', time);
+                // Reload data first, then refresh the statement
+                await loadAccountantData();
+                showCustomAlert('تم الصرف', `تم تسجيل صرف راتب شهر ${monthName} بنجاح ✅`, 'success');
+                window.openSalaryStatement(uid);
+                setTimeout(() => {
+                    const dateStr = new Date(Number(time)).toLocaleDateString('ar-IQ');
+                    window.printAccReceipt(txId, 'expense', net, `راتب شهر ${monthName}`, dateStr, 'رواتب وأجور', '', '', u.name, 'نقداً', '');
+                }, 600);
+            } catch (err) {
+                alert("خطأ أثناء الصرف: " + err.message);
             }
         };
 
@@ -3611,6 +3646,22 @@
             if (modal.parentElement !== document.body) {
                 document.body.appendChild(modal);
                 document.body.appendChild(overlay);
+            }
+
+            // Reset submit button (may be stuck from previous session)
+            const _payBtn = document.getElementById('acc-payment-submit-btn');
+            if (_payBtn) { _payBtn.disabled = false; _payBtn.textContent = 'تأكيد عملية التسديد وطباعة الوصل 🖨️'; }
+
+            // Populate installment dropdown
+            const _instSel = document.getElementById('acc-payment-installment');
+            if (_instSel) {
+                const _ordinals = ['الأول','الثاني','الثالث','الرابع','الخامس','السادس','السابع','الثامن','التاسع','العاشر'];
+                const _count = (accountantFinance && accountantFinance.installmentCount) || 5;
+                _instSel.innerHTML = '<option value="">-- اختر رقم القسط --</option>';
+                for (let i = 1; i <= _count; i++) {
+                    _instSel.innerHTML += `<option value="${i}">القسط ${_ordinals[i-1] || i}</option>`;
+                }
+                _instSel.value = '';
             }
 
             // Populate data
@@ -4182,16 +4233,32 @@
             } catch (e) { console.error(e); }
         };
 
+        window.accUpdatePaymentInstallment = function () {
+            const sel = document.getElementById('acc-payment-installment');
+            const noteEl = document.getElementById('acc-payment-note');
+            const nameEl = document.getElementById('acc-payment-name');
+            if (!sel || !noteEl) return;
+            const studentName = nameEl ? nameEl.value : '';
+            if (sel.value) {
+                const ordinals = ['الأول','الثاني','الثالث','الرابع','الخامس','السادس','السابع','الثامن','التاسع','العاشر'];
+                const label = ordinals[Number(sel.value) - 1] || sel.value;
+                noteEl.value = `تسديد القسط ${label} - الطالب: ${studentName}`;
+            } else {
+                noteEl.value = `تسديد قسط الطالب ${studentName}`;
+            }
+        };
+
         window.submitAccStudentPayment = async function () {
             const uid = document.getElementById('acc-payment-uid').value;
             const amountStr = document.getElementById('acc-payment-amount').value;
             const amount = Number(amountStr.replace(/,/g, ''));
             const note = document.getElementById('acc-payment-note').value;
             const nextDueDate = document.getElementById('acc-payment-next-date').value;
+            const installmentNum = document.getElementById('acc-payment-installment')?.value || '';
 
             if (amount <= 0) return alert('يرجى إدخال مبلغ صحيح');
 
-            const btn = document.querySelector('#acc-payment-modal .acc-btn-primary');
+            const btn = document.getElementById('acc-payment-submit-btn');
             if (btn) { btn.disabled = true; btn.textContent = '⏳ جاري الحفظ...'; }
 
             try {
@@ -4199,6 +4266,9 @@
 
                 if (nextDueDate) {
                     await _restSet(`users/${uid}/finance/nextDueDate`, nextDueDate);
+                }
+                if (installmentNum) {
+                    await _restSet(`users/${uid}/finance/lastPaidInstallment`, Number(installmentNum));
                 }
 
                 window.closeAllAccModals();
