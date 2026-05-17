@@ -8233,42 +8233,41 @@
             _loginDone = true;
             if (_loginSafetyTimer) { clearTimeout(_loginSafetyTimer); _loginSafetyTimer = null; }
 
-            // ضمان وجود جلسة Firebase Auth قبل تحميل البيانات (await = لا race condition)
-            if (!firebase.auth().currentUser) {
+            // ضمان وجود جلسة Firebase Auth قبل تحميل البيانات
+            const _fbCurrent = firebase.auth().currentUser;
+            // إذا لا يوجد مستخدم أو الجلسة anonymous (uid مؤقت لا يطابق أي دور) → أعد تسجيل الدخول
+            if (!_fbCurrent || _fbCurrent.isAnonymous) {
                 const _fbEmail = u.email && u.email.includes('@') ? u.email : null;
                 const _fbPass  = _lastLoginPass || null;
-
-                const _writeMirror = async (fbUser) => {
-                    if (!fbUser || fbUser.uid === u.uid) return;
-                    try {
-                        const token = await fbUser.getIdToken();
-                        await fetch(
-                            `${firebaseConfig.databaseURL}/users/${fbUser.uid}.json?auth=${token}`,
-                            { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ role: u.role || 'student', isSuperAdmin: u.isSuperAdmin || false, _mirror: u.uid }) }
-                        );
-                    } catch(e) {}
-                };
-
                 try {
                     if (_fbEmail && _fbPass) {
                         try {
-                            const c = await firebase.auth().signInWithEmailAndPassword(_fbEmail, _fbPass);
-                            await _writeMirror(c.user);
+                            await firebase.auth().signInWithEmailAndPassword(_fbEmail, _fbPass);
                         } catch(err) {
                             if (err.code === 'auth/user-not-found') {
-                                const c = await firebase.auth().createUserWithEmailAndPassword(_fbEmail, _fbPass);
-                                await _writeMirror(c.user);
+                                await firebase.auth().createUserWithEmailAndPassword(_fbEmail, _fbPass);
                             } else {
-                                const c = await firebase.auth().signInAnonymously();
-                                await _writeMirror(c.user);
+                                await firebase.auth().signInAnonymously();
                             }
                         }
                     } else {
-                        const c = await firebase.auth().signInAnonymously();
-                        await _writeMirror(c.user);
+                        await firebase.auth().signInAnonymously();
                     }
                 } catch(e) {}
+            }
+
+            // كتابة سجل المرآة دائماً — يربط Firebase Auth uid بالدور الصحيح في قواعد الأمان
+            const _fbUser = firebase.auth().currentUser;
+            if (_fbUser && _fbUser.uid !== u.uid) {
+                try {
+                    const _token = await _fbUser.getIdToken();
+                    const _mResp = await fetch(
+                        `${firebaseConfig.databaseURL}/users/${_fbUser.uid}.json?auth=${_token}`,
+                        { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ role: u.role || 'student', isSuperAdmin: u.isSuperAdmin || false, _mirror: u.uid }) }
+                    );
+                    if (!_mResp.ok) console.warn('Mirror write HTTP', _mResp.status);
+                } catch(e) { console.warn('Mirror write error:', e); }
             }
             _resetLoginAttempts();
             const _loginBtn = document.getElementById('login-btn');
