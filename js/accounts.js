@@ -79,7 +79,7 @@
                 renderAccountantUI();
                 updateAccountantDashboardReports();
                 loadAcademicYearSettings(academicYearSnap.val());
-            } catch (e) { console.error(e); }
+            } catch (e) { console.error(e); showCustomAlert('خطأ', 'فشل تحميل البيانات المالية: ' + e.message, 'error'); }
         }
 
         function getClassName(classId) {
@@ -367,22 +367,30 @@
                     switch(status) {
                         case 'paid':
                             label = _badge('fa-circle-check','مسدد','#dcfce7','#15803d','#bbf7d0');
-                            bg = '#f0fdf4'; color = '#15803d'; kpiPaid++; break;
+                            bg = '#f0fdf4'; color = '#15803d'; break;
                         case 'overdue':
                             label = _badge('fa-circle-exclamation','متأخر','#fff1f2','#be123c','#fecdd3');
-                            bg = '#fff8f8'; color = '#be123c'; kpiOverdue++;
+                            bg = '#fff8f8'; color = '#be123c';
                             if(overallStatus !== 'overdue') overallStatus = 'overdue'; break;
                         case 'due_soon':
                             label = _badge('fa-bell','موعده قريب','#fef9c3','#92400e','#fde68a');
-                            bg = '#fffdf0'; color = '#92400e'; kpiSoon++;
+                            bg = '#fffdf0'; color = '#92400e';
                             if(overallStatus === 'paid') overallStatus = 'due_soon'; break;
                         case 'not_due':
                             label = _badge('fa-clock','لم يحن بعد','#eff6ff','#1d4ed8','#bfdbfe');
-                            bg = '#f8faff'; color = '#1d4ed8'; kpiNotDue++;
+                            bg = '#f8faff'; color = '#1d4ed8';
                             if(overallStatus === 'paid') overallStatus = 'not_due'; break;
                     }
                     instCells.push({ status, label, bg, color, amount: instAmount });
                 });
+
+                // Count once per student based on overall status
+                if (netRequired > 0) {
+                    if (overallStatus === 'paid') kpiPaid++;
+                    else if (overallStatus === 'overdue') kpiOverdue++;
+                    else if (overallStatus === 'due_soon') kpiSoon++;
+                    else kpiNotDue++;
+                }
 
                 // Overall badge
                 let overallBadge;
@@ -398,8 +406,12 @@
 
                 // Apply status filter
                 if (filterStatus !== 'all') {
-                    const hasMatchingCell = instCells.some(c => c.status === filterStatus);
-                    if (!hasMatchingCell) return;
+                    if (filterStatus === 'full_paid') {
+                        if (netRequired === 0 || totalPaid < netRequired) return;
+                    } else {
+                        const hasMatchingCell = instCells.some(c => c.status === filterStatus);
+                        if (!hasMatchingCell) return;
+                    }
                 }
 
                 // Apply installment filter (show only specific col if selected)
@@ -581,7 +593,7 @@
                 if (catList) {
                     catList.innerHTML = '';
                     (accountantFinance.expenseCategories || []).forEach(cat => {
-                        catList.innerHTML += `<span class="acc-badge" style="background:#e8f5e9; color:#2e7d32; border:1px solid #c8e6c9; padding:5px 12px; font-size:0.85rem; margin:2px; display:inline-block;">${cat} <i class="fa-solid fa-xmark" style="cursor:pointer; margin-right:8px; color:#c62828;" onclick="removeExpenseCategory('${cat}')"></i></span>`;
+                        catList.innerHTML += `<span class="acc-badge" style="background:#e8f5e9; color:#2e7d32; border:1px solid #c8e6c9; padding:5px 12px; font-size:0.85rem; margin:2px; display:inline-block;">${escHtml(cat)} <i class="fa-solid fa-xmark" style="cursor:pointer; margin-right:8px; color:#c62828;" data-cat="${escHtml(cat)}" onclick="removeExpenseCategory(this.getAttribute('data-cat'))"></i></span>`;
                     });
                 }
 
@@ -675,7 +687,7 @@
                             const svgColor = remaining <= 0 ? '#22c55e' : isLate ? '#ef4444' : '#3b82f6';
 
                             htmlCards += `
-                            <div class="acc-row" data-class-id="${s.classId || ''}" data-name="${(s.name||'').toLowerCase()}"
+                            <div class="acc-row" data-class-id="${s.classId || ''}" data-name="${(s.name||'').toLowerCase().replace(/"/g,'&quot;')}"
                                 style="background:${cardBg}; border:1px solid #e2e8f0; border-right:4px solid ${borderColor}; border-radius:16px; padding:16px 20px; display:flex; align-items:center; gap:16px; transition:all 0.25s; cursor:default; box-shadow:0 1px 3px rgba(0,0,0,0.06);"
                                 onmouseover="this.style.boxShadow='0 8px 30px rgba(0,0,0,0.12)';this.style.transform='translateY(-2px)'"
                                 onmouseout="this.style.boxShadow='0 1px 3px rgba(0,0,0,0.06)';this.style.transform='translateY(0)'">
@@ -958,7 +970,7 @@
                     const now = new Date();
                     tbodyTrans.innerHTML = transHtml || `<tr><td colspan="6" style="text-align:center; padding:20px; color:#94a3b8;">لا يوجد مشتركين مسجلين حالياً</td></tr>`;
                 }
-            } catch (err) { console.error("UI Render Error:", err); }
+            } catch (err) { console.error("UI Render Error:", err); showCustomAlert('خطأ', 'حدث خطأ أثناء رسم الواجهة: ' + err.message, 'error'); }
         }
 
         function renderFinancialSettings() {
@@ -1011,15 +1023,18 @@
             if (!tbody) return;
             tbody.innerHTML = '';
             if (window.schoolStructure) {
-                window.schoolStructure.forEach(dept => {
+                window.schoolStructure.forEach((dept, dIdx) => {
                     if (dept.stages) {
-                        dept.stages.forEach(st => {
-                            if (st.sections) {
-                                st.sections.forEach(sc => {
-                                    let defaultVal = accountantFinance.defaults[sc.id] || 0;
-                                    tbody.innerHTML += `<tr><td style="font-weight:bold;">${dept.name} - ${st.name} - ${sc.name}</td><td><input type="number" id="default-tuition-${sc.id}" class="acc-input" value="${defaultVal}" style="width:100%;"></td><td><button class="acc-btn-primary" onclick="saveFinancialDefault('${sc.id}')">حفظ ✅</button></td></tr>`;
-                                });
-                            }
+                        dept.stages.forEach((st, stIdx) => {
+                            // قيمة ممثلة: أول شعبة في المرحلة
+                            const sections = st.sections || [];
+                            const repId = sections[0]?.id || '';
+                            const defaultVal = repId ? (accountantFinance.defaults[repId] || 0) : 0;
+                            tbody.innerHTML += `<tr>
+                                <td style="font-weight:bold;">${dept.name} - ${st.name}</td>
+                                <td><input type="number" id="default-tuition-stg-${dIdx}-${stIdx}" class="acc-input" value="${defaultVal}" style="width:100%;"></td>
+                                <td><button class="acc-btn-primary" onclick="saveStageDefault(${dIdx},${stIdx})">حفظ ✅</button></td>
+                            </tr>`;
                         });
                     }
                 });
@@ -1039,7 +1054,10 @@
                 document.getElementById('acc-canteen-note').value = '';
                 showCustomAlert('تم الحفظ', 'تم تسجيل عملية الحانوت بنجاح ✅', 'success');
                 loadAccountantData();
-            } catch (e) { console.error(e); }
+            } catch (e) {
+                console.error(e);
+                showCustomAlert('خطأ', 'فشل تسجيل عملية الحانوت: ' + e.message, 'error');
+            }
         }
 
         window.addAccAuditLog = async function(action, note, amount = 0) {
@@ -1062,14 +1080,36 @@
             try {
                 await _restSet('financialSettings/defaults/' + sectionId, amount);
                 accountantFinance.defaults[sectionId] = amount;
-                
-                // Add to Audit Log
                 if (window.addAccAuditLog) {
                     window.addAccAuditLog('تعديل إعدادات', `تغيير القسط الافتراضي للشعبة (${sectionId}) إلى ${amount.toLocaleString()} د.ع`);
                 }
-                
                 showCustomAlert('تم الحفظ', 'تم تحديث القسط الافتراضي بنجاح ✅', 'success');
-            } catch (e) { 
+            } catch (e) {
+                console.error(e);
+                showCustomAlert('خطأ', 'فشل في حفظ البيانات: ' + e.message, 'error');
+            }
+        }
+
+        async function saveStageDefault(dIdx, stIdx) {
+            const input = document.getElementById(`default-tuition-stg-${dIdx}-${stIdx}`);
+            const amount = Number(input?.value) || 0;
+            const dept = window.schoolStructure?.[dIdx];
+            const stage = dept?.stages?.[stIdx];
+            if (!stage) return;
+            const sections = stage.sections || [];
+            if (!sections.length) return;
+            try {
+                const updates = {};
+                sections.forEach(sc => {
+                    updates[`financialSettings/defaults/${sc.id}`] = amount;
+                    accountantFinance.defaults[sc.id] = amount;
+                });
+                await _restUpdate('', updates);
+                if (window.addAccAuditLog) {
+                    window.addAccAuditLog('تعديل إعدادات', `تغيير القسط الافتراضي لـ ${dept.name} - ${stage.name} إلى ${amount.toLocaleString()} د.ع`);
+                }
+                showCustomAlert('تم الحفظ', `تم تحديث القسط لجميع شعب ${stage.name} ✅`, 'success');
+            } catch (e) {
                 console.error(e);
                 showCustomAlert('خطأ', 'فشل في حفظ البيانات: ' + e.message, 'error');
             }
@@ -1869,7 +1909,7 @@
                     studentName = s.name;
                     studentClass = getClassName(s.classId);
                     const tuition = (s.finance && s.finance.tuition !== undefined && s.finance.tuition !== "") ? Number(s.finance.tuition) : (Number(accountantFinance.defaults[s.classId]) || 0);
-                    const transport = Number(s.finance?.transportFee) || 0;
+                    const transport = Object.values(s.finance?.transportHistory || {}).reduce((sum, t) => sum + (Number(t.amount||0) - Number(t.discount||0)), 0);
                     const discount = Number(s.finance?.discount) || 0;
                     netTuition = (tuition + transport) - discount;
                     
@@ -1886,7 +1926,10 @@
                     }
                     if (!nextDueDateOverride) nextDueDate = s.finance?.nextDueDate || '---';
                     loginCode = s.loginCode || '';
-                    studentPassword = s.password || '';
+                    const _isHash = v => typeof v === 'string' && /^[0-9a-f]{64}$/i.test(v);
+                    if (s.loginPassword && !_isHash(s.loginPassword)) studentPassword = s.loginPassword;
+                    else if (s.password && !_isHash(s.password)) studentPassword = s.password;
+                    else studentPassword = '';
                 }
             }
 
@@ -2249,6 +2292,7 @@
                             <div class="cred">
                                 <span class="cred-t">🔐 بيانات الدخول للمنصة</span>
                                 <div class="cred-p"><span>اسم المستخدم: </span><b>${loginCode || '---'}</b></div>
+                                ${studentPassword ? `<div class="cred-p"><span>كلمة المرور: </span><b>${studentPassword}</b></div>` : ''}
                             </div>` : ''}
                         </div>
                     </div>
@@ -2289,7 +2333,6 @@
             document.getElementById('acc-modal-tuition').value = tuition || '';
             document.getElementById('acc-modal-discount').value = s.finance?.discount || '';
             document.getElementById('acc-modal-discount-note').value = s.finance?.discountNote || '';
-            document.getElementById('acc-modal-transport-fee').value = s.finance?.transportFee || '';
             document.getElementById('acc-modal-transport-route').value = s.finance?.transportRoute || '';
             ['inst1', 'inst2', 'inst3', 'inst4', 'inst5'].forEach(k => { const el = document.getElementById('acc-modal-' + k); if (el) el.value = s.finance?.[k] || ''; });
             document.getElementById('acc-modal-doc-url').value = s.finance?.docUrl || '';
@@ -2303,7 +2346,6 @@
                 tuition: document.getElementById('acc-modal-tuition').value,
                 discount: document.getElementById('acc-modal-discount').value,
                 discountNote: document.getElementById('acc-modal-discount-note').value,
-                transportFee: document.getElementById('acc-modal-transport-fee').value,
                 transportRoute: document.getElementById('acc-modal-transport-route').value,
                 inst1: document.getElementById('acc-modal-inst1').value,
                 inst2: document.getElementById('acc-modal-inst2').value,
@@ -2358,7 +2400,7 @@
             
             // Calculate Transport total from history instead of fixed field
             const transportHistory = s.finance?.transportHistory || {};
-            const transportTotal = Object.values(transportHistory).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+            const transportTotal = Object.values(transportHistory).reduce((sum, item) => sum + (Number(item.amount||0) - Number(item.discount||0)), 0);
             
             const discount = Number(s.finance?.discount) || 0;
             const netRequired = (tuition + transportTotal) - discount;
@@ -2603,24 +2645,19 @@
             }
             
             if (shouldRecordPayment) {
-                const txId = 'REV-' + Date.now();
-                const paymentData = {
-                    id: txId,
-                    amount: netAmount,
-                    note: `أجور نقل (من: ${item.startDate} إلى: ${item.endDate || '---'}) - ${item.area}`,
-                    studentUid: uid,
-                    transportDateKey: dateKey, // Link this payment to the specific subscription period
-                    timestamp: Date.now(),
-                    branchId: currentUser ? currentUser.branchId : 'samawah',
-                    user: currentUser ? currentUser.name : 'محاسب',
-                    category: 'أجور نقل'
-                };
-                
                 try {
-                    await _restSet(`finance/revenues/${txId}`, paymentData);
+                    const txId = await window.addAccTransaction(
+                        'revenue', uid,
+                        `أجور نقل (من: ${item.startDate || '---'} إلى: ${item.endDate || '---'}) - ${item.area || ''}`,
+                        netAmount, 'أجور نقل'
+                    );
+                    if (txId) await _restUpdate(`finance/revenues/${txId}`, { transportDateKey: dateKey });
                     await loadAccountantData();
-                    showCustomAlert('تم التسجيل', 'تم تسجيل المبلغ الصافي بنجاح', 'success');
-                } catch (e) { console.error(e); }
+                    showCustomAlert('تم التسجيل', 'تم تسجيل المبلغ الصافي بنجاح ✅', 'success');
+                } catch (e) {
+                    console.error(e);
+                    showCustomAlert('خطأ', 'فشل تسجيل المبلغ: ' + e.message, 'error');
+                }
             }
 
             const dateStr = new Date().toLocaleDateString('ar-IQ');
@@ -3189,25 +3226,25 @@
                 }
 
                 let tuition = (s.finance && s.finance.tuition !== undefined && s.finance.tuition !== "") ? Number(s.finance.tuition) : (Number(accountantFinance.defaults[s.classId]) || 0);
-                let transport = Number(s.finance?.transportFee) || 0;
+                let transport = Object.values(s.finance?.transportHistory || {}).reduce((sum, t) => sum + (Number(t.amount||0) - Number(t.discount||0)), 0);
                 let discount = Number(s.finance?.discount) || 0;
                 let net = tuition + transport - discount;
                 let rem = net - paid;
-                
+
                 if (rem > 0) {
                     let isLate = false;
                     let accumulatedExpectedPercent = 0;
 
-                    ['inst1', 'inst2', 'inst3', 'inst4', 'inst5'].forEach((k, i) => { 
-                        const d = s.finance?.[k] || g[k]; 
-                        const percent = p['p' + (i+1)] || (100 / instCount); // Use custom percent or equal split
+                    for (let i = 1; i <= instCount; i++) {
+                        const d = s.finance?.['inst' + i] || g['inst' + i];
+                        const percent = p['p' + i] || (100 / instCount);
                         accumulatedExpectedPercent += percent;
 
                         if (d && new Date(d) < now) {
                             const expectedByNow = (net * (accumulatedExpectedPercent / 100));
-                            if (paid < expectedByNow - 100) isLate = true; // small margin for rounding
+                            if (paid < expectedByNow - 100) isLate = true;
                         }
-                    });
+                    }
                     if (isLate) late.push({ ...s, paid, remaining: rem, net, className: getClassName(s.classId), lastPayDate });
                 }
             });
@@ -3290,22 +3327,22 @@
             accountantStudents.forEach(s => {
                 let paid = (accountantFinance.revenues || []).filter(r => r.studentUid === s.uid).reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
                 let tuition = (s.finance && s.finance.tuition !== undefined && s.finance.tuition !== "") ? Number(s.finance.tuition) : (Number(accountantFinance.defaults[s.classId]) || 0);
-                let transport = Number(s.finance?.transportFee) || 0;
+                let transport = Object.values(s.finance?.transportHistory || {}).reduce((sum, t) => sum + (Number(t.amount||0) - Number(t.discount||0)), 0);
                 let discount = Number(s.finance?.discount) || 0;
                 let net = tuition + transport - discount;
                 let rem = net - paid;
-                
+
                 if (rem > 0) {
                     let isLate = false;
                     let accumulatedExpectedPercent = 0;
 
-                    ['inst1', 'inst2', 'inst3', 'inst4', 'inst5'].forEach((k, i) => { 
-                        const d = s.finance?.[k] || g[k]; 
-                        const percent = p['p' + (i+1)] || (100 / instCount);
+                    for (let i = 1; i <= instCount; i++) {
+                        const d = s.finance?.['inst' + i] || g['inst' + i];
+                        const percent = p['p' + i] || (100 / instCount);
                         accumulatedExpectedPercent += percent;
 
-                        if (d && new Date(d) < now && paid < (net * (accumulatedExpectedPercent / 100)) - 100) isLate = true; 
-                    });
+                        if (d && new Date(d) < now && paid < (net * (accumulatedExpectedPercent / 100)) - 100) isLate = true;
+                    }
                     if (isLate) late.push({ ...s, remaining: rem });
                 }
             });
@@ -3551,15 +3588,23 @@
             modal.style.display = 'flex';
         };
 
+        let _payingSalary = false;
         window.paySalaryForMonth = async function(uid, time, monthName) {
+            if (_payingSalary) return;
             const u = accountantStaff.find(x => String(x.uid) === String(uid));
             if (!u) return;
             const net = (Number(u.payroll?.base)||0) + (Number(u.payroll?.allowance)||0) - (Number(u.payroll?.deduction)||0);
 
-            if (!await confirm(`هل تريد صرف راتب شهر (${monthName}) للموظف ${u.name} بقيمة ${net.toLocaleString()} د.ع؟`)) return;
+            if (!confirm(`هل تريد صرف راتب شهر (${monthName}) للموظف ${u.name} بقيمة ${net.toLocaleString()} د.ع؟`)) return;
+
+            _payingSalary = true;
+            // إظهار حالة التحميل في القائمة
+            const bodyElem = document.getElementById('acc-salary-body');
+            const prevHtml = bodyElem ? bodyElem.innerHTML : '';
+            if (bodyElem) bodyElem.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:30px; color:#1a56db;"><i class="fa-solid fa-spinner fa-spin" style="font-size:1.5rem;"></i><br>جاري تسجيل الصرف...</td></tr>`;
+
             try {
                 const txId = await window.addAccTransaction('expense', uid, `صرف راتب شهر ${monthName} - ${u.name}`, net, 'رواتب وأجور', u.name, 'نقداً', '-', time);
-                // Reload data first, then refresh the statement
                 await loadAccountantData();
                 showCustomAlert('تم الصرف', `تم تسجيل صرف راتب شهر ${monthName} بنجاح ✅`, 'success');
                 window.openSalaryStatement(uid);
@@ -3568,7 +3613,10 @@
                     window.printAccReceipt(txId, 'expense', net, `راتب شهر ${monthName}`, dateStr, 'رواتب وأجور', '', '', u.name, 'نقداً', '');
                 }, 600);
             } catch (err) {
-                alert("خطأ أثناء الصرف: " + err.message);
+                if (bodyElem) bodyElem.innerHTML = prevHtml;
+                showCustomAlert('خطأ', 'فشل صرف الراتب: ' + err.message, 'error');
+            } finally {
+                _payingSalary = false;
             }
         };
 
@@ -3719,7 +3767,8 @@
                 paid = accountantFinance.revenues.filter(r => r.studentUid === uid).reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
             const tuition = (s.finance && s.finance.tuition !== undefined && s.finance.tuition !== '')
                 ? Number(s.finance.tuition) : (Number(accountantFinance.defaults[s.classId]) || 0);
-            const remaining = (tuition + (Number(s.finance?.transportFee) || 0) - (Number(s.finance?.discount) || 0)) - paid;
+            const transport = Object.values(s.finance?.transportHistory || {}).reduce((sum, t) => sum + (Number(t.amount||0) - Number(t.discount||0)), 0);
+            const remaining = (tuition + transport - (Number(s.finance?.discount) || 0)) - paid;
             let fp = phone.startsWith('0') ? '964' + phone.substring(1) : phone;
             if (!fp.startsWith('964')) fp = '964' + fp;
             const msg = 'عزيزي ولي أمر الطالب (' + s.name + ')، المتبقي من القسط: (' + remaining.toLocaleString() + ' د.ع). نرجو المراجعة. مدرسة النهرين الأهلية.';
@@ -4199,7 +4248,7 @@
                 document.getElementById('acc-rev-amount').value = '';
                 document.getElementById('acc-rev-note').value = '';
                 loadAccountantData();
-            } catch (e) { console.error(e); }
+            } catch (e) { console.error(e); showCustomAlert('خطأ', 'فشل حفظ الإيراد: ' + e.message, 'error'); }
         };
 
         window.submitAccExpense = async function () {
@@ -4230,7 +4279,7 @@
                     const dateStr = manualDate ? new Date(manualDate).toLocaleString('ar-IQ') : new Date().toLocaleString('ar-IQ');
                     window.printAccReceipt(txId, 'expense', amount, note, dateStr, category, '', '', payee, method, refNum);
                 }
-            } catch (e) { console.error(e); }
+            } catch (e) { console.error(e); showCustomAlert('خطأ', 'فشل حفظ سند الصرف: ' + e.message, 'error'); }
         };
 
         window.accUpdatePaymentInstallment = function () {
@@ -4262,14 +4311,14 @@
             if (btn) { btn.disabled = true; btn.textContent = '⏳ جاري الحفظ...'; }
 
             try {
-                const txId = await window.addAccTransaction('revenue', uid, note, amount, 'أقساط طلاب');
+                const extraWrites = [];
+                if (nextDueDate)    extraWrites.push(_restSet(`users/${uid}/finance/nextDueDate`, nextDueDate));
+                if (installmentNum) extraWrites.push(_restSet(`users/${uid}/finance/lastPaidInstallment`, Number(installmentNum)));
 
-                if (nextDueDate) {
-                    await _restSet(`users/${uid}/finance/nextDueDate`, nextDueDate);
-                }
-                if (installmentNum) {
-                    await _restSet(`users/${uid}/finance/lastPaidInstallment`, Number(installmentNum));
-                }
+                const [txId] = await Promise.all([
+                    window.addAccTransaction('revenue', uid, note, amount, 'أقساط طلاب'),
+                    ...extraWrites
+                ]);
 
                 window.closeAllAccModals();
                 showCustomAlert('تم التسديد', 'تم استلام المبلغ بنجاح ✅', 'success');
@@ -4277,10 +4326,11 @@
 
                 setTimeout(() => {
                     window.printAccReceipt(txId, 'revenue', amount, note, new Date().toLocaleString('ar-IQ'), 'أقساط طلاب', uid, nextDueDate);
-                }, 500);
+                }, 400);
             } catch (e) {
                 console.error(e);
                 if (btn) { btn.disabled = false; btn.textContent = 'تأكيد عملية التسديد وطباعة الوصل 🖨️'; }
+                showCustomAlert('خطأ', 'فشل تسديد القسط: ' + e.message, 'error');
             }
         };
 

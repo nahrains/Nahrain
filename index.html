@@ -2319,6 +2319,25 @@
         }
         .std-close-btn:hover { background: rgba(255,255,255,0.28); transform: scale(1.08); }
 
+        .t-logout-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            display: flex; align-items: center; gap: 6px;
+            padding: 7px 14px;
+            border-radius: 20px;
+            background: rgba(220,38,38,0.18);
+            border: 1px solid rgba(255,255,255,0.25);
+            color: #fff;
+            font-size: 0.82rem;
+            font-family: 'Cairo', sans-serif;
+            font-weight: 700;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+            transition: background 0.2s, transform 0.2s;
+        }
+        .t-logout-btn:hover { background: rgba(220,38,38,0.45); transform: scale(1.04); }
+
         .std-qr-box {
             position: absolute;
             top: 14px;
@@ -3976,20 +3995,40 @@
             <input type="password" id="new-staff-pass" class="cyber-input" placeholder="كلمة المرور">
 
             <label>الدور الوظيفي</label>
-            <select id="new-staff-role" class="cyber-input">
+            <select id="new-staff-role" class="cyber-input" onchange="toggleRegistrarBranchUI('new')">
                 <option value="teacher" selected>مدرس</option>
                 <option value="admin">مدير فرع</option>
                 <option value="accountant">موظف حسابات</option>
                 <option value="registrar">موظف تسجيل</option>
+                <option value="dataentry">مدخل بيانات إداري</option>
             </select>
 
-            <label>الفرع المدرسي</label>
-            <select id="new-staff-branch" class="cyber-input">
-                <option value="samawah">إعدادية النهرين المهنية - السماوة</option>
-                <option value="primary">مدرسة النهرين الابتدائية - السماوة</option>
-                <option value="evening">إعدادية النهرين المهنية - المسائية</option>
-                <option value="babylon">إعدادية النهرين المهنية - بابل</option>
-            </select>
+            <div id="new-staff-branch-single">
+                <label>الفرع المدرسي</label>
+                <select id="new-staff-branch" class="cyber-input">
+                    <option value="samawah">إعدادية النهرين المهنية - السماوة</option>
+                    <option value="primary">مدرسة النهرين الابتدائية - السماوة</option>
+                    <option value="evening">إعدادية النهرين المهنية - المسائية</option>
+                    <option value="babylon">إعدادية النهرين المهنية - بابل</option>
+                </select>
+            </div>
+            <div id="new-staff-branch-multi" style="display:none;">
+                <label>الفروع المسموح بها <span style="color:#dc2626; font-size:0.8rem;">(اختر فرعاً أو أكثر)</span></label>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:6px;">
+                    <label style="display:flex; align-items:center; gap:7px; background:#f8faff; padding:9px 10px; border-radius:10px; border:1.5px solid #e2e8f0; cursor:pointer; font-size:0.87rem; color:#1e293b;">
+                        <input type="checkbox" class="new-branch-cb" value="samawah"> السماوة - مهني
+                    </label>
+                    <label style="display:flex; align-items:center; gap:7px; background:#f8faff; padding:9px 10px; border-radius:10px; border:1.5px solid #e2e8f0; cursor:pointer; font-size:0.87rem; color:#1e293b;">
+                        <input type="checkbox" class="new-branch-cb" value="primary"> النهرين الابتدائية
+                    </label>
+                    <label style="display:flex; align-items:center; gap:7px; background:#f8faff; padding:9px 10px; border-radius:10px; border:1.5px solid #e2e8f0; cursor:pointer; font-size:0.87rem; color:#1e293b;">
+                        <input type="checkbox" class="new-branch-cb" value="evening"> المسائية
+                    </label>
+                    <label style="display:flex; align-items:center; gap:7px; background:#f8faff; padding:9px 10px; border-radius:10px; border:1.5px solid #e2e8f0; cursor:pointer; font-size:0.87rem; color:#1e293b;">
+                        <input type="checkbox" class="new-branch-cb" value="babylon"> بابل - مهني
+                    </label>
+                </div>
+            </div>
 
             <div class="staff-actions">
                 <button class="btn-save" onclick="saveNewStaff(this)"><i class="fa-solid fa-user-plus"></i> إنشاء الحساب</button>
@@ -4056,7 +4095,8 @@
                     </div>
                     <div style="grid-column:span 2;">
                         <select id="auto-student-gender" class="cyber-input"
-                            style="width:100%; appearance:auto !important; -webkit-appearance:auto !important; background-color:#f8faff !important; background-image:none !important; border:1.5px solid #e2e8f0 !important; color:#1e293b !important; border-radius:12px !important; padding:11px 16px !important; box-shadow:none !important; transform:none !important;">
+                            style="width:100%; appearance:auto !important; -webkit-appearance:auto !important; background-color:#f8faff !important; background-image:none !important; border:1.5px solid #e2e8f0 !important; color:#1e293b !important; border-radius:12px !important; padding:11px 16px !important; box-shadow:none !important; transform:none !important;"
+                            onchange="autoSetShiftFromGender()">
                             <option value="male">ذكر (ولد) ♂️</option>
                             <option value="female">أنثى (بنت) ♀️</option>
                         </select>
@@ -4085,8 +4125,8 @@
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:24px;">
                     <div id="shift-field-wrap" style="display:none; grid-column:span 2;">
                         <select id="auto-student-shift" class="cyber-input"
-                            style="width:100%; appearance:auto !important; -webkit-appearance:auto !important; background-color:#f8faff !important; background-image:none !important; border:1.5px solid #e2e8f0 !important; color:#1e293b !important; border-radius:12px !important; padding:11px 16px !important; box-shadow:none !important; transform:none !important;"
-                            onchange="autoSetGenderFromShift()">
+                            style="width:100%; appearance:auto !important; -webkit-appearance:auto !important; background-color:#e8f0fe !important; background-image:none !important; border:1.5px solid #e2e8f0 !important; color:#1a56db !important; border-radius:12px !important; padding:11px 16px !important; box-shadow:none !important; transform:none !important;"
+                            disabled>
                             <option value="صباحي">دوام صباحي 🌅</option>
                             <option value="مسائي">دوام مسائي 🌙</option>
                         </select>
@@ -4345,6 +4385,7 @@
                             <option value="due_soon">due_soon</option>
                             <option value="paid">paid</option>
                             <option value="not_due">not_due</option>
+                            <option value="full_paid">full_paid</option>
                         </select>
 
                         <!-- Modern status chip filter -->
@@ -4368,6 +4409,11 @@
                                 onclick="setInstStatusFilter('paid')"
                                 style="--chip-color:#15803d; --chip-bg:#f0fdf4;">
                                 <i class="fa-solid fa-circle-check" style="color:#22c55e;"></i> مسدد
+                            </button>
+                            <button class="inst-chip" data-val="full_paid"
+                                onclick="setInstStatusFilter('full_paid')"
+                                style="--chip-color:#166534; --chip-bg:#dcfce7;">
+                                <i class="fa-solid fa-crown" style="color:#16a34a;"></i> مسدد بالكامل
                             </button>
                             <button class="inst-chip" data-val="not_due"
                                 onclick="setInstStatusFilter('not_due')"
@@ -5329,6 +5375,10 @@
             <!-- Header -->
             <div class="t-header-card">
                 <button class="std-close-btn" onclick="closeDashboards()"><i class="fa-solid fa-xmark"></i></button>
+                <button class="t-logout-btn" onclick="logoutUser()" title="تسجيل الخروج">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    <span>خروج</span>
+                </button>
                 <div class="t-avatar-ring">🎓</div>
                 <h2 id="teacher-welcome" class="t-header-name">بوابة المعلم</h2>
                 <p class="t-header-sub">إدارة درجات · حضور · جدول · إعلانات</p>
@@ -6061,11 +6111,30 @@
                 </div>
                 <div>
                     <label style="color:#475569; font-size:0.85rem; display:block; margin-bottom:6px; font-weight:600;">الصلاحية / الدور</label>
-                    <select id="edit-staff-role-select" class="cyber-input" style="width:100%; padding:10px;">
+                    <select id="edit-staff-role-select" class="cyber-input" style="width:100%; padding:10px;" onchange="toggleRegistrarBranchUI('edit')">
                         <option value="teacher">مدرس (Teacher)</option>
                         <option value="admin">مدير (Admin)</option>
                         <option value="accountant">موظف حسابات (Accountant)</option>
+                        <option value="registrar">موظف تسجيل (Registrar)</option>
+                        <option value="dataentry">مدخل بيانات إداري (Data Entry)</option>
                     </select>
+                    <div id="edit-staff-branch-multi" style="display:none; margin-top:12px;">
+                        <label style="color:#475569; font-size:0.85rem; display:block; margin-bottom:6px; font-weight:600;">الفروع المسموح بها <span style="color:#dc2626; font-size:0.78rem;">(اختر فرعاً أو أكثر)</span></label>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:7px;">
+                            <label style="display:flex; align-items:center; gap:7px; background:#f8faff; padding:8px 10px; border-radius:10px; border:1.5px solid #e2e8f0; cursor:pointer; font-size:0.84rem; color:#1e293b;">
+                                <input type="checkbox" class="edit-branch-cb" value="samawah"> السماوة - مهني
+                            </label>
+                            <label style="display:flex; align-items:center; gap:7px; background:#f8faff; padding:8px 10px; border-radius:10px; border:1.5px solid #e2e8f0; cursor:pointer; font-size:0.84rem; color:#1e293b;">
+                                <input type="checkbox" class="edit-branch-cb" value="primary"> النهرين الابتدائية
+                            </label>
+                            <label style="display:flex; align-items:center; gap:7px; background:#f8faff; padding:8px 10px; border-radius:10px; border:1.5px solid #e2e8f0; cursor:pointer; font-size:0.84rem; color:#1e293b;">
+                                <input type="checkbox" class="edit-branch-cb" value="evening"> المسائية
+                            </label>
+                            <label style="display:flex; align-items:center; gap:7px; background:#f8faff; padding:8px 10px; border-radius:10px; border:1.5px solid #e2e8f0; cursor:pointer; font-size:0.84rem; color:#1e293b;">
+                                <input type="checkbox" class="edit-branch-cb" value="babylon"> بابل - مهني
+                            </label>
+                        </div>
+                    </div>
                 </div>
                 <div>
                     <label style="color:#475569; font-size:0.85rem; display:block; margin-bottom:6px; font-weight:600;">كلمة المرور</label>
@@ -6089,6 +6158,18 @@
         <script>
             function _financeRemoved() { /* finance tab removed — use accountant dashboard */ }
 
+            async function loadTelegramConfigUI() {
+                try {
+                    const snap = await _restGet('schoolDB/notifConfig');
+                    const cfg = snap.val();
+                    if (!cfg) return;
+                    const tokenEl = document.getElementById('tg-bot-token-input');
+                    const chatEl  = document.getElementById('tg-chat-ids-input');
+                    if (tokenEl && cfg.botToken) tokenEl.value = cfg.botToken;
+                    if (chatEl  && cfg.chatIds)  chatEl.value  = Array.isArray(cfg.chatIds) ? cfg.chatIds.join(', ') : cfg.chatIds;
+                } catch(e) { console.warn('loadTelegramConfigUI:', e); }
+            }
+
             async function saveTelegramConfig() {
                 const token   = (document.getElementById('tg-bot-token-input')?.value || '').trim();
                 const chatRaw = (document.getElementById('tg-chat-ids-input')?.value || '').trim();
@@ -6100,8 +6181,7 @@
                 const chatIds = chatRaw.split(',').map(s => s.trim()).filter(Boolean);
                 try {
                     await _restSet('schoolDB/notifConfig', { botToken: token, chatIds });
-                    document.getElementById('tg-bot-token-input').value = '';
-                    if (msgEl) { msgEl.style.display='block'; msgEl.style.color='#15803d'; msgEl.textContent='✅ تم حفظ إعدادات تيليجرام بنجاح'; }
+                    if (msgEl) { msgEl.style.display='block'; msgEl.style.color='#15803d'; msgEl.textContent=`✅ تم الحفظ — ${chatIds.length} Chat ID محفوظ`; }
                     setTimeout(() => { if (msgEl) msgEl.style.display='none'; }, 3000);
                 } catch(e) {
                     if (msgEl) { msgEl.style.display='block'; msgEl.style.color='#dc2626'; msgEl.textContent='❌ فشل الحفظ: ' + escHtml(e.message); }
@@ -6358,6 +6438,10 @@
                         <button id="btn-init-voc-structure" class="btn-glow" style="background:#7c3aed; border-color:#7c3aed; font-size:0.8rem; display:none;"
                             onclick="if(confirm('سيتم إعادة تهيئة اختصاصات فرعي السماوة والمسائية بالقائمة الكاملة (12 اختصاص). هل تريد المتابعة؟')) window.resetVocStructure()">
                             <i class="fa-solid fa-rotate"></i> تهيئة الاختصاصات
+                        </button>
+                        <button id="btn-init-primary-structure" class="btn-glow" style="background:#0d9488; border-color:#0d9488; font-size:0.8rem; display:none;"
+                            onclick="if(confirm('سيتم إعادة تهيئة شعب فرع الابتدائية (6 صفوف × 4 شعب). هل تريد المتابعة؟')) window.resetPrimaryStructure()">
+                            <i class="fa-solid fa-rotate"></i> تهيئة الابتدائية
                         </button>
                         <button class="btn-glow" style="background:#ff4444; border-color:#ff4444; font-size:0.8rem;"
                             onclick="deleteAllStudents()">🗑️ حذف الكل</button>
@@ -6797,12 +6881,16 @@
 
 
             // 2. Open Modal
-            window.openStructureManager = function () {
+            window.openStructureManager = async function () {
                 const modal = document.getElementById('structure-modal');
-                if (modal) {
-                    modal.style.display = 'flex';
-                    renderStructureEditor();
-                }
+                if (!modal) return;
+                modal.style.display = 'flex';
+                renderStructureEditor();
+                // تحميل حد الشعبة من Firebase
+                const bId = currentUser ? (currentUser.branchId || 'samawah') : 'samawah';
+                const capSnap = await _restGet('settings/branches/' + bId + '/sectionCapacity');
+                const capEl = document.getElementById('section-capacity-input');
+                if (capEl) capEl.value = capSnap.val() || 25;
             };
 
             // 3. Render Editor List
@@ -7001,6 +7089,24 @@
             };
 
             // === VOCATIONAL DEPARTMENTS — Full 12 specializations ===
+            // توليد 8 شعب ذكور + 8 إناث لكل مرحلة
+            // المرحلة الأولى → A، الثانية → B، الثالثة → C
+            const _genSections = (prefix, dIdx) => {
+                const secs = [];
+                for (let n = 1; n <= 8; n++) {
+                    secs.push({ id: `voc_${dIdx}_${prefix}${n}`,       name: `${prefix}${n}`        });
+                    secs.push({ id: `voc_${dIdx}_${prefix}${n}g`,      name: `${prefix}${n}بنات`   });
+                }
+                return secs;
+            };
+
+            const _commonSubjects = ['التربية الاسلامية','اللغة العربية','اللغة الانكليزية','التربية الرياضية','الرياضيات','الطبيعيات'];
+            const _vocSubjects = {
+                'الأمن السيبراني':            [..._commonSubjects, 'صيانة الحاسوب','مبادئ الحاسوب','تطبيقات الحاسوب','اساسيات الكهرباء','الاتصالات'],
+                'الأجهزة الطبية':             [..._commonSubjects, 'العلوم الصناعية','التدريب العملي','تطبيقات الحاسوب','الرسم الصناعي'],
+                'تكرير النفط ومعالجة الغاز':  [..._commonSubjects, 'العلوم الصناعية','التدريب العملي','تطبيقات الحاسوب','الرسم الصناعي'],
+            };
+
             window.VOC_STRUCTURE = [
                 "الأمن السيبراني",
                 "تجميع وصيانة الحاسوب",
@@ -7014,25 +7120,81 @@
                 "فن الديكور",
                 "المحاسبة",
                 "الإدارة"
-            ].map(name => ({
+            ].map((name, dIdx) => ({
                 name,
                 stages: [
-                    { name: "المرحلة الأولى", sections: [] },
-                    { name: "المرحلة الثانية", sections: [] },
-                    { name: "المرحلة الثالثة", sections: [] }
+                    { name: "المرحلة الأولى",  sections: _genSections('A', dIdx) },
+                    { name: "المرحلة الثانية", sections: _genSections('B', dIdx) },
+                    { name: "المرحلة الثالثة", sections: _genSections('C', dIdx) }
                 ],
-                subjects: []
+                subjects: _vocSubjects[name] || []
             }));
+
+            // === PRIMARY SCHOOL STRUCTURE ===
+            // 6 صفوف، شعب مختلطة: 1a/1b/1c/1d, 2a/2b/2c/2d, ...
+            const _genPrimarySections = (grade) => ['a','b','c','d'].map(l => ({
+                id: `pri_${grade}_${l}`,
+                name: `${grade}${l}`
+            }));
+            const _primaryGradeNames = [
+                "الصف الأول","الصف الثاني","الصف الثالث",
+                "الصف الرابع","الصف الخامس","الصف السادس"
+            ];
+            window.PRIMARY_STRUCTURE = [{
+                name: "المرحلة الابتدائية",
+                stages: _primaryGradeNames.map((name, idx) => ({
+                    name,
+                    sections: _genPrimarySections(idx + 1)
+                })),
+                subjects: []
+            }];
+
+            const PRIMARY_VERSION = 'pri-v1-2025';
+            window.initPrimaryBranchIfEmpty = async function() {
+                const vSnap = await _restGet('settings/primaryStructureVersion');
+                if (vSnap.val() === PRIMARY_VERSION) return;
+                const snap = await _restGet('settings/branches/primary/structure');
+                const existing = snap.val() || [];
+                const merged = window.PRIMARY_STRUCTURE.map(newDept => {
+                    const old = Array.isArray(existing) ? existing.find(d => d.name === newDept.name) : null;
+                    return { ...newDept, subjects: (old && old.subjects && old.subjects.length) ? old.subjects : [] };
+                });
+                await _restSet('settings/branches/primary/structure', merged);
+                await _restSet('settings/primaryStructureVersion', PRIMARY_VERSION);
+                console.log('✅ تمت تهيئة هيكلية الابتدائية');
+                if (typeof updateFiltersAndSelects === 'function') updateFiltersAndSelects();
+                if (typeof loadAdminStructure === 'function') loadAdminStructure();
+            };
+
+            window.resetPrimaryStructure = async function() {
+                const snap = await _restGet('settings/branches/primary/structure');
+                const existing = snap.val() || [];
+                const merged = window.PRIMARY_STRUCTURE.map(newDept => {
+                    const old = Array.isArray(existing) ? existing.find(d => d.name === newDept.name) : null;
+                    return { ...newDept, subjects: (old && old.subjects && old.subjects.length) ? old.subjects : [] };
+                });
+                await _restSet('settings/branches/primary/structure', merged);
+                await _restSet('settings/primaryStructureVersion', PRIMARY_VERSION);
+                showCustomAlert('تم', 'تم إعادة تهيئة شعب الابتدائية مع الحفاظ على المواد ✅', 'success');
+                if (typeof updateFiltersAndSelects === 'function') updateFiltersAndSelects();
+                if (typeof loadAdminStructure === 'function') loadAdminStructure();
+            };
 
             // One-time migration: wipe old structure and write 12 vocational departments
             // Uses a version key in Firebase so it runs ONCE only, then never again
-            const VOC_VERSION = 'voc-v12-2025';
+            const VOC_VERSION = 'voc-v13-2025';
             window.initVocBranchesIfEmpty = async function () {
                 const vSnap = await _restGet('settings/vocStructureVersion');
                 if (vSnap.val() === VOC_VERSION) return; // Already initialized
-                const VOC_BRANCHES = ['samawah', 'evening'];
+                const VOC_BRANCHES = ['samawah', 'evening', 'babylon'];
                 for (const branchId of VOC_BRANCHES) {
-                    await _restSet('settings/branches/' + branchId + '/structure', window.VOC_STRUCTURE);
+                    const snap = await _restGet('settings/branches/' + branchId + '/structure');
+                    const existing = snap.val() || [];
+                    const merged = window.VOC_STRUCTURE.map(newDept => {
+                        const old = existing.find(d => d.name === newDept.name);
+                        return { ...newDept, subjects: (old && old.subjects && old.subjects.length) ? old.subjects : [] };
+                    });
+                    await _restSet('settings/branches/' + branchId + '/structure', merged);
                 }
                 await _restSet('settings/vocStructureVersion', VOC_VERSION);
                 console.log('✅ تمت تهيئة الاختصاصات الـ12 للفروع المهنية');
@@ -7041,13 +7203,21 @@
             };
 
             // Force-reset vocational branches structure (superadmin manual button)
+            // يحافظ على المواد الدراسية الموجودة ويحدث الشعب فقط
             window.resetVocStructure = async function () {
-                const VOC_BRANCHES = ['samawah', 'evening'];
+                const VOC_BRANCHES = ['samawah', 'evening', 'babylon'];
                 for (const branchId of VOC_BRANCHES) {
-                    await _restSet('settings/branches/' + branchId + '/structure', window.VOC_STRUCTURE);
+                    // جلب الهيكل الحالي للحفاظ على المواد
+                    const snap = await _restGet('settings/branches/' + branchId + '/structure');
+                    const existing = snap.val() || [];
+                    const merged = window.VOC_STRUCTURE.map(newDept => {
+                        const old = existing.find(d => d.name === newDept.name);
+                        return { ...newDept, subjects: (old && old.subjects && old.subjects.length) ? old.subjects : [] };
+                    });
+                    await _restSet('settings/branches/' + branchId + '/structure', merged);
                 }
                 await _restSet('settings/vocStructureVersion', VOC_VERSION);
-                showCustomAlert('تم', 'تم إعادة تهيئة الاختصاصات الـ12 لفرعي السماوة والمسائية', 'success');
+                showCustomAlert('تم', 'تم إعادة تهيئة الشعب مع الحفاظ على المواد الدراسية ✅', 'success');
                 if (typeof updateFiltersAndSelects === 'function') updateFiltersAndSelects();
                 if (typeof loadAdminStructure === 'function') loadAdminStructure();
             };
@@ -7055,10 +7225,13 @@
             // 7. SAVE
             // 7. SAVE
             window.saveStructureConfig = function () {
-                {
-                    let bId = currentUser ? (currentUser.branchId || 'samawah') : 'samawah';
-                    _restSet('settings/branches/' + bId + '/structure', window.schoolStructure).catch(err => alert("خطأ في الحفظ: " + err.message));
-                }
+                const bId = currentUser ? (currentUser.branchId || 'samawah') : 'samawah';
+                _restSet('settings/branches/' + bId + '/structure', window.schoolStructure).catch(err => alert("خطأ في الحفظ: " + err.message));
+                // حفظ حد الشعبة
+                const capEl = document.getElementById('section-capacity-input');
+                const cap = capEl ? (parseInt(capEl.value) || 25) : 25;
+                window._sectionCapacity = cap;
+                _restSet('settings/branches/' + bId + '/sectionCapacity', cap);
                 updateFiltersAndSelects();
 
                 // Use Custom Beautiful Alert
@@ -7448,7 +7621,13 @@
                 <!-- Dynamic Content Here -->
             </div>
 
-            <div style="margin-top:18px; padding-top:14px; border-top:1px solid #e8edf8;">
+            <div style="margin-top:14px; padding:12px 14px; background:#f0f9ff; border:1.5px solid #bae6fd; border-radius:12px; display:flex; align-items:center; gap:12px;">
+                <label style="font-size:0.85rem; font-weight:700; color:#0369a1; white-space:nowrap;">👥 الحد الأقصى للشعبة:</label>
+                <input id="section-capacity-input" type="number" min="1" max="50" value="25"
+                    style="width:80px; padding:7px 10px; border:1.5px solid #7dd3fc; border-radius:8px; font-family:'Cairo',sans-serif; font-size:0.95rem; font-weight:700; color:#0369a1; text-align:center;">
+                <span style="font-size:0.8rem; color:#64748b;">طالب لكل شعبة (يؤثر على الفرز التلقائي)</span>
+            </div>
+            <div style="margin-top:12px; padding-top:14px; border-top:1px solid #e8edf8;">
                 <button style="width:100%; padding:13px; background:linear-gradient(135deg,#1a56db,#6366f1); color:#fff; border:none; border-radius:14px; font-family:'Cairo',sans-serif; font-size:1.05rem; font-weight:700; cursor:pointer; box-shadow:0 4px 15px rgba(26,86,219,0.3);" onclick="saveStructureConfig()">💾 حفظ التغييرات واعتماد الهيكلية</button>
             </div>
         </div>
@@ -7794,6 +7973,17 @@
                 else openDashboard('teacher');
                 return;
             }
+            // Filter branch cards for registrar (only show allowed branches)
+            const isRegistrar = currentUser && ['registrar','dataentry'].includes(currentUser.role) && !currentUser.isSuperAdmin;
+            const allowedBranches = isRegistrar ? (currentUser.allowedBranches || []) : null;
+            document.querySelectorAll('.branch-card').forEach(card => {
+                if (allowedBranches) {
+                    const m = card.getAttribute('onclick')?.match(/selectBranch\('(\w+)'\)/);
+                    card.style.display = (m && allowedBranches.includes(m[1])) ? '' : 'none';
+                } else {
+                    card.style.display = '';
+                }
+            });
             document.getElementById('branch-selection-overlay').style.display = 'flex';
         }
 
@@ -7832,6 +8022,8 @@
                         canSwitch = true; // Super admin can go anywhere
                     } else if (isSamawahAccountant && samawahGroup.includes(branchId)) {
                         canSwitch = true; // Samawah accountant can switch between Samawah branches
+                    } else if (['registrar','dataentry'].includes(currentUser.role) && (currentUser.allowedBranches || []).includes(branchId)) {
+                        canSwitch = true; // Registrar / dataentry can switch to their allowed branches
                     }
 
                     if (canSwitch) {
@@ -8050,7 +8242,8 @@
             // 1. Branch Switching Visibility
             document.querySelectorAll('.branch-switch-btn').forEach(btn => {
                 const isSamawahAccountant = (role === 'accountant' && isSamawahGroup);
-                btn.style.display = (isSuperAdmin || isSamawahAccountant) ? 'inline-block' : 'none';
+                const isMultiBranch = (['registrar','dataentry'].includes(role) && (u.allowedBranches || []).length > 1);
+                btn.style.display = (isSuperAdmin || isSamawahAccountant || isMultiBranch) ? 'inline-block' : 'none';
             });
 
             // 2. Finance System Access
@@ -8067,22 +8260,20 @@
             if (btnResetSettings) btnResetSettings.style.display = (isSuperAdmin) ? 'flex' : 'none';
             const btnInitVoc = document.getElementById('btn-init-voc-structure');
             if (btnInitVoc) btnInitVoc.style.display = (isSuperAdmin) ? 'inline-flex' : 'none';
+            const btnInitPrimary = document.getElementById('btn-init-primary-structure');
+            if (btnInitPrimary) btnInitPrimary.style.display = (isSuperAdmin) ? 'inline-flex' : 'none';
 
-            // 4. Admin Dashboard Tabs Filtering
-            const adminTabs = {
-                'admin-tab-stats':    ['superadmin', 'admin'],
-                'admin-tab-staff':    ['superadmin', 'admin'],
-                'admin-tab-students': ['superadmin', 'admin', 'registrar'],
-                'admin-tab-apps':     ['superadmin', 'admin', 'registrar'],
-                'admin-tab-gallery':  ['superadmin', 'admin'],
-                'admin-tab-honor':    ['superadmin', 'admin'],
-                'admin-tab-nfc':      ['superadmin', 'admin'],
-                'admin-tab-results':  ['superadmin', 'admin'],
-                'admin-tab-finance':  ['superadmin'],
-                'admin-tab-settings': ['superadmin']
+            // 4. Admin Dashboard Main Group Tabs Filtering
+            const mainGroupTabs = {
+                'adm-main-home':     ['superadmin', 'admin', 'registrar', 'dataentry'],
+                'adm-main-users':    ['superadmin', 'admin', 'registrar', 'dataentry'],
+                'adm-main-academic': ['superadmin', 'admin', 'dataentry'],
+                'adm-main-comms':    ['superadmin', 'admin'],
+                'adm-main-system':   ['superadmin', 'admin'],
+                'adm-main-finance':  ['superadmin', 'accountant']
             };
 
-            for (const [id, allowedRoles] of Object.entries(adminTabs)) {
+            for (const [id, allowedRoles] of Object.entries(mainGroupTabs)) {
                 const el = document.getElementById(id);
                 if (el) {
                     if (isSuperAdmin) {
@@ -8092,6 +8283,20 @@
                     }
                 }
             }
+
+            // 4b. Hide "Staff" sub-tab inside Users group for non-admin roles
+            document.querySelectorAll('#adm-group-users .adm-subtab').forEach(btn => {
+                if (btn.getAttribute('onclick')?.includes("'staff'")) {
+                    btn.style.display = (isSuperAdmin || role === 'admin') ? '' : 'none';
+                }
+            });
+
+            // 4c. Hide "ترحيل الطلاب" sub-tab for dataentry role
+            document.querySelectorAll('#adm-group-academic .adm-subtab').forEach(btn => {
+                if (btn.getAttribute('onclick')?.includes("'promotion'")) {
+                    btn.style.display = (isSuperAdmin || role === 'admin') ? '' : 'none';
+                }
+            });
 
             // 5. Finance main-group tab (new tab bar)
             const btnMainFinance = document.getElementById('adm-main-finance');
@@ -8281,7 +8486,7 @@
                 return;
             }
 
-            if ((u.role === 'admin' || u.role === 'accountant' || u.role === 'registrar') && window.pendingRegistrationBranch) {
+            if ((u.role === 'admin' || u.role === 'accountant' || u.role === 'registrar' || u.role === 'dataentry') && window.pendingRegistrationBranch) {
                 u.branchId = window.pendingRegistrationBranch;
             }
 
@@ -8289,27 +8494,29 @@
             if (_loginBtn) _loginBtn.disabled = false;
             document.getElementById('auth-overlay').style.display = 'none';
 
-            const roleName = u.role === 'admin' ? 'مدير (Admin)' : (u.role === 'teacher' ? 'تدريسي (Teacher)' : (u.role === 'accountant' ? 'محاسب (Accountant)' : 'طالب (Student)'));
+            const roleName = u.role === 'admin' ? 'مدير (Admin)' : u.role === 'teacher' ? 'تدريسي (Teacher)' : u.role === 'accountant' ? 'محاسب (Accountant)' : u.role === 'registrar' ? 'موظف تسجيل' : u.role === 'dataentry' ? 'مدخل بيانات إداري' : 'طالب (Student)';
             if (u.role === 'admin' || u.role === 'accountant' || u.role === 'teacher') {
                 broadcastNotification(`🟢 <b>دخول ناجح للتطبيق</b>\n👤 الاسم: ${u.name}\n🔑 الدور: ${roleName}\n📧 البريد: ${u.email || 'كود سريع'}\n📅 الوقت: ${new Date().toLocaleString('ar-EG')}`);
             }
 
-            if (u.role === 'admin' || u.role === 'accountant' || u.role === 'registrar') {
+            if (u.role === 'admin' || u.role === 'accountant' || u.role === 'registrar' || u.role === 'dataentry') {
                 document.querySelectorAll('.branch-switch-btn').forEach(btn => {
                     const isSharedAccountant = (u.role === 'accountant' && u.email === 'wj90@nhr.com');
-                    btn.style.display = (u.email === 'hassanhadi19996@gmail.com' || u.email === 'alnahrain.school@gmail.com' || u.isSuperAdmin || isSharedAccountant) ? 'inline-block' : 'none';
+                    const isMultiBranch = (['registrar','dataentry'].includes(u.role) && (u.allowedBranches || []).length > 1);
+                    btn.style.display = (u.email === 'hassanhadi19996@gmail.com' || u.email === 'alnahrain.school@gmail.com' || u.isSuperAdmin || isSharedAccountant || isMultiBranch) ? 'inline-block' : 'none';
                 });
                 const btnFinance = document.getElementById('btn-finance-system');
                 if (btnFinance) {
                     btnFinance.style.display = (u.role === 'accountant' || u.isSuperAdmin || u.email === 'hassanhadi19996@gmail.com' || u.email === 'alnahrain.school@gmail.com') ? 'inline-block' : 'none';
                 }
-                if (u.role === 'admin' || u.role === 'registrar') {
+                if (u.role === 'admin' || u.role === 'registrar' || u.role === 'dataentry') {
                     openDashboard('admin');
                     updatePermissionsUI(u);
                     if (typeof initAdminGroups === 'function') initAdminGroups();
                     renderAdminLists();
                     if ((u.isSuperAdmin || u.email === 'hassanhadi19996@gmail.com' || u.email === 'alnahrain.school@gmail.com') && typeof window.initVocBranchesIfEmpty === 'function') {
                         window.initVocBranchesIfEmpty();
+                        if (typeof window.initPrimaryBranchIfEmpty === 'function') window.initPrimaryBranchIfEmpty();
                     }
                 } else {
                     const isSharedAccountant = (u.email === 'wj90@nhr.com');
@@ -8766,7 +8973,7 @@
                 showCustomAlert('⛔ صلاحيات محدودة', 'لا يسمح لغير موظفي الحسابات أو الإدارة العليا بالدخول للنظام المالي.', 'error');
                 return;
             }
-            if (type === 'admin' && !isSuperAdmin && role !== 'admin' && role !== 'registrar') {
+            if (type === 'admin' && !isSuperAdmin && role !== 'admin' && role !== 'registrar' && role !== 'dataentry') {
                 showCustomAlert('⛔ صلاحيات محدودة', 'لا يسمح لك بالدخول إلى لوحة الإدارة.', 'error');
                 return;
             }
@@ -8783,15 +8990,12 @@
             const dash = document.getElementById(type + '-dash');
             if (dash) dash.classList.add('active');
             document.body.style.overflow = 'hidden';
+            document.documentElement.style.overflow = 'hidden';
             
             // 2. Default Tab Redirection for Admin Dashboard
             if (type === 'admin') {
-                if (role === 'registrar' && !isSuperAdmin) {
-                    showAdminTab('students', document.getElementById('admin-tab-students'));
-                } else {
-                    showAdminTab('stats', document.getElementById('admin-tab-stats'));
-                    setTimeout(loadAdminFinanceSummary, 800);
-                }
+                showAdminTab('stats', document.getElementById('admin-tab-stats'));
+                if (role !== 'registrar' || isSuperAdmin) setTimeout(loadAdminFinanceSummary, 800);
                 const log = document.getElementById('terminal-log');
                 if (log) log.scrollTop = log.scrollHeight;
                 setTimeout(initCharts, 500);
@@ -8845,6 +9049,7 @@
         function closeDashboards() {
             document.querySelectorAll('.dashboard-overlay').forEach(d => d.classList.remove('active'));
             document.body.style.overflow = 'auto';
+            document.documentElement.style.overflow = '';
             
             // Show news ticker when returning to home
             const ticker = document.querySelector('.news-ticker');
@@ -10064,7 +10269,9 @@
             ['timetable','attendance','results','honor-admin','promotion'].forEach(t => move(t, 'adm-academic-content'));
             ['broadcast','gallery-admin'].forEach(t => move(t, 'adm-comms-content'));
             ['site-settings','nfc','actlog'].forEach(t => move(t, 'adm-system-content'));
-            // Show default (home → stats)
+            // Show default group based on role
+            const _initRole = (currentUser && currentUser.role) || 'admin';
+            const _initSA   = currentUser?.isSuperAdmin || ['hassanhadi19996@gmail.com','alnahrain.school@gmail.com'].includes((currentUser?.email||'').toLowerCase());
             showMainGroup('home');
         }
 
@@ -10090,6 +10297,7 @@
                 showSubTab(group, cfg.default);
             }
             if (group === 'home') loadAdminFinanceSummary();
+            if (group === 'system') loadTelegramConfigUI();
         }
 
         function showSubTab(group, tab, btnEl) {
@@ -10664,91 +10872,69 @@
         async function sendInstallmentReminderNotifs() {
             const resultEl = document.getElementById('reminder-notif-result');
             if (resultEl) resultEl.innerText = 'جاري الإرسال...';
-            const daysAhead = parseInt(document.getElementById('reminder-days-ahead')?.value) || 2;
-            const today = new Date();
-            // Target date = today + daysAhead
-            const targetDate = new Date(today);
-            targetDate.setDate(today.getDate() + daysAhead);
-            const targetStr = targetDate.toISOString().slice(0, 10);
-            const todayStr = today.toISOString().slice(0, 10);
+            try {
+                const daysAhead = parseInt(document.getElementById('reminder-days-ahead')?.value) || 2;
+                const today = new Date();
+                const todayStr = today.toISOString().slice(0, 10);
+                const targetDate = new Date(today);
+                targetDate.setDate(today.getDate() + daysAhead);
+                const targetStr = targetDate.toISOString().slice(0, 10);
 
-            const [schedSnap, usersSnap, revsSnap] = await Promise.all([
-                _restGet('financialSettings/installmentSchedule'),
-                _restGet('users'),
-                _restGet('finance/revenues')
-            ]);
-            const schedule = schedSnap.val() || {};
-            const users = usersSnap.val() || {};
-            const revenues = revsSnap.val() || {};
+                const branchId = currentUser?.branchId;
+                const usersSnap = await _restGet('users');
+                const users = usersSnap.val() || {};
 
-            // Find installments whose due date falls in [today+1 .. today+daysAhead]
-            const dueInstallments = Object.values(schedule).filter(entry =>
-                entry.dueDate && entry.dueDate > todayStr && entry.dueDate <= targetStr
-            );
+                const updates = {};
+                let count = 0;
 
-            if (dueInstallments.length === 0) {
-                if (resultEl) resultEl.innerText = `لا توجد أقساط مستحقة خلال ${daysAhead} أيام.`;
-                return;
-            }
+                Object.keys(users).forEach(uid => {
+                    const u = users[uid];
+                    if (u.role !== 'student') return;
+                    if (branchId && u.branchId !== branchId) return;
+                    const tuition = u.finance?.tuition || 0;
+                    if (tuition <= 0) return;
 
-            // Calculate cumulative pct required up to each due installment
-            let duePct = 0;
-            Object.values(schedule).forEach(entry => {
-                if (entry.dueDate && entry.dueDate <= targetStr) duePct += (entry.pct || 0);
-            });
+                    // استخدام nextDueDate المخزن مباشرة على الطالب
+                    const nextDue = u.finance?.nextDueDate || '';
+                    if (!nextDue) return;
+                    // أرسل تذكير لو موعد القسط خلال الأيام المحددة (من اليوم حتى targetStr)
+                    if (nextDue < todayStr || nextDue > targetStr) return;
 
-            // Build paid map
-            const paidMap = {};
-            Object.values(revenues).forEach(r => {
-                if (r.studentUid) paidMap[r.studentUid] = (paidMap[r.studentUid] || 0) + (r.amount || 0);
-            });
-
-            const branchId = currentUser?.branchId;
-            const nearestDue = dueInstallments.sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
-            const dueDateFormatted = new Date(nearestDue.dueDate).toLocaleDateString('ar-IQ');
-
-            const updates = {};
-            let count = 0;
-            Object.keys(users).forEach(uid => {
-                const u = users[uid];
-                if (u.role !== 'student') return;
-                if (branchId && u.branchId !== branchId) return;
-                const tuition = (u.finance?.tuition) || 0;
-                if (tuition <= 0) return;
-                const required = Math.ceil(tuition * duePct / 100);
-                const paid = paidMap[uid] || 0;
-                if (paid < required) {
-                    const remaining = (required - paid).toLocaleString('ar-IQ');
-                    const key = 'notif_' + Date.now() + '_' + Math.floor(Math.random() * 9999);
+                    const dueDateFormatted = new Date(nextDue).toLocaleDateString('ar-IQ');
+                    const lastPaid = u.finance?.lastPaidInstallment || 0;
+                    const key = 'notif_' + Date.now() + '_' + Math.floor(Math.random() * 99999);
                     updates[`notifications/${uid}/${key}`] = {
                         title: '⚠️ تذكير بموعد القسط الدراسي',
-                        body: `تذكير: موعد سداد القسط في ${dueDateFormatted}. المبلغ المتبقي عليك: ${remaining} د.ع. يرجى التسوية في أقرب وقت لتجنب إيقاف الحساب.`,
+                        body: `تذكير: موعد سداد القسط رقم ${lastPaid + 1} في ${dueDateFormatted}. يرجى التسوية في أقرب وقت لتجنب إيقاف الحساب.`,
                         timestamp: Date.now(),
                         from: currentUser?.name || 'إدارة الشؤون المالية',
                         type: 'financial_reminder'
                     };
                     count++;
+                });
+
+                if (count === 0) {
+                    if (resultEl) resultEl.innerText = `لا يوجد طلاب بأقساط مستحقة خلال ${daysAhead} أيام.`;
+                    return;
                 }
-            });
 
-            if (count === 0) {
-                if (resultEl) resultEl.innerText = 'جميع الطلاب سددوا — لا حاجة لإرسال تذكير.';
-                return;
+                await _restUpdate('', updates);
+                await _restPush('adminBroadcastLog', {
+                    title: 'تذكير بموعد القسط',
+                    body: `خلال ${daysAhead} أيام`,
+                    timestamp: Date.now(),
+                    from: currentUser?.name || 'الإدارة',
+                    type: 'financial_reminder',
+                    target: 'أصحاب الأقساط القادمة',
+                    count,
+                    branchId: branchId || ''
+                });
+                logActivity('تذكير مالي', `أُرسل لـ ${count} طالب — أقساط خلال ${daysAhead} أيام`, branchId || '');
+                if (resultEl) resultEl.innerText = `✅ تم إرسال التذكير لـ ${count} طالب.`;
+            } catch (err) {
+                console.error('sendInstallmentReminderNotifs error:', err);
+                if (resultEl) resultEl.innerText = '❌ خطأ في الإرسال: ' + (err.message || 'تحقق من الاتصال.');
             }
-
-            await _restUpdate('', updates);
-            await _restPush('adminBroadcastLog', {
-                title: 'تذكير بموعد القسط',
-                body: `موعد الاستحقاق: ${dueDateFormatted}`,
-                timestamp: Date.now(),
-                from: currentUser?.name || 'الإدارة',
-                type: 'financial_reminder',
-                target: 'المتأخرون عن السداد',
-                count,
-                branchId: branchId || ''
-            });
-            logActivity('تذكير مالي', `أُرسل لـ ${count} طالب — موعد القسط: ${dueDateFormatted}`, branchId || '');
-            if (resultEl) resultEl.innerText = `✅ تم إرسال التذكير لـ ${count} طالب.`;
         }
 
         async function deleteStaff(uid, name) {
@@ -12351,6 +12537,21 @@
         // === TEACHER SUBJECT MANAGEMENT ===
         let currentEditingTeacherUID = null;
 
+        function toggleRegistrarBranchUI(form) {
+            if (form === 'new') {
+                const role = document.getElementById('new-staff-role').value;
+                const single = document.getElementById('new-staff-branch-single');
+                const multi  = document.getElementById('new-staff-branch-multi');
+                const isMulti = (role === 'registrar' || role === 'dataentry');
+                if (single) single.style.display = isMulti ? 'none' : '';
+                if (multi)  multi.style.display  = isMulti ? '' : 'none';
+            } else {
+                const role = document.getElementById('edit-staff-role-select').value;
+                const multi = document.getElementById('edit-staff-branch-multi');
+                if (multi) multi.style.display = (role === 'registrar' || role === 'dataentry') ? '' : 'none';
+            }
+        }
+
         function getAllSubjects() {
             let all = new Set();
             if (window.schoolStructure) {
@@ -12387,6 +12588,15 @@
                 codeInput.value = u.loginCode || '';
                 document.getElementById('edit-staff-pass-input').value = ''; // Never display stored hash
                 if (roleSelect) roleSelect.value = u.role || 'teacher';
+
+                // Populate allowed branches checkboxes for registrar
+                const branchMultiDiv = document.getElementById('edit-staff-branch-multi');
+                if (branchMultiDiv) {
+                    document.querySelectorAll('.edit-branch-cb').forEach(cb => {
+                        cb.checked = (u.allowedBranches || []).includes(cb.value);
+                    });
+                    branchMultiDiv.style.display = (u.role === 'registrar' || u.role === 'dataentry') ? '' : 'none';
+                }
 
                 let html = '';
                 subjects.forEach(sub => {
@@ -12426,6 +12636,12 @@
                 role: newRole,
                 subjects: selected
             };
+            if (newRole === 'registrar' || newRole === 'dataentry') {
+                const allowedBranches = Array.from(document.querySelectorAll('.edit-branch-cb:checked')).map(cb => cb.value);
+                if (!allowedBranches.length) return alert('يرجى تحديد فرع واحد على الأقل');
+                updates.allowedBranches = allowedBranches;
+                updates.branchId = allowedBranches[0];
+            }
             // Only update password if a new one was entered; hash it before saving
             if (newPass) updates.password = await hashPassword(newPass);
 
@@ -13525,7 +13741,15 @@
                 const emailExists = Object.values(users).some(u => u.email && u.email.toLowerCase() === email);
                 if (emailExists) { alert("⚠️ هذا البريد مسجل مسبقاً لمستخدم آخر"); _restore(); return; }
 
-                const branchForStaff = document.getElementById('new-staff-branch') ? document.getElementById('new-staff-branch').value : (currentUser.branchId || 'samawah');
+                let branchForStaff, allowedBranches;
+                if (role === 'registrar' || role === 'dataentry') {
+                    allowedBranches = Array.from(document.querySelectorAll('.new-branch-cb:checked')).map(cb => cb.value);
+                    if (!allowedBranches.length) { alert('يرجى تحديد فرع واحد على الأقل'); _restore(); return; }
+                    branchForStaff = allowedBranches[0];
+                } else {
+                    branchForStaff = document.getElementById('new-staff-branch')?.value || (currentUser.branchId || 'samawah');
+                    allowedBranches = null;
+                }
                 const uid = 'staff_' + Date.now() + '_' + Math.floor(Math.random() * 9999);
                 const staffData = {
                     name: name,
@@ -13536,6 +13760,7 @@
                     joined: new Date().toISOString(),
                     subjects: []
                 };
+                if (allowedBranches) staffData.allowedBranches = allowedBranches;
 
                 await _restSet('users/' + uid, staffData);
                 logActivity('إضافة مستخدم', `${name} — ${role} — ${branchForStaff}`);
@@ -15314,29 +15539,25 @@
 
         // --- AUTO REGISTRATION & GROUPING LOGIC ---
 
-        function autoSetGenderFromShift() {
+        function autoSetShiftFromGender() {
             const branch = document.getElementById('auto-student-branch').value;
             const shiftWrap = document.getElementById('shift-field-wrap');
             const shiftEl = document.getElementById('auto-student-shift');
             const genderEl = document.getElementById('auto-student-gender');
 
             if (branch === 'samawah') {
+                // إعدادية السماوة: ذكر=مسائي، أنثى=صباحي (تلقائي ومقفل)
                 if (shiftWrap) shiftWrap.style.display = 'block';
                 if (genderEl && shiftEl) {
-                    genderEl.value = shiftEl.value === 'مسائي' ? 'male' : 'female';
-                    genderEl.disabled = true;
-                    genderEl.style.backgroundColor = '#e8f0fe';
-                    genderEl.style.color = '#1a56db';
+                    shiftEl.value = genderEl.value === 'male' ? 'مسائي' : 'صباحي';
                 }
             } else {
                 if (shiftWrap) shiftWrap.style.display = 'none';
-                if (genderEl) {
-                    genderEl.disabled = false;
-                    genderEl.style.backgroundColor = '';
-                    genderEl.style.color = '';
-                }
             }
         }
+
+        // للتوافق مع أي استدعاء قديم
+        function autoSetGenderFromShift() { autoSetShiftFromGender(); }
 
         async function updateAutoRegisterDepartments() {
             console.log("Starting updateAutoRegisterDepartments...");
@@ -15352,6 +15573,11 @@
             const bId = bSelect.value;
             dSelect.innerHTML = '<option value="">جاري تحميل الأقسام...</option>';
             sSelect.innerHTML = '<option value="">اختر القسم أولاً...</option>';
+
+            // تحميل حد الشعبة لهذا الفرع
+            _restGet('settings/branches/' + bId + '/sectionCapacity').then(cs => {
+                window._sectionCapacity = cs.val() || 25;
+            });
 
             let structure = [];
             try {
@@ -15454,10 +15680,13 @@
             const nationalId = document.getElementById('auto-student-national-id').value.trim();
             const dob = document.getElementById('auto-student-dob').value;
             const tuition = parseFloat(document.getElementById('auto-student-tuition').value) || 0;
-            const shift = document.getElementById('auto-student-shift').value || 'صباحي';
             const gender = document.getElementById('auto-student-gender') ? document.getElementById('auto-student-gender').value : 'male';
             const bSelect = document.getElementById('auto-student-branch');
             const branchId = bSelect ? bSelect.value : (currentUser ? currentUser.branchId : 'samawah');
+            // إعدادية السماوة: الدوام تلقائي حسب الجنس
+            const shift = branchId === 'samawah'
+                ? (gender === 'male' ? 'مسائي' : 'صباحي')
+                : (document.getElementById('auto-student-shift').value || 'صباحي');
             const deptIdx = document.getElementById('auto-student-dept').value;
             const stageIdx = document.getElementById('auto-student-stage').value;
             const prevSchool = document.getElementById('auto-student-prev-school').value.trim();
@@ -15553,26 +15782,29 @@
                 let assignedSectionId = null;
                 let assignedSectionName = null;
 
-                // Capacity & Gender separation (max 25 per section)
+                // Capacity & Gender separation
                 // Primary branch is mixed; all others enforce gender separation
                 const isGenderStrict = (branchId !== 'primary');
+                const maxPerSection = window._sectionCapacity || 25;
 
                 for (let s of sections) {
                     const sGender = sectionGenders[s.id];
                     const sCount = sectionCounts[s.id] || 0;
 
                     if (isGenderStrict) {
-                        const genderLabel = gender === 'female' ? 'بنات' : 'بنين';
-                        const isMatchingSection = (sGender === gender) || (sCount === 0 && s.name.includes(genderLabel));
+                        // الإناث: الشعبة تحتوي "بنات" — الذكور: الشعبة لا تحتوي "بنات"
+                        const isFemaleSection = s.name.includes('بنات');
+                        const isMatchByName = gender === 'female' ? isFemaleSection : !isFemaleSection;
+                        const isMatchingSection = (sGender === gender) || (sCount === 0 && isMatchByName);
 
-                        if (isMatchingSection && sCount < 25) {
+                        if (isMatchingSection && sCount < maxPerSection) {
                             assignedSectionId = s.id;
                             assignedSectionName = s.name;
                             break;
                         }
                     } else {
                         // Primary branch: mixed, capacity only
-                        if (sCount < 25) {
+                        if (sCount < maxPerSection) {
                             assignedSectionId = s.id;
                             assignedSectionName = s.name;
                             break;
@@ -15582,17 +15814,18 @@
 
                 if (!assignedSectionId) {
                     if (isGenderStrict) {
-                        const genderLabel = gender === 'female' ? 'بنات' : 'بنين';
-                        // Count existing sections for this gender to get the next number
-                        let genderCount = 0;
-                        sections.forEach(s => {
-                            if (s.name.includes(genderLabel)) genderCount++;
-                        });
-                        assignedSectionName = `${genderCount + 1} ${genderLabel}`;
+                        // تحديد بادئة المرحلة A/B/C من اسم المرحلة
+                        const stagePrefix = stage.name.includes('الأولى') ? 'A' : stage.name.includes('الثانية') ? 'B' : 'C';
+                        // عدد الشعب المماثلة للجنس لتحديد الرقم التالي
+                        const matchingSections = sections.filter(s => gender === 'female' ? s.name.includes('بنات') : !s.name.includes('بنات'));
+                        const nextNum = matchingSections.length + 1;
+                        assignedSectionName = gender === 'female' ? `${stagePrefix}${nextNum}بنات` : `${stagePrefix}${nextNum}`;
                     } else {
-                        const alphabet = "أبجدهوزحطيكل";
-                        const nextIdx = sections.length;
-                        assignedSectionName = `شعبة ${alphabet[nextIdx] || nextIdx + 1}`;
+                        // Naming: gradeNum + next letter (1a, 1b, 1c...)
+                        const firstSec = sections[0];
+                        const gradePrefix = firstSec ? (firstSec.name.match(/^(\d+)/)?.[1] || '') : '';
+                        const nextLetter = String.fromCharCode(97 + sections.length); // a, b, c, d...
+                        assignedSectionName = gradePrefix ? `${gradePrefix}${nextLetter}` : `${sections.length + 1}a`;
                     }
                     
                     assignedSectionId = `sec_${branchId}_${deptIdx}_${stageIdx}_${Date.now()}`;
@@ -15663,8 +15896,8 @@
                 document.getElementById('auto-student-dob').value = '';
                 document.getElementById('auto-student-prev-school').value = '';
                 document.getElementById('auto-student-shift').value = 'صباحي';
-                document.getElementById('shift-field-wrap').style.display = 'none';
                 document.getElementById('auto-student-tuition').value = '';
+                if (typeof autoSetShiftFromGender === 'function') autoSetShiftFromGender();
                 document.getElementById('auto-student-document').value = 'لم يجلب';
                 if (document.getElementById('auto-student-password')) document.getElementById('auto-student-password').value = '';
                 if (attachmentInput) attachmentInput.value = '';
