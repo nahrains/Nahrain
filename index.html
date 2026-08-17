@@ -234,6 +234,7 @@
 
                 const logo = branch.logo || 'logo_samawah.jpg';
                 const schoolFullName = branch.name || 'إعدادية النهرين المهنية الأهلية';
+                const nojTitle = window.getNojSchoolTitle(bId);
 
                 const today = new Date();
                 const dateStr = today.toLocaleDateString('ar-EG');
@@ -242,7 +243,7 @@
                 const content = `
                     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 30px;">
                         <div style="text-align: right; font-size: 0.95rem; font-weight: bold; color: #000;">
-                            <p>مؤسسة النهرين التعليمية الدولية</p>
+                            <p style="white-space:nowrap;">${nojTitle.ar}</p>
                             <p>بالتعاون مع الشركة اللبنانية الدولية</p>
                         </div>
                         <div>
@@ -250,8 +251,8 @@
                         </div>
                         <div style="text-align: left; font-size: 0.9rem; font-family: sans-serif;">
                             <p>Ministry of Education</p>
-                            <p>Directorate of Education in Al-Muthanna</p>
-                            <p>Al-Nahrain Private School</p>
+                            <p>Directorate of Education in Al-${nojTitle.gov.en}</p>
+                            <p style="white-space:nowrap;">${nojTitle.en}</p>
                         </div>
                     </div>
                     <div style="display: flex; justify-content: space-between; margin-bottom: 40px;">
@@ -8330,6 +8331,36 @@
                 address: 'السماوة - الحيدرية، مجاور ملعب الحيدرية',
                 phone: '07870777892'
             }
+        };
+
+        // ── أسماء المدرسة كما تُطبع على وثيقة عدم الممانعة فقط ──
+        // مقصودة ألا تمسّ NAHRAIN_BRANCHES أعلاه، لأن أسماءه مستخدمة في
+        // الداشبورد والشهادات والوصولات وبطاقات الهوية. أثر هذا الجدول
+        // محصور بورقة عدم الممانعة (النموذج القابل للتعديل + الطباعة المباشرة).
+        window.NOJ_SCHOOL_TITLES = {
+            'samawah': {
+                ar: 'إعدادية النهرين المهنية الأهلية / فرع المثنى',
+                en: 'Al-Nahrain Vocational Private School - Muthanna Branch',
+                gov: { ar: 'المثنى', en: 'Muthanna' }
+            },
+            'babylon': {
+                ar: 'إعدادية النهرين المهنية الأهلية / فرع بابل',
+                en: 'Al-Nahrain Vocational Private School - Babylon Branch',
+                gov: { ar: 'بابل', en: 'Babylon' }
+            },
+            'evening': {
+                ar: 'إعدادية النهرين المهنية الأهلية المسائية',
+                en: 'Al-Nahrain Evening Vocational Private School',
+                gov: { ar: 'المثنى', en: 'Muthanna' }
+            },
+            'primary': {
+                ar: 'مدرسة النهرين الابتدائية الأهلية',
+                en: 'Al-Nahrain Primary Private School',
+                gov: { ar: 'المثنى', en: 'Muthanna' }
+            }
+        };
+        window.getNojSchoolTitle = function (branchId) {
+            return window.NOJ_SCHOOL_TITLES[branchId] || window.NOJ_SCHOOL_TITLES['samawah'];
         };
 
 
@@ -16702,10 +16733,9 @@
         const bId = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.branchId || 'samawah') : 'samawah';
         const branch = (window.NAHRAIN_BRANCHES && window.NAHRAIN_BRANCHES[bId]) || {};
         const schoolName = branch.name || 'إعدادية النهرين المهنية الأهلية';
-        const directorateMap = {
-            samawah: 'المثنى', babylon: 'بابل', primary: 'المثنى', evening: 'المثنى'
-        };
-        const governorate = directorateMap[bId] || 'المثنى';
+        // اسم المدرسة والمحافظة يأتيان من جدول واحد (NOJ_SCHOOL_TITLES) حتى لا يفترقا
+        const nojTitle = window.getNojSchoolTitle(bId);
+        const governorate = nojTitle.gov.ar;
 
         document.getElementById('noj-preview').innerHTML = `
             <div style="font-family:'Amiri','Cairo',serif; color:#000; min-height:297mm; display:flex; flex-direction:column;">
@@ -16730,13 +16760,13 @@
                             <div style="font-size:0.75rem; color:#475569; font-style:italic;">جمهورية العراق</div>
                             <div style="font-size:0.9rem; font-weight:700; color:#1e3a8a;">وزارة التربية</div>
                             <div style="font-size:0.85rem; font-weight:700;">المديرية العامة لتربية ${governorate}</div>
-                            <div style="font-size:0.9rem; font-weight:900; color:#1e293b;">مؤسسة النهرين التعليمية</div>
+                            <div style="font-size:0.85rem; font-weight:900; color:#1e293b; white-space:nowrap;">${nojTitle.ar}</div>
                         </div>
                         <div style="text-align:left; font-family:'Georgia',serif; line-height:2.1; direction:ltr;">
                             <div style="font-size:0.68rem; color:#475569; font-style:italic;">Republic of Iraq</div>
                             <div style="font-size:0.78rem; font-weight:700; color:#1e3a8a;">Ministry Of Education</div>
-                            <div style="font-size:0.72rem;">Directorate Of Education In Al-${governorate === 'بابل' ? 'Babylon' : 'Muthanna'}</div>
-                            <div style="font-size:0.75rem; font-weight:700;">Al-Nahrain Private School</div>
+                            <div style="font-size:0.72rem;">Directorate Of Education In Al-${nojTitle.gov.en}</div>
+                            <div style="font-size:0.68rem; font-weight:700; white-space:nowrap;">${nojTitle.en}</div>
                         </div>
                     </div>
 
