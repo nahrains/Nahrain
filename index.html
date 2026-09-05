@@ -225,10 +225,452 @@
             return r.json();
         }
 
+
+        /* ═══════════════════════════════════════════════════════════════
+           حارس الهيكلية — لا تُكتب هيكلية فرع إلا بعد حفظ نسخة منها
+           schoolDB/structureBackups/<branchId>/<ts> = { structure, by, reason, ts, depts, sections }
+           سبب وجوده: حادثة السماوة (تموز) وحادثة بابل (2 أيلول) — في كلتيهما
+           استُبدلت الهيكلية فتيتّم مئات الطلاب، ولم تكن هناك نسخة ولا سجل.
+           ═══════════════════════════════════════════════════════════════ */
+
+        window.STRUCTURE_BACKUP_KEEP = 20;
+
+        function _countStructure(st) {
+            let depts = 0, sections = 0;
+            (Array.isArray(st) ? st : Object.values(st || {})).forEach(d => {
+                if (!d || typeof d !== 'object') return;
+                depts++;
+                const stages = Array.isArray(d.stages) ? d.stages : Object.values(d.stages || {});
+                stages.forEach(stg => {
+                    if (!stg || typeof stg !== 'object') return;
+                    const secs = Array.isArray(stg.sections) ? stg.sections : Object.values(stg.sections || {});
+                    sections += secs.length;
+                });
+            });
+            return { depts, sections };
+        }
+
+        /**
+         * الكتابة الوحيدة المسموحة على هيكلية أي فرع.
+         * تحفظ نسخة من الحالية، تسجّل العملية، ثم تكتب الجديدة.
+         * وتعترض أي تقليص كبير وتطلب تأكيداً مكتوباً.
+         */
+        /** كل معرّفات الشعب في هيكلية، مسطّحةً — لمقارنة ما قبل وما بعد */
+        function _structureSectionIds(struct) {
+            const out = [];
+            _asEditArr(struct).forEach(dept => {
+                if (!dept) return;
+                _asEditArr(dept.stages).forEach(stg => {
+                    if (!stg) return;
+                    _asEditArr(stg.sections).forEach(sec => {
+                        if (sec && sec.id) out.push(String(sec.id));
+                    });
+                });
+                _asEditArr(dept.sections).forEach(sec => {   // هيكليات قديمة بلا مراحل
+                    if (sec && sec.id) out.push(String(sec.id));
+                });
+            });
+            return out;
+        }
+
+        window.saveStructureGuarded = async function (branchId, newStructure, reason) {
+            if (!branchId) throw new Error('لم يُحدَّد الفرع');
+            const path = 'settings/branches/' + branchId + '/structure';
+
+            let current = null;
+            try { current = (await _restGet(path)).val(); } catch (e) { console.warn('تعذّرت قراءة الهيكلية الحالية', e); }
+
+            const before = _countStructure(current);
+            const after  = _countStructure(newStructure);
+
+            // (أ) التقليص العددي: فقدان أكثر من 30% من الشعب أو أي قسم
+            const countLoss = before.sections > 0 &&
+                            (after.sections < before.sections * 0.7 || after.depts < before.depts);
+
+            // (ب) الأخطر: اختفاء معرّفات شعب مرتبط بها طلاب.
+            // العدّ وحده يخدع — «تهيئة الاختصاصات» تزيد عدد الشعب بينما تستبدل
+            // معرّفاتها كلها، فيصير كل طالب يتيماً والأرقام تبدو سليمة (حادثة بابل).
+            const idsAfter = new Set(_structureSectionIds(newStructure));
+            const lostIds  = _structureSectionIds(current).filter(id => !idsAfter.has(id));
+            let orphans = 0, orphanNames = [];
+            if (lostIds.length) {
+                try {
+                    const users = (await _restGet('users')).val() || {};
+                    const lost = new Set(lostIds);
+                    Object.values(users).forEach(u => {
+                        if (!u || String(u.role || '').toLowerCase() !== 'student' || u.graduated) return;
+                        if (u.branchId !== branchId) return;
+                        const cid = String(u.classId || u.major || '').trim();
+                        if (lost.has(cid)) {
+                            orphans++;
+                            if (orphanNames.length < 3) orphanNames.push(u.name || '—');
+                        }
+                    });
+                } catch (e) { orphans = -1; }   // تعذّر التحقّق → نعامله كخطر
+            }
+
+            if (countLoss || orphans !== 0) {
+                let msg = `تحذير قبل تعديل هيكلية الفرع:\n\n` +
+                    `الأقسام: ${before.depts}  ←  ${after.depts}\n` +
+                    `الشعب:   ${before.sections}  ←  ${after.sections}\n`;
+                if (orphans > 0) {
+                    msg += `\n🔴 ${orphans} طالباً سيفقدون شعبتهم ويختفون من القوائم` +
+                           `\nمنهم: ${orphanNames.join('، ')}` +
+                           `\n(${lostIds.length} شعبة ستُحذف معرّفاتها)\n`;
+                } else if (orphans < 0) {
+                    msg += `\n⚠️ تعذّر التحقّق من الطلاب المرتبطين — تابع بحذر.\n`;
+                } else if (lostIds.length) {
+                    msg += `\n${lostIds.length} شعبة ستُحذف (لا طلاب فيها).\n`;
+                }
+                msg += `\nستُحفظ نسخة قابلة للاسترجاع قبل التعديل.\nاكتب كلمة «تأكيد» للمتابعة:`;
+                const typed = await prompt(msg);
+                if (typed !== 'تأكيد') {
+                    showCustomAlert('أُلغيت العملية', 'لم تتغيّر الهيكلية — التأكيد غير مطابق.', 'info');
+                    throw new Error('cancelled-by-guard');
+                }
+            }
+
+            // حفظ نسخة قبل الكتابة
+            if (current) {
+                const ts = Date.now();
+                try {
+                    await _restSet('schoolDB/structureBackups/' + branchId + '/' + ts, {
+                        structure: current, ts,
+                        by: (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.name || '') : '',
+                        reason: reason || 'تعديل الهيكلية',
+                        depts: before.depts, sections: before.sections
+                    });
+                    // إبقاء آخر عدد محدد فقط
+                    const all = (await _restGet('schoolDB/structureBackups/' + branchId)).val() || {};
+                    const keys = Object.keys(all).sort((a, b) => Number(b) - Number(a));
+                    for (const k of keys.slice(window.STRUCTURE_BACKUP_KEEP)) {
+                        await _restSet('schoolDB/structureBackups/' + branchId + '/' + k, null);
+                    }
+                } catch (e) { console.warn('تعذّر حفظ نسخة الهيكلية', e); }
+            }
+
+            await _restSet(path, newStructure);
+
+            if (typeof logActivity === 'function') {
+                logActivity('تعديل الهيكلية',
+                    `${reason || ''} — الأقسام ${before.depts}←${after.depts} · الشعب ${before.sections}←${after.sections}`,
+                    branchId);
+            }
+            return true;
+        };
+
+        // ── استرجاع نسخة سابقة ──
+        window.openStructureBackups = async function (branchId) {
+            branchId = branchId || (currentUser && currentUser?.branchId) || 'samawah';
+            const box = document.getElementById('struct-backup-list');
+            const modal = document.getElementById('struct-backup-modal');
+            if (!box || !modal) return;
+            // #admin-dash لا يُغلق في الـHTML فتُعشَّش النوافذ داخله — نُعيدها إلى body
+            if (modal.parentElement !== document.body) document.body.appendChild(modal);
+            modal.style.display = 'flex';
+            box.innerHTML = '<div style="padding:24px;text-align:center;color:#94a3b8;">جارٍ التحميل...</div>';
+            const all = (await _restGet('schoolDB/structureBackups/' + branchId)).val() || {};
+            const keys = Object.keys(all).sort((a, b) => Number(b) - Number(a));
+            const cur = _countStructure((await _restGet('settings/branches/' + branchId + '/structure')).val());
+            if (!keys.length) {
+                box.innerHTML = '<div style="padding:24px;text-align:center;color:#94a3b8;">لا توجد نسخ محفوظة لهذا الفرع بعد.<br><span style="font-size:.85rem;">تُحفظ النسخة تلقائياً عند أول تعديل قادم.</span></div>';
+                return;
+            }
+            box.innerHTML = `<div style="padding:10px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;margin-bottom:12px;font-size:.86rem;">
+                الحالة الآن: <b>${cur.depts}</b> قسم و<b>${cur.sections}</b> شعبة</div>` +
+                keys.map(k => {
+                    const b = all[k];
+                    const d = new Date(Number(k));
+                    return `<div style="border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+                        <div>
+                            <div style="font-weight:700;font-size:.92rem;">${b.depts} قسم · ${b.sections} شعبة</div>
+                            <div style="font-size:.8rem;color:#64748b;margin-top:3px;">
+                                ${d.toLocaleDateString('ar-IQ')} — ${d.toLocaleTimeString('ar-IQ', {hour:'2-digit',minute:'2-digit'})}
+                                ${b.by ? ' · ' + b.by : ''}${b.reason ? ' · ' + b.reason : ''}
+                            </div>
+                        </div>
+                        <button onclick="restoreStructureBackup('${branchId}','${k}')"
+                            style="background:#1e3a8a;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer;font-family:inherit;font-weight:700;font-size:.83rem;">
+                            استرجاع</button>
+                    </div>`;
+                }).join('');
+        };
+
+        window.restoreStructureBackup = async function (branchId, ts) {
+            const all = (await _restGet('schoolDB/structureBackups/' + branchId + '/' + ts)).val();
+            if (!all || !all.structure) return showCustomAlert('خطأ', 'النسخة غير موجودة.', 'error');
+            const ok = await confirm(`استرجاع هيكلية الفرع إلى نسخة ${new Date(Number(ts)).toLocaleString('ar-IQ')}؟\n` +
+                `(${all.depts} قسم · ${all.sections} شعبة)\n\nستُحفظ الحالة الحالية أيضاً قبل الاسترجاع.`);
+            if (!ok) return;
+            try {
+                await window.saveStructureGuarded(branchId, all.structure, 'استرجاع نسخة سابقة');
+                showCustomAlert('تم', 'استُرجعت الهيكلية ✅ — حدّث الصفحة', 'success');
+                document.getElementById('struct-backup-modal').style.display = 'none';
+                setTimeout(() => location.reload(), 1200);
+            } catch (e) {
+                if (e.message !== 'cancelled-by-guard') showCustomAlert('خطأ', e.message, 'error');
+            }
+        };
+
+
+        /* ═══════════════════════════════════════════════════════════════
+           النسخة الاحتياطية اليومية إلى تليجرام
+           تعمل تلقائياً عند دخول مدير — مرة واحدة كل يوم.
+           تستخدم نفس بوت الإشعارات المحفوظ في schoolDB/notifConfig
+           وتحفظ حالتها في schoolDB/backupState
+           ═══════════════════════════════════════════════════════════════ */
+
+        function _todayKey() {
+            const d = new Date();
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        }
+
+        window.runDailyBackup = async function (manual) {
+            try {
+                const role = (currentUser && currentUser.role) || '';
+                if (!manual && role !== 'admin' && role !== 'superadmin' && !(currentUser && currentUser.isSuperAdmin)) return;
+
+                const state = (await _restGet('schoolDB/backupState')).val() || {};
+                if (!manual && state.lastDate === _todayKey()) return;   // أُنجزت اليوم
+
+                const cfg = (await _restGet('schoolDB/notifConfig')).val();
+                if (!cfg || !cfg.botToken || !cfg.chatIds) {
+                    if (manual) showCustomAlert('تنبيه', 'لم تُضبَط إعدادات بوت تليجرام بعد.', 'warning');
+                    return;
+                }
+                const chats = Array.isArray(cfg.chatIds) ? cfg.chatIds : String(cfg.chatIds).split(',').map(s => s.trim()).filter(Boolean);
+                if (!chats.length) return;
+
+                if (manual) showCustomAlert('جارٍ', 'يجري تجهيز النسخة الاحتياطية...', 'info');
+
+                // تنزيل القاعدة كاملة
+                const snap = await _restGet('');
+                const data = snap.val() || {};
+                const json = JSON.stringify(data);
+                const sizeKB = Math.round(json.length / 1024);
+
+                // إحصاء موجز يرافق الملف
+                const users = data.users || {};
+                let students = 0, staff = 0;
+                Object.values(users).forEach(u => {
+                    if (!u || typeof u !== 'object') return;
+                    if (u.role === 'student') students++;
+                    else if (u.role) staff++;
+                });
+                const rev = Object.values((data.finance || {}).revenues || {});
+                const exp = Object.values((data.finance || {}).expenses || {});
+                const sum = a => a.reduce((s, x) => s + (Number(x && x.amount) || 0), 0);
+                const fmt = n => (n || 0).toLocaleString('en-US');
+
+                const caption =
+                    `🗄️ نسخة احتياطية — ${_todayKey()}\n` +
+                    `المدرسة: مؤسسة النهرين التعليمية\n\n` +
+                    `👥 الطلاب: ${students}\n` +
+                    `👤 الملاك: ${staff}\n` +
+                    `💰 الإيرادات: ${rev.length} قيد · ${fmt(sum(rev))} د.ع\n` +
+                    `💸 المصروفات: ${exp.length} قيد · ${fmt(sum(exp))} د.ع\n` +
+                    `📦 الحجم: ${sizeKB} KB`;
+
+                const blob = new Blob([json], { type: 'application/json' });
+                const fileName = `nahrain-backup-${_todayKey()}.json`;
+
+                let sent = 0, lastErr = '';
+                for (const chat of chats) {
+                    try {
+                        const fd = new FormData();
+                        fd.append('chat_id', chat);
+                        fd.append('caption', caption);
+                        fd.append('document', blob, fileName);
+                        const r = await fetch(`https://api.telegram.org/bot${cfg.botToken}/sendDocument`, { method: 'POST', body: fd });
+                        const j = await r.json();
+                        if (j && j.ok) sent++; else lastErr = (j && j.description) || 'خطأ غير معروف';
+                    } catch (e) { lastErr = e.message; }
+                }
+
+                if (sent > 0) {
+                    await _restSet('schoolDB/backupState', {
+                        lastDate: _todayKey(), lastTs: Date.now(),
+                        by: (currentUser && currentUser.name) || '', sizeKB, students,
+                        sentTo: sent, manual: !!manual
+                    });
+                    if (typeof logActivity === 'function') {
+                        logActivity('نسخة احتياطية', `أُرسلت إلى تليجرام — ${sizeKB} KB — ${students} طالب`,
+                            (currentUser && currentUser?.branchId) || '');
+                    }
+                    if (manual) showCustomAlert('تم', `أُرسلت النسخة إلى ${sent} محادثة ✅`, 'success');
+                    console.log('[backup] sent', sizeKB, 'KB to', sent, 'chat(s)');
+                } else if (manual) {
+                    showCustomAlert('فشل الإرسال', lastErr || 'تعذّر الإرسال إلى تليجرام', 'error');
+                }
+            } catch (e) {
+                console.warn('[backup] failed', e);
+                if (manual) showCustomAlert('خطأ', 'تعذّرت النسخة الاحتياطية: ' + e.message, 'error');
+            }
+        };
+
+        // عرض حالة آخر نسخة في لوحة الإدارة
+        window.refreshBackupStatus = async function () {
+            const el = document.getElementById('backup-status');
+            if (!el) return;
+            const s = (await _restGet('schoolDB/backupState')).val() || {};
+            if (!s.lastDate) {
+                el.innerHTML = '<span style="color:#b91c1c;">لم تُؤخذ نسخة بعد</span>';
+                return;
+            }
+            const today = s.lastDate === _todayKey();
+            el.innerHTML = `<span style="color:${today ? '#15803d' : '#b45309'};">` +
+                `${today ? '✅ نسخة اليوم أُرسلت' : '⚠️ آخر نسخة: ' + s.lastDate}` +
+                `</span> <span style="color:#64748b;font-size:.85rem;">— ${s.sizeKB || 0} KB · ${s.students || 0} طالب</span>`;
+        };
+
+
+        /* ═══════════════════════════════════════════════════════════════
+           سجل وثائق عدم الممانعة
+           schoolDB/nojCounters/<branchId>/<year>       = آخر رقم صدر
+           schoolDB/noObjectionLog/<key> = { num, name, className, studentUid,
+                                             branchId, to, year, by, ts }
+           الغرض: معرفة لمن صدرت الوثيقة وكم عددها — وترقيمها تسلسلياً
+           بدل خانة «العدد» الفارغة التي كانت تُطبع نقاطاً.
+           ═══════════════════════════════════════════════════════════════ */
+
+        window.nojBranch = function () {
+            return (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.branchId || 'samawah') : 'samawah';
+        };
+
+        /** يحجز الرقم التالي للفرع في السنة الحالية ويعيده منسّقاً */
+        window.nextNojNumber = async function (branchId) {
+            branchId = branchId || nojBranch();
+            const year = new Date().getFullYear();
+            const path = `schoolDB/nojCounters/${branchId}/${year}`;
+            let last = 0;
+            try { last = Number((await _restGet(path)).val()) || 0; } catch (e) {}
+            const next = last + 1;
+            try { await _restSet(path, next); } catch (e) { console.warn('noj counter', e); }
+            return { num: next, year, label: `${next} / ${year}` };
+        };
+
+        /** يسجّل صدور وثيقة */
+        window.logNoObjection = async function (rec) {
+            const key = 'noj_' + Date.now() + '_' + Math.floor(Math.random() * 999);
+            const row = {
+                num: rec.num || 0,
+                year: rec.year || new Date().getFullYear(),
+                name: rec.name || '',
+                className: rec.className || '',
+                studentUid: rec.studentUid || '',
+                to: rec.to || '',
+                branchId: rec.branchId || nojBranch(),
+                by: (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.name || '') : '',
+                ts: Date.now()
+            };
+            try {
+                await _restSet('schoolDB/noObjectionLog/' + key, row);
+                if (typeof logActivity === 'function') {
+                    logActivity('وثيقة عدم ممانعة', `${row.name} — العدد ${row.num}/${row.year}`, row.branchId);
+                }
+            } catch (e) { console.warn('noj log', e); }
+            return row;
+        };
+
+        // ══════════ شاشة السجل ══════════
+        window.openNojRegistry = async function () {
+            const modal = document.getElementById('noj-registry-modal');
+            const box = document.getElementById('noj-registry-body');
+            if (!modal || !box) return;
+            // #admin-dash لا يُغلق في الـHTML فتُعشَّش النوافذ داخله — نُعيدها إلى body
+            if (modal.parentElement !== document.body) document.body.appendChild(modal);
+            modal.style.display = 'flex';
+            box.innerHTML = '<div style="padding:30px;text-align:center;color:#94a3b8;">جارٍ التحميل...</div>';
+            const all = (await _restGet('schoolDB/noObjectionLog')).val() || {};
+            const br = nojBranch();
+            window._nojRows = Object.values(all)
+                .filter(r => r && r.branchId === br)
+                .sort((a, b) => (b.ts || 0) - (a.ts || 0));
+            renderNojRegistry();
+        };
+
+        window.renderNojRegistry = function () {
+            const box = document.getElementById('noj-registry-body');
+            const rows = window._nojRows || [];
+            const q = (document.getElementById('noj-search')?.value || '').trim();
+            const filtered = q ? rows.filter(r => (r.name || '').includes(q) || String(r.num).includes(q)) : rows;
+
+            const thisYear = new Date().getFullYear();
+            const yearCount = rows.filter(r => r.year === thisYear).length;
+            const monthCount = rows.filter(r => {
+                const d = new Date(r.ts || 0);
+                return d.getFullYear() === thisYear && d.getMonth() === new Date().getMonth();
+            }).length;
+
+            const kpi = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px;">
+                ${[['📄', 'الإجمالي', rows.length, '#1e3a8a'],
+                   ['📅', 'هذه السنة', yearCount, '#0369a1'],
+                   ['🗓️', 'هذا الشهر', monthCount, '#15803d']]
+                  .map(([i, l, v, c]) => `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;text-align:center;">
+                    <div style="font-size:1.2rem;">${i}</div>
+                    <div style="font-weight:900;font-size:1.3rem;color:${c};margin-top:2px;">${v}</div>
+                    <div style="font-size:.75rem;color:#64748b;">${l}</div></div>`).join('')}
+            </div>`;
+
+            if (!rows.length) {
+                box.innerHTML = kpi + `<div style="padding:30px;text-align:center;color:#94a3b8;">
+                    لم تصدر وثائق بعد من هذا الفرع.<br>
+                    <span style="font-size:.85rem;">كل وثيقة تُطبع من الآن ستُسجَّل تلقائياً برقم تسلسلي.</span></div>`;
+                return;
+            }
+            box.innerHTML = kpi + `<div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:.86rem;">
+                <thead><tr style="background:#f1f5f9;">
+                    <th style="padding:9px;text-align:right;">العدد</th>
+                    <th style="padding:9px;text-align:right;">الطالب</th>
+                    <th style="padding:9px;text-align:right;">الصف</th>
+                    <th style="padding:9px;text-align:right;">إلى</th>
+                    <th style="padding:9px;text-align:right;">التاريخ</th>
+                    <th style="padding:9px;text-align:right;">الموظف</th>
+                </tr></thead><tbody>
+                ${filtered.map(r => `<tr style="border-bottom:1px solid #eef2f7;">
+                    <td style="padding:9px;font-family:monospace;font-weight:700;">${r.num}/${r.year}</td>
+                    <td style="padding:9px;font-weight:600;">${escHtml(r.name || '')}</td>
+                    <td style="padding:9px;color:#64748b;">${escHtml(r.className || '—')}</td>
+                    <td style="padding:9px;color:#64748b;">${escHtml(r.to || '—')}</td>
+                    <td style="padding:9px;color:#64748b;">${new Date(r.ts).toLocaleDateString('ar-IQ')}</td>
+                    <td style="padding:9px;color:#64748b;">${escHtml(r.by || '—')}</td>
+                </tr>`).join('')}
+                </tbody></table></div>
+                ${filtered.length !== rows.length ? `<div style="margin-top:10px;font-size:.82rem;color:#64748b;">عُرض ${filtered.length} من ${rows.length}</div>` : ''}`;
+        };
+
+        window.printNojRegistry = function () {
+            const rows = window._nojRows || [];
+            if (!rows.length) return;
+            const br = (window.NAHRAIN_BRANCHES && window.NAHRAIN_BRANCHES[nojBranch()]) || {};
+            const w = window.open('', '_blank');
+            w.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8">
+<title>سجل وثائق عدم الممانعة</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+<style>*{margin:0;padding:0;box-sizing:border-box;font-family:'Cairo',sans-serif;}
+body{padding:24px;color:#0f172a;} h1{font-size:1.25rem;text-align:center;}
+.sub{text-align:center;color:#64748b;font-size:.9rem;margin:4px 0 18px;}
+table{width:100%;border-collapse:collapse;font-size:.85rem;}
+th,td{border:1px solid #cbd5e1;padding:7px;text-align:right;}
+th{background:#f1f5f9;} .tot{margin-top:18px;background:#fef3c7;border:2px solid #d97706;border-radius:10px;padding:12px;text-align:center;font-weight:900;}
+@media print{body{padding:0;}}</style></head><body>
+<h1>${escHtml(br.name || 'مؤسسة النهرين التعليمية')}</h1>
+<div class="sub">سجل وثائق عدم الممانعة — حتى ${new Date().toLocaleDateString('ar-IQ')}</div>
+<table><thead><tr><th>ت</th><th>العدد</th><th>الطالب</th><th>الصف</th><th>إلى</th><th>التاريخ</th><th>الموظف</th></tr></thead><tbody>
+${rows.map((r, i) => `<tr><td>${i + 1}</td><td>${r.num}/${r.year}</td><td>${escHtml(r.name || '')}</td>
+<td>${escHtml(r.className || '—')}</td><td>${escHtml(r.to || '—')}</td>
+<td>${new Date(r.ts).toLocaleDateString('ar-IQ')}</td><td>${escHtml(r.by || '—')}</td></tr>`).join('')}
+</tbody></table>
+<div class="tot">إجمالي الوثائق الصادرة: ${rows.length}</div>
+<script>window.onload=function(){window.print();}<\/script></body></html>`);
+            w.document.close();
+        };
+
         async function printAdmissionApproval(uid, name, className) {
             console.log("Admission Approval Clicked:", { uid, name, className });
             try {
-                const bId = currentUser ? (currentUser.branchId || 'samawah') : 'samawah';
+                const bId = currentUser ? (currentUser?.branchId || 'samawah') : 'samawah';
                 const branch = window.NAHRAIN_BRANCHES[bId];
                 if (!branch) throw new Error("Branch data not found: " + bId);
 
@@ -239,6 +681,14 @@
                 const today = new Date();
                 const dateStr = today.toLocaleDateString('ar-EG');
                 const yearStr = today.getFullYear() + " / " + (today.getFullYear() + 1);
+
+                // ترقيم تسلسلي للوثيقة + تسجيلها في السجل
+                let _noj = { num: '', year: today.getFullYear(), label: '.................' };
+                try {
+                    _noj = await nextNojNumber(bId);
+                    await logNoObjection({ num: _noj.num, year: _noj.year, name: name,
+                        className: className || '', studentUid: uid, branchId: bId });
+                } catch (e) { console.warn('تعذّر ترقيم/تسجيل الوثيقة', e); }
 
                 const content = `
                     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 30px;">
@@ -256,7 +706,7 @@
                         </div>
                     </div>
                     <div style="display: flex; justify-content: space-between; margin-bottom: 40px;">
-                        <div>العدد : .................</div>
+                        <div>العدد : ${_noj.label}</div>
                         <div>التاريخ : ${dateStr} م</div>
                     </div>
                     <h2 style="text-align: center; text-decoration: underline; margin-bottom: 50px; font-weight: bold; font-size: 1.6rem;">م/ استمارة قبول طالب</h2>
@@ -468,6 +918,11 @@
         }
 
         /* --- News Ticker --- */
+
+        /* شريط الأخبار: يظهر في الصفحة العامة فقط — كان يغطّي أزرار اللوحات */
+        body.dash-open .news-ticker { display: none !important; }
+        .dashboard-overlay, [id$="-dash"] { padding-bottom: 64px; }
+
         .news-ticker {
             position: fixed;
             bottom: 0;
@@ -4230,6 +4685,9 @@
                         <button onclick="openNoObjectionForm()" style="background:linear-gradient(135deg,#b45309,#d97706);color:#fff;border:none;border-radius:10px;padding:9px 18px;font-family:'Cairo',sans-serif;font-weight:800;font-size:0.85rem;cursor:pointer;">
                             <i class="fa-solid fa-file-contract" style="margin-left:6px;"></i> وثيقة عدم الممانعة
                         </button>
+                        <button onclick="openNojRegistry()" style="background:linear-gradient(135deg,#78350f,#a16207);color:#fff;border:none;border-radius:10px;padding:9px 18px;font-family:'Cairo',sans-serif;font-weight:800;font-size:0.85rem;cursor:pointer;margin-inline-start:8px;">
+                            <i class="fa-solid fa-list-check" style="margin-left:6px;"></i> سجل الوثائق
+                        </button>
                     </div>
                 </div>
                 <div class="acc-stats-grid">
@@ -4644,6 +5102,7 @@
                         <table class="acc-table" id="acc-hr-table">
                             <thead>
                                 <tr>
+                                    <th style="width:44px;">ت</th>
                                     <th>اسم الموظف</th>
                                     <th>الدور (المنصب)</th>
                                     <th>الراتب الأساسي</th>
@@ -4665,37 +5124,73 @@
 
             <!-- Tab: Logistics (Transportation & Canteen) -->
             <div id="acc-tab-logistics" class="acc-tab-content" style="display:none;">
-                <div style="display:grid; grid-template-columns: 1fr; gap:20px; flex-wrap:wrap;">
 
-                    <!-- Transportation List -->
-                    <div class="acc-panel">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                            <h3 style="margin:0;"><i class="fa-solid fa-bus"></i> مشتركي خطوط النقل</h3>
-                            <button onclick="window.printFullTransportReport()" class="acc-btn-primary" style="padding:8px 20px; font-size:0.9rem; background:#059669; border:none; display:flex; align-items:center; gap:8px;">
-                                <i class="fa-solid fa-print"></i> طباعة كشف الخطوط الشامل
-                            </button>
-                        </div>
-                        <div style="overflow-x: auto; max-height: 600px; overflow-y: auto;">
-                            <table class="acc-table" id="acc-transport-table">
-                                <thead>
-                                    <tr>
-                                        <th>الطالب والشعبة</th>
-                                        <th>فترة الاشتراك</th>
-                                        <th>تفاصيل الخط</th>
-                                        <th>المبلغ</th>
-                                        <th>الخصم</th>
-                                        <th>الصافي</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <!-- JS Populated -->
-                                </tbody>
-                            </table>
-                        </div>
+                <!-- شريط التنقل الداخلي -->
+                <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px;">
+                    <button id="trbtn-routes"  class="acc-btn-primary tr-nav active" onclick="trSwitch('routes')"  style="padding:10px 22px; font-size:0.9rem;"><i class="fa-solid fa-route"></i> الخطوط</button>
+                    <button id="trbtn-drivers" class="acc-btn-primary tr-nav"        onclick="trSwitch('drivers')" style="padding:10px 22px; font-size:0.9rem; background:#64748b;"><i class="fa-solid fa-id-card"></i> السواق</button>
+                    <button id="trbtn-dues"    class="acc-btn-primary tr-nav"        onclick="trSwitch('dues')"    style="padding:10px 22px; font-size:0.9rem; background:#64748b;"><i class="fa-solid fa-coins"></i> التحصيل</button>
+                    <div style="flex:1;"></div>
+                    <div style="display:flex; align-items:center; gap:8px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:6px 14px;">
+                        <i class="fa-solid fa-calendar-days" style="color:#1e3a8a;"></i>
+                        <span style="font-size:0.85rem; color:#475569; font-weight:700;">شهر العمل:</span>
+                        <input type="month" id="tr-month" onchange="trOnMonthChange()" class="acc-input" style="max-width:170px; padding:6px 10px; margin:0;">
                     </div>
-
                 </div>
+
+                <!-- ══════════ الخطوط ══════════ -->
+                <div id="tr-sec-routes" class="tr-sec">
+                    <div class="acc-panel" style="margin-bottom:18px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
+                            <h3 style="margin:0;"><i class="fa-solid fa-route"></i> خطوط النقل</h3>
+                            <div style="display:flex; gap:8px;">
+                                <button onclick="trNewRoute()" class="acc-btn-primary" style="padding:8px 18px; font-size:0.88rem;"><i class="fa-solid fa-plus"></i> خط جديد</button>
+                                <button onclick="trPrintRoutesReport()" class="acc-btn-primary" style="padding:8px 18px; font-size:0.88rem; background:#059669;"><i class="fa-solid fa-print"></i> كشف الخطوط</button>
+                            </div>
+                        </div>
+                        <div id="tr-routes-kpi" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:16px;"></div>
+                        <div id="tr-routes-list" style="display:grid; grid-template-columns:1fr; gap:12px;"></div>
+                    </div>
+                </div>
+
+                <!-- ══════════ السواق ══════════ -->
+                <div id="tr-sec-drivers" class="tr-sec" style="display:none;">
+                    <div class="acc-panel">
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
+                            <h3 style="margin:0;"><i class="fa-solid fa-id-card"></i> السواق واستحقاقاتهم</h3>
+                            <button onclick="trNewDriver()" class="acc-btn-primary" style="padding:8px 18px; font-size:0.88rem;"><i class="fa-solid fa-user-plus"></i> سائق جديد</button>
+                        </div>
+                        <p style="margin:0 0 14px; color:#64748b; font-size:0.85rem;">
+                            الاستحقاق محسوب لشهر <b id="tr-drv-month-label" style="color:#1e3a8a;"></b> — والصرف يُسجَّل في المصروفات تحت «أجور نقل».
+                        </p>
+                        <div id="tr-drivers-list" style="display:grid; grid-template-columns:1fr; gap:12px;"></div>
+                    </div>
+                </div>
+
+                <!-- ══════════ التحصيل ══════════ -->
+                <div id="tr-sec-dues" class="tr-sec" style="display:none;">
+                    <div class="acc-panel">
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
+                            <h3 style="margin:0;"><i class="fa-solid fa-coins"></i> تحصيل أجور النقل</h3>
+                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                <select id="tr-dues-route" onchange="trRenderDues()" class="acc-input" style="max-width:200px; margin:0;">
+                                    <option value="all">🚌 جميع الخطوط</option>
+                                </select>
+                                <select id="tr-dues-status" onchange="trRenderDues()" class="acc-input" style="max-width:160px; margin:0;">
+                                    <option value="all">الكل</option>
+                                    <option value="unpaid">غير مسدّد</option>
+                                    <option value="paid">مسدّد</option>
+                                </select>
+                                <button onclick="trPrintDuesReport()" class="acc-btn-primary" style="padding:8px 16px; font-size:0.85rem; background:#059669;"><i class="fa-solid fa-print"></i> كشف</button>
+                            </div>
+                        </div>
+                        <div id="tr-dues-kpi" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:16px;"></div>
+                        <div id="tr-dues-list" style="display:grid; grid-template-columns:1fr; gap:10px;"></div>
+                    </div>
+                </div>
+
             </div>
+
 
             <!-- Tab: Financial Settings (Global Defaults) -->
             <div id="acc-tab-settings" class="acc-tab-content" style="display:none;">
@@ -6112,7 +6607,7 @@
                 </div>
                 <div>
                     <label style="color:#475569; font-size:0.85rem; display:block; margin-bottom:6px; font-weight:600;">الصلاحية / الدور</label>
-                    <select id="edit-staff-role-select" class="cyber-input" style="width:100%; padding:10px;" onchange="toggleRegistrarBranchUI('edit')">
+                    <select id="edit-staff-role-select" class="cyber-input" style="width:100%; padding:10px;" onchange="toggleRegistrarBranchUI('edit') toggleTeacherClassesUI(this.value);">
                         <option value="teacher">مدرس (Teacher)</option>
                         <option value="admin">مدير (Admin)</option>
                         <option value="accountant">موظف حسابات (Accountant)</option>
@@ -6147,6 +6642,23 @@
 
             <h4 style="color:#1a56db; margin-bottom:12px;"><i class="fa-solid fa-book-open" style="margin-left:6px;"></i> المواد الدراسية المخصصة</h4>
             <div id="subject-checklist" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; text-align:right;"></div>
+
+                        <div id="teacher-classes-wrap" style="display:none;">
+                            <hr style="border:0; border-top:1px solid #e8edf8; margin:20px 0;">
+                            <h4 style="color:#1a56db; margin-bottom:6px;"><i class="fa-solid fa-users-rectangle" style="margin-left:6px;"></i> الشعب المسنَدة</h4>
+                            <p style="color:#64748b; font-size:0.8rem; margin:0 0 12px; line-height:1.7;">
+                                أشِّر الشعب التي يدرّسها. لن يرى في بوابته غير طلاب هذه الشعب.
+                                <b>وإن لم تؤشّر شيئاً، ستبقى كل شعب الفرع متاحة له.</b>
+                            </p>
+                            <div style="display:flex; gap:8px; margin-bottom:10px;">
+                                <button type="button" onclick="toggleAllTeacherClasses(true)"
+                                    style="padding:6px 14px; font-size:0.78rem; background:#eff6ff; color:#1a56db; border:1px solid #bfdbfe; border-radius:8px; cursor:pointer; font-family:inherit;">تحديد الكل</button>
+                                <button type="button" onclick="toggleAllTeacherClasses(false)"
+                                    style="padding:6px 14px; font-size:0.78rem; background:#f8fafc; color:#64748b; border:1px solid #e2e8f0; border-radius:8px; cursor:pointer; font-family:inherit;">إلغاء الكل</button>
+                                <span id="teacher-classes-count" style="margin-inline-start:auto; font-size:0.8rem; color:#64748b; align-self:center;"></span>
+                            </div>
+                            <div id="class-checklist" style="max-height:240px; overflow-y:auto; border:1px solid #e8edf8; border-radius:10px; padding:10px; text-align:right;"></div>
+                        </div>
 
             <div style="margin-top:24px; display:flex; gap:10px;">
                 <button style="flex:1; padding:12px; background:linear-gradient(135deg,#1a56db,#6366f1); color:#fff; border:none; border-radius:12px; font-family:'Cairo',sans-serif; font-size:1rem; font-weight:700; cursor:pointer;" onclick="saveTeacherSubjects()">💾 حفظ التغييرات</button>
@@ -6508,8 +7020,7 @@
                             onclick="window.resetPrimaryStructure()">
                             <i class="fa-solid fa-rotate"></i> تهيئة الابتدائية
                         </button>
-                        <button class="btn-glow" style="background:#ff4444; border-color:#ff4444; font-size:0.8rem;"
-                            onclick="deleteAllStudents()">🗑️ حذف الكل</button>
+                        <!-- أُزيل زر «حذف الكل» — 2026-09-03 بطلب الإدارة. الحذف يتم لطالب واحد في كل مرة من نافذة تعديل الطالب. -->
                     </div>
                 </div>
 
@@ -6529,6 +7040,13 @@
                         </select>
                     </div>
                     <div style="flex:1; min-width:130px;">
+                        <select id="admin-filter-gender" class="cyber-input" style="width:100%;" onchange="renderAdminLists()">
+                            <option value="all">👥 الجنس: الجميع</option>
+                            <option value="male">♂ الذكور</option>
+                            <option value="female">♀ الإناث</option>
+                        </select>
+                    </div>
+                    <div style="flex:1; min-width:130px;">
                         <select id="admin-filter-section" class="cyber-input" style="width:100%;" onchange="renderAdminLists()">
                             <option value="all">🏫 جميع الشعب</option>
                         </select>
@@ -6545,6 +7063,7 @@
                 <table class="cyber-table" style="width:100%;">
                     <thead>
                         <tr>
+                                            <th style="width:46px;">ت</th>
                             <th>الرمز</th>
                             <th>الاسم</th>
                             <th>الشعبة</th>
@@ -6555,7 +7074,7 @@
                     </thead>
                     <tbody id="admin-students-table">
                         <tr>
-                            <td colspan="6" style="text-align:center; padding:20px; color:#aaa;">جاري تحميل البيانات...
+                            <td colspan="7" style="text-align:center; padding:20px; color:#aaa;">جاري تحميل البيانات...
                             </td>
                         </tr>
                     </tbody>
@@ -6902,7 +7421,7 @@
                     <button onclick="openFixerTool()" style="display:flex; align-items:center; gap:8px; background:#eff6ff; border:1.5px solid #c7d9f8; color:#1a56db; padding:10px 18px; border-radius:12px; font-family:'Cairo',sans-serif; font-size:0.9rem; font-weight:700; cursor:pointer;">🛠️ صيانة البيانات</button>
                     <button onclick="adminChangePassword()" style="display:flex; align-items:center; gap:8px; background:#f0fdf4; border:1.5px solid #bbf7d0; color:#059669; padding:10px 18px; border-radius:12px; font-family:'Cairo',sans-serif; font-size:0.9rem; font-weight:700; cursor:pointer;">🔑 تغيير كلمة السر</button>
                     <button onclick="location.reload()" style="display:flex; align-items:center; gap:8px; background:#f8faff; border:1.5px solid #e2e8f0; color:#475569; padding:10px 18px; border-radius:12px; font-family:'Cairo',sans-serif; font-size:0.9rem; font-weight:700; cursor:pointer;">🔄 إعادة تحميل</button>
-                    <button id="btn-system-reset-settings" onclick="systemHardReset()" style="display:none; align-items:center; gap:8px; background:#fff1f2; border:1.5px solid #fecdd3; color:#dc2626; padding:10px 18px; border-radius:12px; font-family:'Cairo',sans-serif; font-size:0.9rem; font-weight:700; cursor:pointer;">💣 تصفير النظام</button>
+                    <!-- أُزيل زر «تصفير النظام» — 2026-09-03 بطلب الإدارة -->
                 </div>
             </div>
 
@@ -7027,23 +7546,23 @@
                     </div>
                 </div>
 
-                <div id="super-admin-maintenance" style="text-align:center; margin-top: 30px; border-top: 2px solid rgba(255,0,0,0.3); padding-top: 20px; display:none;">
-                    <h3 style="color:#ff4444; margin-bottom:10px;">⚠️ صيانة الهيكلية والنظام</h3>
-                    <p style="color:#aaa; font-size:0.85rem; margin-bottom:15px;">هذا الزر يقوم بمسح كافة الشعب القديمة في جميع الفروع لتفعيل نظام الفرز الرقمي الجديد (1، 2، 3...).</p>
-                    <button class="btn-glow" style="width:300px; background:#ff4444; border-color:red; font-weight:bold;" onclick="resetAllSchoolStructures()">
-                        🔄 تصفير الهيكلية لجميع الفروع
+                <div id="super-admin-maintenance" style="margin-top:30px; border-top:2px solid rgba(46,204,113,.35); padding-top:20px;">
+                <h3 style="color:#2ecc71; margin-bottom:6px;">🛡️ الحماية والنسخ الاحتياطي</h3>
+                <p style="color:#aaa; font-size:0.85rem; margin-bottom:16px; line-height:1.8;">
+                    تُحفظ نسخة من هيكلية الفرع تلقائياً قبل كل تعديل، وتُرسل نسخة كاملة من قاعدة البيانات
+                    إلى تليجرام مرة كل يوم.
+                </p>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center;">
+                    <button class="btn-glow" style="background:#1e3a8a; border-color:#1e3a8a; font-size:.85rem;"
+                        onclick="openStructureBackups((currentUser&&currentUser?.branchId)||'samawah')">
+                        🛡️ نسخ الهيكلية واسترجاعها
+                    </button>
+                    <button class="btn-glow" style="background:#0d9488; border-color:#0d9488; font-size:.85rem;"
+                        onclick="runDailyBackup(true)">
+                        📤 إرسال نسخة احتياطية الآن
                     </button>
                 </div>
-
-                <div style="text-align:center; margin-top: 40px;">
-                    <button class="btn-glow"
-                        style="width:300px; background:var(--primary); color:#000; font-weight:bold; font-size:1.2rem;"
-                        onclick="saveSiteSettings()">
-                        <i class="fa-solid fa-floppy-disk"></i> حفظ كافة الإعدادات
-                    </button>
-                    <p style="color:#666; font-size:0.8rem; margin-top:10px;">* سيتم حفظ هذه الإعدادات في السحابة
-                        وتحديثها لجميع الزوار فوراً.</p>
-                </div>
+                <div id="backup-status" style="margin-top:14px; font-size:.9rem; color:#ccc;">—</div>
             </div>
         </div>
 
@@ -7064,7 +7583,7 @@
                 modal.style.display = 'flex';
                 renderStructureEditor();
                 // تحميل حد الشعبة من Firebase
-                const bId = currentUser ? (currentUser.branchId || 'samawah') : 'samawah';
+                const bId = currentUser ? (currentUser?.branchId || 'samawah') : 'samawah';
                 const capSnap = await _restGet('settings/branches/' + bId + '/sectionCapacity');
                 const capEl = document.getElementById('section-capacity-input');
                 if (capEl) capEl.value = capSnap.val() || 25;
@@ -7096,8 +7615,10 @@
                     let stagesHtml = '';
                     _asEditArr(dept.stages).forEach((stage, stIdx) => {
                         if (!stage) return;
-                        let sectionsHtml = _asEditArr(stage.sections).map((s, sIdx) => `
-                            <span style="display:inline-flex;align-items:center;gap:3px;background:#eff6ff;color:#1a56db;border:1px solid #c7d9f8;border-radius:20px;padding:2px 10px;font-size:0.75rem;margin:2px;">
+                        const _secArr = _asEditArr(stage.sections);
+                        let sectionsHtml = _secArr.map((s, sIdx) => `
+                            <span style="display:inline-flex;align-items:center;gap:4px;background:#eff6ff;color:#1a56db;border:1px solid #c7d9f8;border-radius:20px;padding:2px 10px;font-size:0.75rem;margin:2px;">
+                                <b style="background:#1a56db;color:#fff;border-radius:50%;width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;font-size:0.62rem;flex-shrink:0;">${sIdx + 1}</b>
                                 ${s.name}
                                 <button onclick="removeSection(${dIdx},${stIdx},${sIdx})" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:0.85rem;padding:0;">×</button>
                             </span>`).join('');
@@ -7105,7 +7626,9 @@
                         stagesHtml += `
                             <div style="background:#f8faff;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px;margin-bottom:8px;">
                                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
-                                    <span style="font-size:0.78rem;font-weight:700;color:#475569;">${stage.name}</span>
+                                    <span style="font-size:0.78rem;font-weight:700;color:#475569;">${stage.name}
+                                        <span style="background:#e2e8f0;color:#475569;border-radius:20px;padding:1px 7px;font-size:0.65rem;font-weight:800;margin-right:4px;">${_secArr.length} شعبة</span>
+                                    </span>
                                     <div style="display:flex;gap:4px;">
                                         <input id="sect-input-${dIdx}-${stIdx}" onkeydown="if(event.key==='Enter')addSection(${dIdx},${stIdx})"
                                             style="padding:4px 8px;font-size:0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;outline:none;width:85px;font-family:'Cairo',sans-serif;" placeholder="شعبة...">
@@ -7126,9 +7649,10 @@
                         <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
                             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #f1f5f9;">
                                 <div style="display:flex;align-items:center;gap:8px;">
-                                    <div style="width:8px;height:8px;border-radius:50%;background:linear-gradient(135deg,#1a56db,#6366f1);flex-shrink:0;"></div>
+                                    <div style="width:22px;height:22px;border-radius:7px;background:linear-gradient(135deg,#1a56db,#6366f1);color:#fff;font-size:0.72rem;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${dIdx + 1}</div>
                                     <span style="font-size:0.95rem;font-weight:800;color:#1e293b;">${dept.name}</span>
                                     <span style="background:#eff6ff;color:#1a56db;border-radius:20px;padding:1px 8px;font-size:0.7rem;font-weight:700;">${(dept.subjects||[]).length} مادة</span>
+                                    <span style="background:#f1f5f9;color:#475569;border-radius:20px;padding:1px 8px;font-size:0.7rem;font-weight:700;">${_asEditArr(dept.stages).reduce((n, st) => n + (st ? _asEditArr(st.sections).length : 0), 0)} شعبة</span>
                                 </div>
                                 <button onclick="removeDept(${dIdx})" style="background:#fff1f2;border:1.5px solid #fecaca;color:#dc2626;border-radius:8px;padding:4px 12px;font-size:0.75rem;cursor:pointer;font-weight:700;">حذف القسم</button>
                             </div>
@@ -7345,7 +7869,7 @@
                     const old = _asEditArr(existing).find(d => d && d.name === newDept.name);
                     return { ...newDept, subjects: (old && old.subjects && old.subjects.length) ? old.subjects : [] };
                 });
-                await _restSet('settings/branches/primary/structure', merged);
+                await saveStructureGuarded('primary', merged, 'تهيئة الابتدائية');
                 await _restSet('settings/primaryStructureVersion', PRIMARY_VERSION);
                 console.log('✅ تمت تهيئة هيكلية الابتدائية');
                 if (typeof updateFiltersAndSelects === 'function') updateFiltersAndSelects();
@@ -7360,7 +7884,7 @@
                     const old = _asEditArr(existing).find(d => d && d.name === newDept.name);
                     return { ...newDept, subjects: (old && old.subjects && old.subjects.length) ? old.subjects : [] };
                 });
-                await _restSet('settings/branches/primary/structure', merged);
+                await saveStructureGuarded('primary', merged, 'تهيئة الابتدائية');
                 await _restSet('settings/primaryStructureVersion', PRIMARY_VERSION);
                 showCustomAlert('تم', 'تم إعادة تهيئة شعب الابتدائية مع الحفاظ على المواد ✅', 'success');
                 if (typeof updateFiltersAndSelects === 'function') updateFiltersAndSelects();
@@ -7381,7 +7905,7 @@
                         const old = _asEditArr(existing).find(d => d && d.name === newDept.name);
                         return { ...newDept, subjects: (old && old.subjects && old.subjects.length) ? old.subjects : [] };
                     });
-                    await _restSet('settings/branches/' + branchId + '/structure', merged);
+                    await saveStructureGuarded(branchId, merged, 'تهيئة الاختصاصات');
                 }
                 await _restSet('settings/vocStructureVersion', VOC_VERSION);
                 console.log('✅ تمت تهيئة الاختصاصات الـ12 للفروع المهنية');
@@ -7402,7 +7926,7 @@
                         const old = _asEditArr(existing).find(d => d && d.name === newDept.name);
                         return { ...newDept, subjects: (old && old.subjects && old.subjects.length) ? old.subjects : [] };
                     });
-                    await _restSet('settings/branches/' + branchId + '/structure', merged);
+                    await saveStructureGuarded(branchId, merged, 'تهيئة الاختصاصات');
                 }
                 await _restSet('settings/vocStructureVersion', VOC_VERSION);
                 showCustomAlert('تم', 'تم إعادة تهيئة الشعب مع الحفاظ على المواد الدراسية ✅', 'success');
@@ -7413,11 +7937,11 @@
             // 7. SAVE
             // 7. SAVE
             window.saveStructureConfig = async function () {
-                const bId = currentUser ? (currentUser.branchId || 'samawah') : 'samawah';
+                const bId = currentUser ? (currentUser?.branchId || 'samawah') : 'samawah';
                 const btn = document.querySelector('#structure-modal button[onclick="saveStructureConfig()"]');
                 if (btn) { btn.disabled = true; btn.textContent = '⏳ جاري الحفظ...'; }
                 try {
-                    await _restSet('settings/branches/' + bId + '/structure', window.schoolStructure);
+                    await saveStructureGuarded(bId, window.schoolStructure, 'حفظ من مدير الهيكلية');
                     // إعادة تحميل من Firebase لضمان التزامن مع ما سيراه نافذة التعديل
                     const freshSnap = await _restGet('settings/branches/' + bId + '/structure');
                     if (freshSnap.val()) window.schoolStructure = freshSnap.val();
@@ -7488,9 +8012,12 @@
                     if (el) el.innerHTML = (id === 'admin-student-filter') ? filterHtml : optionsHtml;
                 });
 
-                // D. Force Table Repaint if exists
+                // D. Force Table Repaint — لوحة الإدارة المفتوحة فقط.
+                // كانت تُستدعى بلا شرط، فيسحب كل زائر (حتى المجهول) شجرة users
+                // كاملة (~344 كيلوبايت) لرسم جدول لا يراه أحد.
                 if (typeof renderAdminLists === 'function') {
-                    setTimeout(renderAdminLists, 50);
+                    const _dash = document.getElementById('admin-dash');
+                    if (_dash && _dash.classList.contains('active')) setTimeout(renderAdminLists, 50);
                 }
             };
 
@@ -7850,8 +8377,8 @@
             const data = window._adminPrintData || [];
             if (!data.length) return alert('لا يوجد طلاب لطباعتهم');
 
-            const branchName = currentUser && window.NAHRAIN_BRANCHES && window.NAHRAIN_BRANCHES[currentUser.branchId]
-                ? window.NAHRAIN_BRANCHES[currentUser.branchId].name
+            const branchName = currentUser && window.NAHRAIN_BRANCHES && window.NAHRAIN_BRANCHES[currentUser?.branchId]
+                ? window.NAHRAIN_BRANCHES[currentUser?.branchId].name
                 : 'إعدادية النهرين المهنية';
 
             // Build filter label from 3 dropdowns
@@ -7861,7 +8388,9 @@
             const deptLabel    = deptEl?.value    !== 'all' ? deptEl.options[deptEl.selectedIndex].text    : '';
             const stageLabel   = stageEl?.value   !== 'all' ? stageEl.options[stageEl.selectedIndex].text  : '';
             const sectionLabel = sectionEl?.value !== 'all' ? sectionEl.options[sectionEl.selectedIndex].text : '';
-            const filterLabel = [deptLabel, stageLabel, sectionLabel].filter(Boolean).join(' / ') || 'جميع الطلاب';
+            const genEl = document.getElementById('admin-filter-gender');
+            const genLabel = (genEl && genEl.value === 'male') ? 'الذكور' : (genEl && genEl.value === 'female') ? 'الإناث' : '';
+            const filterLabel = [deptLabel, stageLabel, sectionLabel, genLabel].filter(Boolean).join(' / ') || 'جميع الطلاب';
 
             let tableRows = '';
             data.forEach((s, i) => {
@@ -7989,38 +8518,70 @@
         }
 
         // === REALTIME SYNC (via REST polling — WebSocket blocked on this network) ===
-        // 1. Pull from Cloud on Load
-        _restWatch('schoolDB', (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                if (data.students) localStorage.setItem('nahr_students_db', JSON.stringify(data.students));
-                if (data.staff) localStorage.setItem('nahr_staff_db', JSON.stringify(data.staff));
-                if (data.apps) {
-                    // Ensure apps is stored as Array for local render compatibility
-                    const appsList = Array.isArray(data.apps) ? data.apps : Object.values(data.apps);
-                    localStorage.setItem('nahr_apps_db', JSON.stringify(appsList));
-                }
+        // 2026-09-05 — إعادة بناء المزامنة. ما كان يحدث قبل هذا التاريخ:
+        //   • سحب فرع schoolDB كاملاً (~1 ميغابايت، 98% منه صور تواقيع لا يقرأها
+        //     الموقع الرئيسي إطلاقاً) كل 60 ثانية، ولكل زائر، حتى بلا تسجيل دخول.
+        //   • سحب شجرة users كاملة (~344 كيلوبايت) كل 60 ثانية ليُكتب في
+        //     nahr_users_db — وهو مفتاح لا يقرأه أي جزء من النظام.
+        //   • رفع gallery/honor بقيمة null حين تكون الذاكرة المحلية فارغة،
+        //     و null في Firebase أمرُ حذفٍ لا «تجاهُل» — فكان متصفحٌ ذاكرتُه
+        //     فارغة يمسح بيانات السحابة كل دقيقة بصمت.
 
-                // Sync New Features (Gallery & Honor Roll)
-                if (data.gallery) {
-                    localStorage.setItem('school_gallery_data', JSON.stringify(data.gallery));
-                    loadGallerySettings(); // Refresh UI if open
-                }
-                if (data.honor) {
-                    localStorage.setItem('school_honor_data', JSON.stringify(data.honor));
-                    loadHonorSettings(); // Refresh UI if open
-                }
+        // المفاتيح الخمسة الوحيدة التي تستهلكها هذه المزامنة من schoolDB (~2 كيلوبايت).
+        const _SYNC_KEYS = [
+            { k: 'students', ls: 'nahr_students_db' },
+            { k: 'staff',    ls: 'nahr_staff_db' },
+            { k: 'apps',     ls: 'nahr_apps_db', asArray: true },
+            { k: 'gallery',  ls: 'school_gallery_data', after: 'loadGallerySettings' },
+            { k: 'honor',    ls: 'school_honor_data',   after: 'loadHonorSettings' }
+        ];
 
-                console.log("☁️ Data Synced from Cloud");
+        // نسجّل ما وصل فعلاً من السحابة. حلقة الرفع لا ترفع مفتاحاً لم يصلها،
+        // حتى لا يكتب متصفحٌ لم يقرأ السحابة بعدُ فوق بياناتها.
+        window._syncFetched = {};
+
+        // 1. Pull from Cloud — مسارات مستهدفة بدل الفرع كاملاً
+        function _pullSchoolDB() {
+            if (document.visibilityState === 'hidden') return;   // تبويب في الخلفية: لا نستهلك
+            _SYNC_KEYS.forEach(s => {
+                _restGet('schoolDB/' + s.k).then(snap => {
+                    const val = snap.val();
+                    if (val === null || val === undefined) return;   // فارغ في السحابة: لا نمسح المحلي
+                    const out = (s.asArray && !Array.isArray(val)) ? Object.values(val) : val;
+                    localStorage.setItem(s.ls, JSON.stringify(out));
+                    window._syncFetched[s.k] = true;
+                    if (s.after && typeof window[s.after] === 'function') {
+                        try { window[s.after](); } catch (e) {}
+                    }
+                }).catch(() => {});
+            });
+        }
+        _pullSchoolDB();
+        setInterval(_pullSchoolDB, 60000);
+
+        // تحديث قائمة الإدارة — لا سحب إلا واللوحة مفتوحة والتبويب ظاهر.
+        // renderAdminLists تجلب بياناتها بنفسها، فلا حاجة لاستطلاع users منفصل.
+        setInterval(() => {
+            if (document.visibilityState === 'hidden') return;
+            const dash = document.getElementById('admin-dash');
+            if (dash && dash.classList.contains('active') && typeof renderAdminLists === 'function') {
+                renderAdminLists();
             }
-        }, null, 60000);
+        }, 60000);
 
-        // Sync Auth Users Data
-        _restWatch('users', (snapshot) => {
-            localStorage.setItem('nahr_users_db', JSON.stringify(snapshot.val() || {}));
-            // Refresh if Admin Dash is open
-            if (document.getElementById('admin-dash').classList.contains('active')) renderAdminLists();
-        }, null, 60000);
+        /** يبني حمولة الرفع ويرفض كل ما قد يمحو بيانات السحابة */
+        window._buildSyncPayload = function () {
+            const out = {};
+            _SYNC_KEYS.forEach(s => {
+                if (!window._syncFetched[s.k]) return;      // لم يصلنا من السحابة بعد
+                let v;
+                try { v = JSON.parse(localStorage.getItem(s.ls)); } catch (e) { return; }
+                if (v === null || typeof v !== 'object') return;   // null = أمر حذف
+                if (Object.keys(v).length === 0) return;           // فارغ: لا يُرفع أبداً
+                out[s.k] = v;
+            });
+            return out;
+        };
 
         // 2. Push to Cloud periodically (Auto-Backup) — admins only, via REST.
         // Was every 5s via SDK: on WebSocket-blocked networks the SDK write hangs and
@@ -8032,13 +8593,8 @@
                 || email === 'hassanhadi19996@gmail.com' || email === 'alnahrain.school@gmail.com';
             if (!canBackup) return; // non-admins can't write schoolDB anyway — don't waste cycles
 
-            const data = {
-                students: JSON.parse(localStorage.getItem('nahr_students_db') || '{}'),
-                staff: JSON.parse(localStorage.getItem('nahr_staff_db') || '{}'),
-                apps: JSON.parse(localStorage.getItem('nahr_apps_db') || '[]'),
-                gallery: JSON.parse(localStorage.getItem('school_gallery_data') || 'null'),
-                honor: JSON.parse(localStorage.getItem('school_honor_data') || 'null')
-            };
+            const data = window._buildSyncPayload();
+            if (!Object.keys(data).length) return;   // لا شيء آمن للرفع
             _restUpdate('schoolDB', data).catch(() => {});
         }, 60000);
         // ======================================================================
@@ -8155,7 +8711,7 @@
 
         function showBranchSelection() {
             if (currentUser && (currentUser.role === 'student' || currentUser.role === 'teacher')) {
-                const myBranch = window.NAHRAIN_BRANCHES[currentUser.branchId];
+                const myBranch = window.NAHRAIN_BRANCHES[currentUser?.branchId];
                 showCustomAlert('توجيه تلقائي', `أنت مسجّل في: ${myBranch ? myBranch.name : 'فرعك المسجّل'}`, 'info');
                 if (currentUser.role === 'student') openStudentDashboard(currentUser);
                 else openDashboard('teacher');
@@ -8198,7 +8754,7 @@
 
                 // Samawah branch logic
                 const samawahGroup = ['samawah', 'primary', 'evening'];
-                const isSamawahAccountant = (currentUser && currentUser.role === 'accountant' && samawahGroup.includes(currentUser.branchId));
+                const isSamawahAccountant = (currentUser && currentUser.role === 'accountant' && samawahGroup.includes(currentUser?.branchId));
 
                 const overlay = document.getElementById('branch-selection-overlay');
                 if (overlay) overlay.style.display = 'none';
@@ -8218,7 +8774,7 @@
                         // 1. Update branch ID
                         currentUser.branchId = branchId;
                         sessionStorage.setItem('activeBranch', branchId);
-                        console.log("Branch ID updated to:", currentUser.branchId);
+                        console.log("Branch ID updated to:", currentUser?.branchId);
 
                         // 2. Apply visual identity
                         applyBranchIdentity();
@@ -8241,7 +8797,7 @@
                     } else {
                         // Student or teacher: redirect to their own branch instead of warning
                         if (overlay) overlay.style.display = 'none';
-                        const myBranch = window.NAHRAIN_BRANCHES[currentUser.branchId];
+                        const myBranch = window.NAHRAIN_BRANCHES[currentUser?.branchId];
                         const myBranchName = myBranch ? myBranch.name : 'فرعك المسجّل';
                         showCustomAlert('توجيه تلقائي', `أنت مسجّل في: ${myBranchName}`, 'info');
                         if (currentUser.role === 'student') {
@@ -8267,7 +8823,7 @@
 
         // Modify loadAdminStructure to fetch branch-specific structure
         async function loadAdminStructure() {
-            let bId = currentUser ? (currentUser.branchId || 'samawah') : (sessionStorage.getItem('activeBranch') || window.pendingRegistrationBranch || 'samawah');
+            let bId = currentUser ? (currentUser?.branchId || 'samawah') : (sessionStorage.getItem('activeBranch') || window.pendingRegistrationBranch || 'samawah');
             const snap = await _restGet('settings/branches/' + bId + '/structure');
             if (snap.exists()) {
                 window.schoolStructure = snap.val();
@@ -8365,8 +8921,8 @@
 
 
         function getCurrentBranch() {
-            if (!currentUser || !currentUser.branchId) return null;
-            return window.NAHRAIN_BRANCHES[currentUser.branchId] || window.NAHRAIN_BRANCHES['samawah'];
+            if (!currentUser || !currentUser?.branchId) return null;
+            return window.NAHRAIN_BRANCHES[currentUser?.branchId] || window.NAHRAIN_BRANCHES['samawah'];
         }
         // ================================================================
         // Global User Object
@@ -8654,6 +9210,9 @@
         function _resetLoginAttempts() { _loginAttempts.count = 0; _loginAttempts.lockedUntil = 0; }
 
         async function completeLogin(u) {
+            // نسخة احتياطية يومية تلقائية إلى تليجرام (مدير فقط، مرة كل يوم)
+            setTimeout(() => { try { window.runDailyBackup && window.runDailyBackup(false); } catch (e) {} }, 6000);
+
             if (_loginDone) return;   // prevent double-call
             _loginDone = true;
             if (_loginSafetyTimer) { clearTimeout(_loginSafetyTimer); _loginSafetyTimer = null; }
@@ -9098,7 +9657,7 @@
 
             if (structure.length === 0) {
                 // Try async fetch if missing
-                let bId = currentUser ? (currentUser.branchId || 'samawah') : 'samawah';
+                let bId = currentUser ? (currentUser?.branchId || 'samawah') : 'samawah';
                 _restGet('settings/branches/' + bId + '/structure').then(snap => {
                     const data = snap.val();
                     if (data) {
@@ -9190,7 +9749,52 @@
             };
         }
 
+
+        /**
+         * يقصر قائمة شعب المعلم على الشعب المسنَدة إليه في سجله (users/<uid>/classes)،
+         * ويختار أولاها تلقائياً حتى تمتلئ مؤشرات الترويسة فور الدخول
+         * بدل أن تبقى «--» ويظن المعلم أن البوابة معطّلة.
+         *
+         * إن لم تُسنَد له شعب بعد، تبقى كل شعب الفرع متاحة (كما كان) مع تنبيه للإدارة.
+         */
+        window.applyTeacherClassScope = function () {
+            const sel = document.getElementById('teacher-class-select');
+            if (!sel || !currentUser || currentUser.role !== 'teacher') return;
+
+            let mine = currentUser.classes || currentUser.classIds || [];
+            if (mine && !Array.isArray(mine)) mine = Object.keys(mine);
+            mine = (mine || []).filter(Boolean);
+
+            if (mine.length) {
+                let kept = 0;
+                [...sel.querySelectorAll('option')].forEach(o => {
+                    if (!o.value) return;
+                    if (mine.includes(o.value)) kept++;
+                    else o.remove();
+                });
+                [...sel.querySelectorAll('optgroup')].forEach(g => {
+                    if (!g.querySelector('option')) g.remove();
+                });
+                if (!kept) {
+                    sel.innerHTML = '<option value="" disabled selected>⚠️ لم تُسنَد لك شعب — راجع الإدارة</option>';
+                    return;
+                }
+            } else {
+                const hint = document.getElementById('teacher-scope-hint');
+                if (hint) hint.style.display = 'block';
+            }
+
+            // اختيار أول شعبة تلقائياً وتشغيل ما يتبعها
+            const first = [...sel.querySelectorAll('option')].find(o => o.value);
+            if (first && !sel.value) {
+                sel.value = first.value;
+                sel.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        };
+
         function openDashboard(type) {
+            try { document.body.classList.add('dash-open'); } catch(e){}
+            setTimeout(() => { try { window.applyTeacherClassScope && window.applyTeacherClassScope(); } catch(e){} }, 700);
             const role = (currentUser && currentUser.role) || 'student';
             const email = (currentUser && currentUser.email || '').toLowerCase();
             const isSuperAdmin = (role === 'superadmin' || currentUser?.isSuperAdmin || email === 'hassanhadi19996@gmail.com' || email === 'alnahrain.school@gmail.com');
@@ -9281,6 +9885,7 @@
         }
 
         function closeDashboards() {
+            try { document.body.classList.remove('dash-open'); } catch(e){}
             document.querySelectorAll('.dashboard-overlay').forEach(d => d.classList.remove('active'));
             document.body.style.overflow = 'auto';
             document.documentElement.style.overflow = '';
@@ -9522,6 +10127,9 @@
             // Limit check (Optional: If Base64 is too massive, localStorage might fail, but for now we assume < 5MB)
             try {
                 localStorage.setItem('school_gallery_data', JSON.stringify(newData));
+                // حفظ صريح في السحابة فوراً — لا ننتظر حلقة الرفع الدورية
+                window._syncFetched.gallery = true;
+                _restSet('schoolDB/gallery', newData).catch(() => {});
                 loadGallerySettings(); // Refresh Frontend immediately
                 alert('تم حفظ الصور والعناوين الجديدة بنجاح! ✅');
             } catch (e) {
@@ -9592,6 +10200,9 @@
             };
 
             localStorage.setItem('school_honor_data', JSON.stringify(newData));
+            // حفظ صريح في السحابة فوراً — لا ننتظر حلقة الرفع الدورية
+            window._syncFetched.honor = true;
+            _restSet('schoolDB/honor', newData).catch(() => {});
             loadHonorSettings(); // Refresh view immediately
             alert('تم تحديث قائمة الأوائل بنجاح! 🏆\nHonor Roll updated successfully!');
         }
@@ -9830,7 +10441,7 @@
             if (!listEl || !currentUser) return;
             listEl.innerHTML = '<div style="text-align:center;padding:30px;color:#94a3b8;font-size:0.85rem;">جاري التحميل...</div>';
 
-            const branchId = currentUser.branchId || '';
+            const branchId = currentUser?.branchId || '';
             const classId  = currentUser.classId  || currentUser.section || '';
 
             _restGet('schoolDB/uploads', { orderByChild: 'branchId', equalTo: branchId })
@@ -10639,10 +11250,10 @@
 
             const stdTbody = document.getElementById('admin-students-table');
             if (!stdTbody) return;
-            stdTbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px;">جاري تحميل قائمة الطلاب... <i class="fa-solid fa-spinner fa-spin"></i></td></tr>';
+            stdTbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px;">جاري تحميل قائمة الطلاب... <i class="fa-solid fa-spinner fa-spin"></i></td></tr>';
 
             if (typeof firebase === 'undefined' || !firebase.apps.length) {
-                stdTbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red;">خطأ: غير متصل بالسيرفر</td></tr>';
+                stdTbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:red;">خطأ: غير متصل بالسيرفر</td></tr>';
                 return;
             }
 
@@ -10654,16 +11265,19 @@
                 const canDelete = (isSuperOrAdmin || role === 'admin');
 
                 const searchVal = (document.getElementById('admin-student-search')?.value || '').toLowerCase().trim();
+                const genderVal = document.getElementById('admin-filter-gender')?.value || 'all';
                 const allStudents = [];
 
                 Object.keys(users).forEach(uid => {
                     const u = users[uid];
                     if (u.role === 'student') {
-                        if (u.branchId !== currentUser.branchId) return;
+                        if (u.branchId !== currentUser?.branchId) return;
                         if (u.graduated) return; // archived graduates hidden from active list
                         const nameMatch = (u.name || '').toLowerCase().includes(searchVal);
                         const emailMatch = (u.email || '').toLowerCase().includes(searchVal);
                         if (searchVal && !nameMatch && !emailMatch) return;
+                        // فلتر الجنس — يعزل الذكور عن الإناث في القائمة والطباعة والتصدير
+                        if (genderVal !== 'all' && (u.gender || '') !== genderVal) return;
 
                         allStudents.push({
                             uid: uid,
@@ -10672,6 +11286,7 @@
                             phone: u.phone,
                             isBlocked: u.isBlocked,
                             major: u.major || 'عام',
+                            gender: u.gender || '',
                             classId: u.classId || u.major || '',
                             revenue: u.totalPaid || 0
                         });
@@ -10745,9 +11360,9 @@
                 }
 
                 if (filteredStudents.length === 0) {
-                    stdTbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:20px;">لا يوجد طلاب في هذه القائمة.</td></tr>`;
+                    stdTbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px;">لا يوجد طلاب في هذه القائمة.</td></tr>`;
                 } else {
-                    stdTbody.innerHTML = filteredStudents.map(s => {
+                    stdTbody.innerHTML = filteredStudents.map((s, _i) => {
                         const whatsApp = s.phone ? `<a href="https://wa.me/${s.phone.replace(/[^0-9]/g, '').replace(/^0/, '+964')}" target="_blank" style="color:#25D366; font-size:1.2rem; text-decoration:none;"><i class="fa-brands fa-whatsapp"></i></a>` : '<span style="color:#555">-</span>';
                         const secInfo = sectionMap[s.classId];
                         const sectionCell = secInfo
@@ -10765,6 +11380,7 @@
                             : _btn('#dcfce7','حظر مؤقت','fa-solid fa-lock-open','#059669',`toggleStudentBlock('${s.uid}',false)`);
 
                         return `<tr>
+                            <td style="font-family:monospace;font-size:0.82rem;color:#64748b;text-align:center;font-weight:700;">${_i + 1}</td>
                             <td style="font-family:monospace;font-size:0.8rem;">${s.email ? s.email.split('@')[0] : 'No Email'}</td>
                             <td style="font-weight:bold;">${s.name}</td>
                             <td>${sectionCell}</td>
@@ -10788,7 +11404,7 @@
                     }).join('');
                 }
             }).catch(err => {
-                stdTbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:orange; padding:20px;">فشل جلب البيانات: ${escHtml(err.message)}</td></tr>`;
+                stdTbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:orange; padding:20px;">فشل جلب البيانات: ${escHtml(err.message)}</td></tr>`;
             });
             renderAdminStaffList();
             renderAdminApps();
@@ -11950,7 +12566,7 @@
             _restPush('activityLog', {
                 action, detail: detail||'',
                 by: currentUser.name || currentUser.email || 'مجهول',
-                branchId: currentUser.branchId || '',
+                branchId: currentUser?.branchId || '',
                 timestamp: Date.now()
             }).catch(()=>{});
         }
@@ -11993,7 +12609,7 @@
                 Object.keys(users).forEach(uid => {
                     const u = users[uid];
                     if (!['teacher','admin','accountant','registrar'].includes(u.role)) return;
-                    if (!(u.branchId === currentUser.branchId || u.isSuperAdmin || isSuperOwner)) return;
+                    if (!(u.branchId === currentUser?.branchId || u.isSuperAdmin || isSuperOwner)) return;
                     found = true;
 
                     const isSA = u.isSuperAdmin || u.email === 'hassanhadi19996@gmail.com';
@@ -12071,7 +12687,7 @@
                 Object.keys(apps).forEach(key => {
                     const a = apps[key];
                     // Branch Isolation
-                    if (currentUser && (a.branchId === currentUser.branchId || (currentUser.branchId === 'samawah' && !a.branchId) || currentUser.isSuperAdmin || currentUser.email === 'hassanhadi19996@gmail.com')) {
+                    if (currentUser && (a.branchId === currentUser?.branchId || (currentUser?.branchId === 'samawah' && !a.branchId) || currentUser.isSuperAdmin || currentUser.email === 'hassanhadi19996@gmail.com')) {
                         found = true;
                         html += `
                         <tr>
@@ -12157,7 +12773,7 @@
                 document.getElementById('edit-s-document').value = s.documentStatus || 'لم يجلب';
                 document.getElementById('edit-s-tuition').value = (s.finance && s.finance.tuition != null) ? s.finance.tuition : (s.tuition || 0);
                 // جلب البنية مباشرة من Firebase بدل الاعتماد على window.schoolStructure
-                const bId = s.branchId || (currentUser && currentUser.branchId) || 'samawah';
+                const bId = s.branchId || (currentUser && currentUser?.branchId) || 'samawah';
                 const structSnap = await _restGet('settings/branches/' + bId + '/structure');
                 _editModalStructure = structSnap.val ? structSnap.val() : null;
                 if (!_editModalStructure) _editModalStructure = window.schoolStructure || null;
@@ -12576,8 +13192,71 @@
                     </label>`;
                 });
                 container.innerHTML = html || '<div style="color:orange; grid-column:1/-1;">لم يتم العثور على مواد في الهيكلية.</div>';
+                try { toggleTeacherClassesUI(u.role || 'teacher'); buildTeacherClassChecklist(u.branchId || (currentUser && currentUser.branchId), u.classes || []); } catch (e) { console.warn('class checklist', e); }
             });
         }
+
+
+        /**
+         * يبني قائمة شعب الفرع للتأشير في نافذة تعديل المعلم.
+         * الشعب مجمّعة تحت القسم والمرحلة كما في الهيكلية.
+         * فارغة = كل شعب الفرع متاحة (السلوك السابق) — حتى لا يتعطّل معلم قائم.
+         */
+        window.buildTeacherClassChecklist = function (branchId, assigned) {
+            const box = document.getElementById('class-checklist');
+            const wrap = document.getElementById('teacher-classes-wrap');
+            if (!box || !wrap) return;
+            assigned = Array.isArray(assigned) ? assigned : (assigned ? Object.keys(assigned) : []);
+
+            const st = Array.isArray(window.schoolStructure) ? window.schoolStructure : [];
+            if (!st.length) {
+                box.innerHTML = '<div style="color:#b45309; font-size:0.85rem;">لم تُحمَّل هيكلية الفرع بعد.</div>';
+                return;
+            }
+            let html = '';
+            st.forEach(dept => {
+                if (!dept) return;
+                const stages = _asEditArr(dept.stages);
+                let inner = '';
+                stages.forEach(stg => {
+                    if (!stg) return;
+                    const secs = _asEditArr(stg.sections).filter(x => x && x.id);
+                    if (!secs.length) return;
+                    inner += `<div style="margin:8px 0 4px; font-size:0.78rem; color:#64748b; font-weight:600;">${escHtml(stg.name || '')}</div>
+                        <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:6px;">` +
+                        secs.map(sc => {
+                            const on = assigned.includes(sc.id) ? 'checked' : '';
+                            return `<label style="display:flex; align-items:center; gap:6px; background:#f8faff; padding:7px 9px; border-radius:8px; cursor:pointer; font-size:0.82rem; border:1px solid #e8edf8; color:#1e293b;">
+                                <input type="checkbox" class="tclass-cb" value="${sc.id}" ${on} onchange="updateTeacherClassCount()"> ${escHtml(sc.name || sc.id)}
+                            </label>`;
+                        }).join('') + '</div>';
+                });
+                if (inner) {
+                    html += `<div style="margin-bottom:12px;">
+                        <div style="font-weight:700; color:#1a56db; font-size:0.88rem;">${escHtml(dept.name || '')}</div>${inner}</div>`;
+                }
+            });
+            box.innerHTML = html || '<div style="color:#b45309; font-size:0.85rem;">لا توجد شعب في هذا الفرع.</div>';
+            updateTeacherClassCount();
+        };
+
+        window.updateTeacherClassCount = function () {
+            const n = document.querySelectorAll('.tclass-cb:checked').length;
+            const all = document.querySelectorAll('.tclass-cb').length;
+            const el = document.getElementById('teacher-classes-count');
+            if (el) el.textContent = n ? `${n} من ${all} شعبة` : 'لم تُحدَّد شعب — كل الفرع متاح';
+        };
+
+        window.toggleAllTeacherClasses = function (on) {
+            document.querySelectorAll('.tclass-cb').forEach(cb => { cb.checked = !!on; });
+            updateTeacherClassCount();
+        };
+
+        // إظهار قسم الشعب للمعلمين فقط
+        window.toggleTeacherClassesUI = function (role) {
+            const wrap = document.getElementById('teacher-classes-wrap');
+            if (wrap) wrap.style.display = (role === 'teacher') ? 'block' : 'none';
+        };
 
         async function saveTeacherSubjects() {
             if (!currentEditingTeacherUID) return;
@@ -12606,6 +13285,10 @@
                 role: newRole,
                 subjects: selected
             };
+            // الشعب المسنَدة للمعلم — فارغة تعني «كل شعب الفرع»
+            if (newRole === 'teacher') {
+                updates.classes = Array.from(document.querySelectorAll('.tclass-cb:checked')).map(cb => cb.value);
+            }
             if (newRole === 'registrar' || newRole === 'dataentry') {
                 const allowedBranches = Array.from(document.querySelectorAll('.edit-branch-cb:checked')).map(cb => cb.value);
                 if (!allowedBranches.length) return alert('يرجى تحديد فرع واحد على الأقل');
@@ -12701,7 +13384,7 @@
                 const deptIdx  = document.getElementById('bulk-dept').value;
                 const stageIdx = document.getElementById('bulk-stage').value;
                 if (deptIdx === '' || stageIdx === '') return alert("يرجى اختيار القسم والمرحلة أولاً ثم اكتب اسم الشعبة");
-                const brId = (currentUser && currentUser.branchId) || 'samawah';
+                const brId = (currentUser && currentUser?.branchId) || 'samawah';
                 const newId = `sec_${brId}_${deptIdx}_${stageIdx}_${Date.now()}`;
                 // أضف الشعبة للبنية
                 try {
@@ -12713,7 +13396,7 @@
                             const secs = _asEditArr(stage.sections);
                             secs.push({ id: newId, name: manualName });
                             stage.sections = secs;
-                            await _restSet(`settings/branches/${brId}/structure`, window.schoolStructure);
+                            await saveStructureGuarded(brId, window.schoolStructure, 'تعديل من الإدارة');
                         }
                     }
                 } catch(e) { console.warn('section create err', e); }
@@ -12726,7 +13409,7 @@
             if (!names.length) return;
             if (!await confirm(`إضافة ${names.length} طالب؟`)) return;
 
-            const branchId = currentUser.branchId || 'samawah';
+            const branchId = currentUser?.branchId || 'samawah';
             const updates  = {};
             const report   = [];   // لعرض الكودات للأدمن بعد الإضافة
             let failed = 0;
@@ -13289,7 +13972,7 @@
         }
 
         function _syncGbToResults(uid, changedKey, changedVal) {
-            const bId = currentUser ? (currentUser.branchId || 'samawah') : 'samawah';
+            const bId = currentUser ? (currentUser?.branchId || 'samawah') : 'samawah';
             const subject = window.gbSubject;
             const yearRaw = document.getElementById('gb-year-select')?.value;
             const y = new Date().getFullYear();
@@ -13320,7 +14003,7 @@
         }
 
         function printGradebook() {
-            const bId  = currentUser ? (currentUser.branchId || 'samawah') : 'samawah';
+            const bId  = currentUser ? (currentUser?.branchId || 'samawah') : 'samawah';
             const branch = window.NAHRAIN_BRANCHES ? window.NAHRAIN_BRANCHES[bId] : null;
             const schoolName = branch ? branch.name : 'إعدادية النهرين المهنية الأهلية';
             const logo = branch ? branch.logo : 'logo_samawah.jpg';
@@ -13754,7 +14437,7 @@
                     const u = users[uid];
                     const role = u.role || 'student';
                     if (role === 'student') return;
-                    if (u.branchId !== currentUser.branchId && !(currentUser.branchId === "samawah" && !u.branchId)) return;
+                    if (u.branchId !== currentUser?.branchId && !(currentUser?.branchId === "samawah" && !u.branchId)) return;
 
                     const name = u.name || 'مستخدم';
                     const email = u.email || '---';
@@ -13832,7 +14515,7 @@
                     if (!allowedBranches.length) { alert('يرجى تحديد فرع واحد على الأقل'); _restore(); return; }
                     branchForStaff = allowedBranches[0];
                 } else {
-                    branchForStaff = document.getElementById('new-staff-branch')?.value || (currentUser.branchId || 'samawah');
+                    branchForStaff = document.getElementById('new-staff-branch')?.value || (currentUser?.branchId || 'samawah');
                     allowedBranches = null;
                 }
                 // إنشاء حساب Firebase Auth فوراً بكلمة المرور الحقيقية → المفتاح = Auth uid
@@ -15332,7 +16015,7 @@
                 title, subject, classId,
                 by:       currentUser.name || '—',
                 uid:      currentUser.uid  || '',
-                branchId: currentUser.branchId || '',
+                branchId: currentUser?.branchId || '',
                 date:     new Date().toISOString()
             };
 
@@ -15356,7 +16039,7 @@
                     }
                     // Sanitize filename — remove path separators and dangerous chars
                     const safeName = file.name.replace(/[^a-zA-Z0-9._\-؀-ۿ]/g, '_');
-                    const path = `uploads/${currentUser.branchId || 'general'}/${Date.now()}_${safeName}`;
+                    const path = `uploads/${currentUser?.branchId || 'general'}/${Date.now()}_${safeName}`;
 
                     // Ensure Firebase Auth session is active (required by Storage security rules).
                     // Teachers log in via DB password — Firebase Auth may not be signed in.
@@ -15705,7 +16388,7 @@
                         });
                         structure[0].stages = stagesArr;
                         // Save the corrected structure
-                        _restSet('settings/branches/' + bId + '/structure', structure);
+                        saveStructureGuarded(bId, structure, 'تعديل الهيكلية');
                     }
                 } else {
                     // Fallback for Defaults
@@ -15783,7 +16466,7 @@
             const tuition = parseFloat(document.getElementById('auto-student-tuition').value) || 0;
             const gender = document.getElementById('auto-student-gender') ? document.getElementById('auto-student-gender').value : 'male';
             const bSelect = document.getElementById('auto-student-branch');
-            const branchId = bSelect ? bSelect.value : (currentUser ? currentUser.branchId : 'samawah');
+            const branchId = bSelect ? bSelect.value : (currentUser ? currentUser?.branchId : 'samawah');
             // إعدادية السماوة: الدوام تلقائي حسب الجنس
             const shift = branchId === 'samawah'
                 ? (gender === 'male' ? 'مسائي' : 'صباحي')
@@ -15932,7 +16615,7 @@
                     assignedSectionId = `sec_${branchId}_${deptIdx}_${stageIdx}_${Date.now()}`;
                     sections.push({ id: assignedSectionId, name: assignedSectionName });
                     stage.sections = sections;
-                    await _restSet(`settings/branches/${branchId}/structure`, structure);
+                    await saveStructureGuarded(branchId, structure, 'تعديل الهيكلية');
                 }
 
                 const studentData = {
@@ -16020,7 +16703,7 @@
             if (data.tempPass && !_isHash(data.tempPass)) safePassword = data.tempPass;
             else if (data.loginPassword && !_isHash(data.loginPassword)) safePassword = data.loginPassword;
             else if (data.password && !_isHash(data.password)) safePassword = String(data.password);
-            const bId = currentUser ? (currentUser.branchId || 'samawah') : 'samawah';
+            const bId = currentUser ? (currentUser?.branchId || 'samawah') : 'samawah';
             const branch = window.NAHRAIN_BRANCHES[bId];
             const schoolFullName = branch.name || 'إعدادية النهرين المهنية الأهلية';
             const logo = branch.logo || 'logo_samawah.jpg';
@@ -16262,7 +16945,7 @@
                             }
                         });
                         // Save back to firebase
-                        await _restSet('settings/branches/' + bId + '/structure', structure);
+                        await saveStructureGuarded(bId, structure, 'تعديل الهيكلية');
                     }
                 }
                 
@@ -16705,12 +17388,18 @@
         if (!modal) return;
         // Pre-fill fields
         const today = new Date();
-        const bId = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.branchId || 'samawah') : 'samawah';
+        const bId = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser?.branchId || 'samawah') : 'samawah';
         const branch = (window.NAHRAIN_BRANCHES && window.NAHRAIN_BRANCHES[bId]) || {};
         document.getElementById('noj-name').value = prefillName || '';
         document.getElementById('noj-class').value = prefillClass || '';
         document.getElementById('noj-year').value = today.getFullYear() + ' / ' + (today.getFullYear() + 1);
         document.getElementById('noj-num').value = '';
+        // رقم تسلسلي تلقائي — يمكن للمستخدم تعديله
+        (async () => { try {
+            const n = await nextNojNumber();
+            const el = document.getElementById('noj-num');
+            if (el && !el.value) { el.value = n.label; renderNoObjection(); }
+        } catch (e) {} })();
         document.getElementById('noj-date').value = today.toISOString().split('T')[0];
         document.getElementById('noj-to').value = '';
         document.getElementById('noj-principal').value = 'فؤاد هادي علوان';
@@ -16730,7 +17419,7 @@
         const principal = document.getElementById('noj-principal').value || 'مدير المدرسة';
         const extra     = document.getElementById('noj-extra').value || '';
 
-        const bId = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.branchId || 'samawah') : 'samawah';
+        const bId = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser?.branchId || 'samawah') : 'samawah';
         const branch = (window.NAHRAIN_BRANCHES && window.NAHRAIN_BRANCHES[bId]) || {};
         const schoolName = branch.name || 'إعدادية النهرين المهنية الأهلية';
         // اسم المدرسة والمحافظة يأتيان من جدول واحد (NOJ_SCHOOL_TITLES) حتى لا يفترقا
@@ -16840,6 +17529,17 @@
     }
 
     function printNoObjectionFinal() {
+        // تسجيل الوثيقة في السجل قبل الطباعة
+        try {
+            logNoObjection({
+                num: (document.getElementById('noj-num')?.value || '').split('/')[0].trim(),
+                year: new Date().getFullYear(),
+                name: document.getElementById('noj-name')?.value || '',
+                className: document.getElementById('noj-class')?.value || '',
+                to: document.getElementById('noj-to')?.value || ''
+            });
+        } catch (e) { console.warn('noj log', e); }
+
         const content = document.getElementById('noj-preview').innerHTML;
         const win = window.open('', '_blank');
         win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>وثيقة عدم الممانعة</title>
@@ -16937,7 +17637,7 @@
         }
         resEl.innerHTML = '<p style="color:#94a3b8;font-size:0.85rem;"><i class="fa-solid fa-spinner fa-spin"></i> جاري البحث...</p>';
         try {
-            const bId = currentUser.branchId || 'samawah';
+            const bId = currentUser?.branchId || 'samawah';
             const snap = await _restGet('users', { orderByChild: 'branchId', equalTo: bId });
             const all = snap.val() || {};
             const qLc = q.toLowerCase();
@@ -17000,7 +17700,7 @@
         if (!_gradeCurrentStudent) return;
         const { uid, deptName, classId } = _gradeCurrentStudent;
         const year = document.getElementById('grade-year-select').value;
-        const bId  = currentUser.branchId || 'samawah';
+        const bId  = currentUser?.branchId || 'samawah';
         const subjects = _getDeptSubjects(deptName || classId);
         let saved = {};
         try {
@@ -17037,7 +17737,7 @@
         if (!_gradeCurrentStudent) return;
         const { uid, name, classId, deptName, stageName } = _gradeCurrentStudent;
         const year = document.getElementById('grade-year-select').value;
-        const bId  = currentUser.branchId || 'samawah';
+        const bId  = currentUser?.branchId || 'samawah';
         const subjects = _getDeptSubjects(deptName || classId);
         const subjectsData = {};
         subjects.forEach(sub => {
@@ -17074,7 +17774,7 @@
         const contentEl = document.getElementById('std-results-content');
         if (!section || !contentEl || !currentUser) return;
         const uid = currentUser.uid;
-        const bId = currentUser.branchId || 'samawah';
+        const bId = currentUser?.branchId || 'samawah';
         const y   = new Date().getFullYear();
         const years = [y+'/'+(y+1), (y-1)+'/'+y, (y-2)+'/'+(y-1)];
         section.style.display = 'block';
@@ -17136,7 +17836,7 @@
     window.printMyGrades = async function() {
         if (!currentUser) return;
         const uid       = currentUser.uid;
-        const bId       = currentUser.branchId || 'samawah';
+        const bId       = currentUser?.branchId || 'samawah';
         const deptName  = _getDeptName(currentUser.classId || '');
         const stageName = _getStageName(currentUser.classId || '');
         const student   = { uid, name: currentUser.name, classId: currentUser.classId || '', deptName, stageName };
@@ -17147,7 +17847,7 @@
     };
 
     async function _doPrintStudentGrades(student, year) {
-        const bId       = currentUser.branchId || 'samawah';
+        const bId       = currentUser?.branchId || 'samawah';
         const branch    = window.NAHRAIN_BRANCHES ? window.NAHRAIN_BRANCHES[bId] : null;
         const schoolName = branch ? branch.name : 'إعدادية النهرين المهنية الأهلية';
         const logo      = branch ? branch.logo : 'logo_samawah.jpg';
@@ -17246,6 +17946,76 @@
     window.openNoObjectionForm = openNoObjectionForm;
     </script>
 
+    <!-- ══ نافذة نماذج النقل ══ -->
+    <div id="tr-prompt-modal" class="acc-modal-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.62); backdrop-filter:blur(6px); z-index:2147483000; align-items:center; justify-content:center;">
+        <div class="acc-modal-content" style="max-width:620px; width:94%; max-height:92vh; overflow:hidden; display:flex; flex-direction:column;">
+            <div style="background:#1e3a8a; color:#fff; padding:18px 24px; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+                <h3 id="tr-prompt-title" style="margin:0; color:#fff; font-size:1.05rem;"></h3>
+                <i class="fa-solid fa-circle-xmark" style="cursor:pointer; font-size:1.6rem; opacity:.85;" onclick="trClosePrompt()"></i>
+            </div>
+            <div id="tr-prompt-body" style="padding:22px 24px; overflow-y:auto;"></div>
+            <div style="padding:16px 24px; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:10px; flex-shrink:0; background:#f8fafc;">
+                <button class="acc-btn-primary" style="background:#64748b;" onclick="trClosePrompt()">إلغاء</button>
+                <button id="tr-prompt-ok" class="acc-btn-primary">حفظ</button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .acc-label{display:block;font-size:.82rem;font-weight:700;color:#475569;margin:14px 0 6px;}
+        .acc-label:first-child{margin-top:0;}
+        #tr-prompt-body .acc-input{width:100%;margin:0;}
+        /* الصفحة الرئيسية داكنة (نصّها أبيض) ولوحة الإدارة كذلك، وخلفية هذه
+           النافذة بيضاء — فلا نترك اللون للوراثة أبداً وإلا اختفى النص. */
+        #tr-prompt-modal .acc-modal-content{color:#0f172a;}
+        #tr-prompt-body{color:#0f172a;}
+        #tr-prompt-body *{color:inherit;}
+        #tr-prompt-body .acc-label{color:#475569;}
+        #tr-prompt-body .acc-input,
+        #tr-prompt-body select,
+        #tr-prompt-body input{color:#0f172a;background:#fff;}
+        #tr-prompt-body .tr-muted{color:#64748b;}
+        #tr-prompt-modal .acc-btn-primary{color:#fff;}
+        #trs-list label{color:#0f172a;}
+        #trs-list .trs-cls{color:#64748b;font-size:.76rem;}
+        .tr-nav.active{box-shadow:0 6px 18px rgba(30,58,138,.28);}
+        .acc-btn-danger{background:#dc2626;color:#fff;border:none;border-radius:10px;cursor:pointer;font-family:inherit;font-weight:700;}
+    </style>
+
+
+    <!-- ══ نسخ الهيكلية والاسترجاع ══ -->
+    <div id="struct-backup-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.62); backdrop-filter:blur(6px); z-index:2147483000; align-items:center; justify-content:center;">
+        <div style="background:#fff; border-radius:16px; max-width:640px; width:94%; max-height:88vh; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 30px 70px rgba(0,0,0,.45);">
+            <div style="background:#1e3a8a; color:#fff; padding:18px 24px; display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0; color:#fff; font-size:1.05rem;">&#128737;&#65039; نسخ الهيكلية المحفوظة</h3>
+                <i class="fa-solid fa-circle-xmark" style="cursor:pointer; font-size:1.6rem; opacity:.85;"
+                   onclick="document.getElementById('struct-backup-modal').style.display='none'"></i>
+            </div>
+            <div style="padding:14px 20px 4px; color:#475569; font-size:.86rem; direction:rtl; text-align:right;">
+                تُحفظ نسخة تلقائياً قبل كل تعديل على الهيكلية. اختر نسخة لاسترجاعها.
+            </div>
+            <div id="struct-backup-list" style="padding:14px 20px 20px; overflow-y:auto; direction:rtl; text-align:right;"></div>
+        </div>
+    </div>
+
+    <!-- ══ سجل وثائق عدم الممانعة ══ -->
+    <div id="noj-registry-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.62); backdrop-filter:blur(6px); z-index:2147483000; align-items:center; justify-content:center;">
+        <div style="background:#fff; border-radius:16px; max-width:860px; width:95%; max-height:90vh; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 30px 70px rgba(0,0,0,.45);">
+            <div style="background:#b45309; color:#fff; padding:16px 22px; display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0; color:#fff; font-size:1.05rem;">&#128220; سجل وثائق عدم الممانعة</h3>
+                <i class="fa-solid fa-circle-xmark" style="cursor:pointer; font-size:1.6rem; opacity:.85;"
+                   onclick="document.getElementById('noj-registry-modal').style.display='none'"></i>
+            </div>
+            <div style="padding:14px 20px; border-bottom:1px solid #eef2f7; display:flex; gap:10px; flex-wrap:wrap; direction:rtl;">
+                <input id="noj-search" placeholder="&#128269; ابحث بالاسم أو العدد..." oninput="renderNojRegistry()"
+                    style="flex:1; min-width:180px; padding:9px 12px; border:1.5px solid #e2e8f0; border-radius:9px; font-family:inherit; text-align:right;">
+                <button onclick="printNojRegistry()"
+                    style="padding:9px 18px; background:#059669; color:#fff; border:none; border-radius:9px; cursor:pointer; font-family:inherit; font-weight:700;">
+                    &#128424; طباعة السجل</button>
+            </div>
+            <div id="noj-registry-body" style="padding:18px 20px; overflow-y:auto; direction:rtl; text-align:right;"></div>
+        </div>
+    </div>
 </body>
 
 </html>
