@@ -19,6 +19,11 @@
             if (tabId === 'installments') {
                 setTimeout(renderInstallmentTable, 100);
             }
+            if (tabId === 'logistics') {
+                const mEl = document.getElementById('tr-month');
+                if (mEl && !mEl.value) mEl.value = new Date().toISOString().slice(0, 7);
+                trLoad().then(() => { trRenderRoutes(); trRenderDrivers(); trRenderDues(); });
+            }
             if (tabId === 'settings') {
                 if (typeof loadInstallmentSchedule === 'function') setTimeout(loadInstallmentSchedule, 100);
             }
@@ -288,10 +293,12 @@
             const _thBase = 'background:#1e3a8a; color:#fff; padding:9px 10px; font-size:0.75rem; font-weight:800; white-space:nowrap; border-left:1px solid #2d4fa0; position:sticky; top:0;';
             if (thead) {
                 let thHtml = `<tr>
+                    <th style="${_thBase} width:42px; min-width:42px; text-align:center;">ت</th>
                     <th style="${_thBase} min-width:120px; text-align:right;">الطالب</th>
                     <th style="${_thBase} min-width:90px; text-align:right;">الشعبة</th>
                     <th style="${_thBase} min-width:100px; text-align:center;">المطلوب</th>`;
                 instCols.forEach(col => {
+                    if (filterNum !== 'all' && col.num !== Number(filterNum)) return;
                     const isPast = col.date && col.date < now;
                     const isSoon = col.date && !isPast && (col.date - now) < 7 * 24 * 3600 * 1000;
                     const pillBg  = isPast ? 'rgba(239,68,68,0.25)' : isSoon ? 'rgba(245,158,11,0.25)' : 'rgba(255,255,255,0.12)';
@@ -331,8 +338,8 @@
                     ? Number(s.finance.tuition) : (Number(accountantFinance.defaults[s.classId]) || 0);
                 const transportTotal = Object.values(s.finance?.transportHistory || {}).reduce((sum, t) => sum + (Number(t.amount||0) - Number(t.discount||0)), 0);
                 const discount = Number(s.finance?.discount) || 0;
-                const netRequired = (tuition + transportTotal) - discount;
-                const totalPaid = (accountantFinance.revenues || []).filter(r => String(r.studentUid) === String(s.uid)).reduce((sum, r) => sum + (Number(r.amount)||0), 0);
+                const netRequired = tuition - discount;
+                const totalPaid = (accountantFinance.revenues || []).filter(r => String(r.studentUid) === String(s.uid) && !_isTransportRev(r)).reduce((sum, r) => sum + (Number(r.amount)||0), 0);
 
                 // Per-installment status
                 let runningExpected = 0;
@@ -430,6 +437,7 @@
                 rows.push(`<tr style="background:${rowBg}; transition:background 0.15s;"
                     onmouseover="this.style.background='#eff6ff'"
                     onmouseout="this.style.background='${rowBg}'">
+                    <td style="padding:8px 4px; text-align:center; font-weight:800; color:#64748b; font-size:0.75rem; border-bottom:1px solid #f1f5f9; border-left:1px solid #f1f5f9;">${rowIdx + 1}</td>
                     <td style="padding:8px 10px; border-bottom:1px solid #f1f5f9; border-left:1px solid #f1f5f9;">
                         <div style="font-weight:800; color:#0f172a; font-size:0.82rem;">${s.name}</div>
                         <button onclick="sendWhatsAppReminder('${s.uid}')" title="تنبيه واتساب"
@@ -466,7 +474,7 @@
 
             // Render tbody
             const tbody = document.getElementById('acc-installments-tbody');
-            if (tbody) tbody.innerHTML = rows.length ? rows.join('') : `<tr><td colspan="${3 + instCount + 1}" style="text-align:center;padding:50px;color:#94a3b8;"><i class="fa-solid fa-check-circle" style="font-size:2rem;display:block;margin-bottom:10px;color:#10b981;"></i>لا توجد نتائج بهذه الفلترة</td></tr>`;
+            if (tbody) tbody.innerHTML = rows.length ? rows.join('') : `<tr><td colspan="${4 + (filterNum !== 'all' ? 1 : instCount) + 1}" style="text-align:center;padding:50px;color:#94a3b8;"><i class="fa-solid fa-check-circle" style="font-size:2rem;display:block;margin-bottom:10px;color:#10b981;"></i>لا توجد نتائج بهذه الفلترة</td></tr>`;
         };
 
         window.printInstallmentSchedule = function() {
@@ -488,8 +496,8 @@
                 const tuition = (s.finance?.tuition !== undefined && s.finance.tuition !== '') ? Number(s.finance.tuition) : (Number(accountantFinance.defaults[s.classId]) || 0);
                 const transportTotal = Object.values(s.finance?.transportHistory || {}).reduce((sum, t) => sum + (Number(t.amount||0) - Number(t.discount||0)), 0);
                 const discount = Number(s.finance?.discount) || 0;
-                const netRequired = (tuition + transportTotal) - discount;
-                const totalPaid = (accountantFinance.revenues || []).filter(r => String(r.studentUid) === String(s.uid)).reduce((sum, r) => sum + (Number(r.amount)||0), 0);
+                const netRequired = tuition - discount;
+                const totalPaid = (accountantFinance.revenues || []).filter(r => String(r.studentUid) === String(s.uid) && !_isTransportRev(r)).reduce((sum, r) => sum + (Number(r.amount)||0), 0);
 
                 let runningExpected = 0;
                 let cellsHtml = '';
@@ -597,12 +605,7 @@
                     });
                 }
 
-                const accDeptSelect = document.getElementById('acc-filter-dept');
-                if (accDeptSelect && accDeptSelect.options.length <= 1 && window.schoolStructure) {
-                    window.schoolStructure.forEach((dept, dIdx) => {
-                        accDeptSelect.innerHTML += `<option value="${dIdx}" style="background:#1e293b;color:#fff;">${dept.name}</option>`;
-                    });
-                }
+                rebuildAccFilters();
 
                 const tbodyStd = document.querySelector('#acc-students-table tbody');
                 const cardsContainer = document.getElementById('acc-students-cards');
@@ -619,7 +622,7 @@
                             const transportHistory = s.finance?.transportHistory || {};
                             const transportTotal = Object.values(transportHistory).reduce((sum, item) => sum + ((Number(item.amount) || 0) - (Number(item.discount) || 0)), 0);
                             let discount = Number(s.finance?.discount) || 0;
-                            let netRequired = (tuition + transportTotal) - discount;
+                            let netRequired = tuition - discount;
                             let remaining = netRequired - paid;
                             let readableClass = getClassName(s.classId);
 
@@ -691,6 +694,9 @@
                                 style="background:${cardBg}; border:1px solid #e2e8f0; border-right:4px solid ${borderColor}; border-radius:16px; padding:16px 20px; display:flex; align-items:center; gap:16px; transition:all 0.25s; cursor:default; box-shadow:0 1px 3px rgba(0,0,0,0.06);"
                                 onmouseover="this.style.boxShadow='0 8px 30px rgba(0,0,0,0.12)';this.style.transform='translateY(-2px)'"
                                 onmouseout="this.style.boxShadow='0 1px 3px rgba(0,0,0,0.06)';this.style.transform='translateY(0)'">
+
+                                <!-- تسلسل -->
+                                <div class="acc-idx" style="flex-shrink:0; min-width:26px; text-align:center; font-weight:900; font-size:0.8rem; color:#94a3b8; font-variant-numeric:tabular-nums;"></div>
 
                                 <!-- Avatar -->
                                 <div style="flex-shrink:0; width:48px; height:48px; border-radius:14px; background:linear-gradient(135deg,${avatarGrad}); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:900; font-size:1.3rem; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
@@ -770,6 +776,7 @@
                             </div>`;
                         });
                         cardsContainer.innerHTML = htmlCards;
+                        renumberAccCards();
                     }
                 }
                 
@@ -874,9 +881,9 @@
                 if (tbodyHR) {
                     let hrHtml = '';
                     if (accountantStaff.length === 0) {
-                        hrHtml = '<tr><td colspan="7" style="text-align:center; padding:20px; color:#94a3b8;">لا يوجد موظفون مسجلون في هذا الفرع.</td></tr>';
+                        hrHtml = '<tr><td colspan="8" style="text-align:center; padding:20px; color:#94a3b8;">لا يوجد موظفون مسجلون في هذا الفرع.</td></tr>';
                     } else {
-                        accountantStaff.forEach(s => {
+                        accountantStaff.forEach((s, _i) => {
                             const b = Number(s.payroll?.base) || 0;
                             const a = Number(s.payroll?.allowance) || 0;
                             const d = Number(s.payroll?.deduction) || 0;
@@ -886,6 +893,7 @@
                             
                             hrHtml += `
                                 <tr>
+                                    <td style="text-align:center; font-weight:800; color:#94a3b8; font-size:0.8rem;">${_i + 1}</td>
                                     <td><div style="font-weight:700; color:#1e293b;">${s.name || '---'}</div></td>
                                     <td><span class="acc-badge" style="background:#f1f5f9; color:#475569;">${roleAr}</span></td>
                                     <td style="font-weight:600;">${b.toLocaleString()} د.ع</td>
@@ -1187,9 +1195,9 @@
                 // Use transportHistory (same as cards/installments) — not legacy transportFee
                 const transport = Object.values(s.finance?.transportHistory || {}).reduce((sum, t) => sum + (Number(t.amount||0) - Number(t.discount||0)), 0);
                 const discount = Number(s.finance?.discount) || 0;
-                const netRequired = (tuition + transport) - discount;
+                const netRequired = tuition - discount;
                 
-                const myPaid = accountantFinance.revenues.filter(r => String(r.studentUid) === String(s.uid)).reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+                const myPaid = accountantFinance.revenues.filter(r => String(r.studentUid) === String(s.uid) && !_isTransportRev(r)).reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
                 
                 totalExpected += netRequired;
                 totalPaid += myPaid;
@@ -1259,8 +1267,8 @@
                 const tuition = (s.finance?.tuition !== undefined && s.finance.tuition !== '') ? Number(s.finance.tuition) : (Number(accountantFinance.defaults[s.classId]) || 0);
                 const transportTotal = Object.values(s.finance?.transportHistory || {}).reduce((sum, t) => sum + (Number(t.amount || 0) - Number(t.discount || 0)), 0);
                 const discount = Number(s.finance?.discount) || 0;
-                const netReq = (tuition + transportTotal) - discount;
-                const paid = (accountantFinance.revenues || []).filter(r => String(r.studentUid) === String(s.uid)).reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+                const netReq = tuition - discount;
+                const paid = (accountantFinance.revenues || []).filter(r => String(r.studentUid) === String(s.uid) && !_isTransportRev(r)).reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
                 if (netReq - paid > 0) totalDebts += (netReq - paid);
             });
 
@@ -1298,8 +1306,8 @@
                 const tuition = (s.finance?.tuition !== undefined && s.finance.tuition !== '') ? Number(s.finance.tuition) : (Number(accountantFinance.defaults[s.classId]) || 0);
                 const transportTotal = Object.values(s.finance?.transportHistory || {}).reduce((sum, t) => sum + (Number(t.amount || 0) - Number(t.discount || 0)), 0);
                 const discount = Number(s.finance?.discount) || 0;
-                const netReq = (tuition + transportTotal) - discount;
-                const paid = (accountantFinance.revenues || []).filter(r => String(r.studentUid) === String(s.uid)).reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+                const netReq = tuition - discount;
+                const paid = (accountantFinance.revenues || []).filter(r => String(r.studentUid) === String(s.uid) && !_isTransportRev(r)).reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
                 const debt = netReq - paid;
                 totalExpected += netReq;
                 totalPaid += paid;
@@ -1678,6 +1686,12 @@
             win.document.close();
         };
 
+
+        /* يميّز دفعة النقل عن القسط الدراسي — أساس الفصل بين الحسابين */
+        window._isTransportRev = function (r) {
+            return !!(r && (r.transportMonth || r.transportDateKey || r.category === 'أجور نقل'));
+        };
+
         function _buildAccSectionMap() {
             const map = {};
             if (window.schoolStructure) {
@@ -1693,6 +1707,79 @@
             }
             return map;
         }
+
+
+        /**
+         * إعادة بناء فلاتر صفحة الذمم من الهيكلية الحالية.
+         *
+         * الخلل الذي تعالجه: كانت القائمة تُملأ مرة واحدة فقط («إن كانت فارغة»)،
+         * فتبقى أقسام الفرع السابق معروضة بعد تبديل الفرع. وبما أن قيمة كل خيار
+         * هي رقم ترتيبه لا اسمه، فاختيار «القسم 0» القديم كان يفلتر على القسم 0
+         * من الهيكلية الجديدة — أي قسم مختلف تماماً، والمحاسب لا يشعر.
+         *
+         * الحل: نعيد البناء في كل تحميل، ونحفظ اختيار المستخدم بالاسم لا بالرقم،
+         * فإن بقي القسم موجوداً عاد محدَّداً، وإن اختفى رجعت القائمة إلى «الكل».
+         */
+        window.rebuildAccFilters = function () {
+            const deptEl    = document.getElementById('acc-filter-dept');
+            const stageEl   = document.getElementById('acc-filter-stage');
+            const sectionEl = document.getElementById('acc-filter-section');
+            if (!deptEl) return;
+
+            const st = Array.isArray(window.schoolStructure) ? window.schoolStructure : [];
+
+            // ما كان مختاراً — نحفظه بالاسم (والشعبة بمعرّفها لأنه ثابت)
+            const prevDeptName  = deptEl.selectedIndex   > 0 ? deptEl.options[deptEl.selectedIndex].text     : null;
+            const prevStageName = stageEl && stageEl.selectedIndex   > 0 ? stageEl.options[stageEl.selectedIndex].text : null;
+            const prevSectionId = sectionEl ? sectionEl.value : 'all';
+
+            const OPT = 'style="background:#1e293b;color:#fff;"';
+
+            // الأقسام
+            deptEl.innerHTML = `<option value="all" ${OPT}>📚 جميع الأقسام</option>` +
+                st.map((d, i) => `<option value="${i}" ${OPT}>${escHtml(d && d.name ? d.name : '')}</option>`).join('');
+
+            let dIdx = 'all';
+            if (prevDeptName) {
+                const i = st.findIndex(d => d && d.name === prevDeptName);
+                if (i >= 0) { dIdx = String(i); deptEl.value = dIdx; }
+            }
+
+            // المراحل — تتبع القسم المختار
+            if (stageEl) {
+                stageEl.innerHTML = `<option value="all" ${OPT}>📖 جميع المراحل</option>`;
+                if (dIdx !== 'all') {
+                    const dept = st[Number(dIdx)];
+                    const stages = dept ? (Array.isArray(dept.stages) ? dept.stages : Object.values(dept.stages || {})) : [];
+                    stageEl.innerHTML += stages.map((sg, i) =>
+                        `<option value="${i}" ${OPT}>${escHtml(sg && sg.name ? sg.name : '')}</option>`).join('');
+                    if (prevStageName) {
+                        const j = stages.findIndex(sg => sg && sg.name === prevStageName);
+                        if (j >= 0) stageEl.value = String(j);
+                    }
+                }
+            }
+
+            // الشعب — تتبع المرحلة المختارة، وتُستعاد بالمعرّف
+            if (sectionEl) {
+                sectionEl.innerHTML = `<option value="all" ${OPT}>🏫 جميع الشعب</option>`;
+                const sIdx = stageEl ? stageEl.value : 'all';
+                if (dIdx !== 'all' && sIdx !== 'all') {
+                    const dept = st[Number(dIdx)];
+                    const stages = dept ? (Array.isArray(dept.stages) ? dept.stages : Object.values(dept.stages || {})) : [];
+                    const stage = stages[Number(sIdx)];
+                    const secs = stage ? (Array.isArray(stage.sections) ? stage.sections : Object.values(stage.sections || {})) : [];
+                    sectionEl.innerHTML += secs.filter(x => x && x.id).map(x =>
+                        `<option value="${x.id}" ${OPT}>${escHtml(x.name || '')}</option>`).join('');
+                    if (prevSectionId && prevSectionId !== 'all' &&
+                        secs.some(x => x && x.id === prevSectionId)) {
+                        sectionEl.value = prevSectionId;
+                    }
+                }
+            }
+
+            if (typeof filterAccStudents === 'function') filterAccStudents();
+        };
 
         function onAccDeptChange() {
             const deptEl = document.getElementById('acc-filter-dept');
@@ -1742,6 +1829,19 @@
             filterAccStudents();
         }
 
+        /* يعيد ترقيم بطاقات الطلاب الظاهرة فقط بعد كل فلترة أو بحث */
+        window.renumberAccCards = function () {
+            let n = 0;
+            document.querySelectorAll('#acc-students-cards .acc-row').forEach(card => {
+                if (card.style.display === 'none') { const b = card.querySelector('.acc-idx'); if (b) b.textContent = ''; return; }
+                n++;
+                const b = card.querySelector('.acc-idx');
+                if (b) b.textContent = n;
+            });
+            const cnt = document.getElementById('std-kpi-count');
+            if (cnt) cnt.innerText = n;
+        };
+
         function filterAccStudents() {
             const searchInput = document.getElementById('acc-search-student');
             const deptEl = document.getElementById('acc-filter-dept');
@@ -1781,6 +1881,8 @@
                 card.style.display = (textMatches && classMatches) ? 'flex' : 'none';
             });
 
+            renumberAccCards();
+
             // If sort changed — re-render
             if (sortMode && sortMode !== 'name') {
                 renderAccountantUI();
@@ -1795,9 +1897,9 @@
                     : (Number(accountantFinance.defaults[s.classId]) || 0);
                 const transport = Object.values(s.finance?.transportHistory || {}).reduce((sum, t) => sum + (Number(t.amount || 0) - Number(t.discount || 0)), 0);
                 const discount = Number(s.finance?.discount) || 0;
-                const netRequired = (tuition + transport) - discount;
+                const netRequired = tuition - discount;
                 const paid = accountantFinance.revenues
-                    .filter(r => String(r.studentUid) === String(s.uid))
+                    .filter(r => String(r.studentUid) === String(s.uid) && !_isTransportRev(r))
                     .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
                 const remaining = netRequired - paid;
                 if (remaining > 0) {
@@ -1859,7 +1961,15 @@
         function filterAccHR() {
             let q = document.getElementById('acc-search-hr').value.toLowerCase();
             let rows = document.querySelectorAll('#acc-hr-table tbody tr');
-            rows.forEach(r => { r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none'; });
+            let n = 0;
+            rows.forEach(r => {
+                const cells = r.querySelectorAll('td');
+                // نبحث في كل الخلايا عدا خانة التسلسل، حتى لا يطابق الرقم بالخطأ
+                const txt = Array.from(cells).slice(1).map(c => c.innerText).join(' ').toLowerCase();
+                const show = !q || txt.includes(q);
+                r.style.display = show ? '' : 'none';
+                if (show && cells.length > 1) { n++; cells[0].innerText = n; }
+            });
         }
 
         // addAccTransaction is defined as window.addAccTransaction below (line ~2985)
@@ -1911,9 +2021,9 @@
                     const tuition = (s.finance && s.finance.tuition !== undefined && s.finance.tuition !== "") ? Number(s.finance.tuition) : (Number(accountantFinance.defaults[s.classId]) || 0);
                     const transport = Object.values(s.finance?.transportHistory || {}).reduce((sum, t) => sum + (Number(t.amount||0) - Number(t.discount||0)), 0);
                     const discount = Number(s.finance?.discount) || 0;
-                    netTuition = (tuition + transport) - discount;
+                    netTuition = tuition - discount;
                     
-                    const myRevs = accountantFinance.revenues.filter(r => r.studentUid === studentUid);
+                    const myRevs = accountantFinance.revenues.filter(r => r.studentUid === studentUid && !_isTransportRev(r));
                     totalPaid = myRevs.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
                     // إذا الدفعة الحالية ما زالت غير محفوظة في الكاش المحلي، أضفها يدوياً
                     const alreadyInCache = myRevs.some(r => String(r.id) === String(id));
@@ -2403,10 +2513,10 @@
             const transportTotal = Object.values(transportHistory).reduce((sum, item) => sum + (Number(item.amount||0) - Number(item.discount||0)), 0);
             
             const discount = Number(s.finance?.discount) || 0;
-            const netRequired = (tuition + transportTotal) - discount;
+            const netRequired = tuition - discount;
 
             // Filter transactions for this student
-            const myRevs = (accountantFinance.revenues || []).filter(r => String(r.studentUid) === String(uid)).sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
+            const myRevs = (accountantFinance.revenues || []).filter(r => String(r.studentUid) === String(uid) && !_isTransportRev(r)).sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
             const totalPaid = myRevs.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
             const remaining = netRequired - totalPaid;
 
@@ -2462,7 +2572,7 @@
             // Financial calculations for Status
             const tuition = (s.finance && s.finance.tuition !== undefined && s.finance.tuition !== "") ? Number(s.finance.tuition) : (Number(accountantFinance.defaults[s.classId]) || 0);
             const discount = Number(s.finance?.discount) || 0;
-            const totalPaid = accountantFinance.revenues.filter(r => String(r.studentUid) === String(uid)).reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+            const totalPaid = accountantFinance.revenues.filter(r => String(r.studentUid) === String(uid) && !_isTransportRev(r)).reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
             
             const transportEntries = Object.values(history).sort((a,b) => (a.timestamp || 0) - (b.timestamp || 0));
             const totalTransportFees = transportEntries.reduce((sum, item) => sum + (Number(item.amount || 0) - Number(item.discount || 0)), 0);
@@ -3074,8 +3184,8 @@
             const transportTotal = transportItems.reduce((sum, item) => sum + (Number(item.amount || 0) - Number(item.discount || 0)), 0);
             
             const discount = Number(s.finance?.discount) || 0;
-            const netRequired = (tuition + transportTotal) - discount;
-            const myRevs = (accountantFinance.revenues || []).filter(r => String(r.studentUid) === String(uid)).sort((a,b) => a.timestamp - b.timestamp);
+            const netRequired = tuition - discount;
+            const myRevs = (accountantFinance.revenues || []).filter(r => String(r.studentUid) === String(uid) && !_isTransportRev(r)).sort((a,b) => a.timestamp - b.timestamp);
             const totalPaid = myRevs.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
             const remaining = netRequired - totalPaid;
 
@@ -3213,7 +3323,7 @@
             const p = accountantFinance.globalPercents || {};
             
             accountantStudents.forEach(s => {
-                const myRevs = revs.filter(r => r.studentUid === s.uid);
+                const myRevs = revs.filter(r => r.studentUid === s.uid && !_isTransportRev(r));
                 let paid = myRevs.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
                 
                 // Find last payment date
@@ -3325,7 +3435,7 @@
             const p = accountantFinance.globalPercents || {};
             
             accountantStudents.forEach(s => {
-                let paid = (accountantFinance.revenues || []).filter(r => r.studentUid === s.uid).reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+                let paid = (accountantFinance.revenues || []).filter(r => r.studentUid === s.uid && !_isTransportRev(r)).reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
                 let tuition = (s.finance && s.finance.tuition !== undefined && s.finance.tuition !== "") ? Number(s.finance.tuition) : (Number(accountantFinance.defaults[s.classId]) || 0);
                 let transport = Object.values(s.finance?.transportHistory || {}).reduce((sum, t) => sum + (Number(t.amount||0) - Number(t.discount||0)), 0);
                 let discount = Number(s.finance?.discount) || 0;
@@ -3407,11 +3517,11 @@
             document.querySelectorAll('.bulk-remind-check').forEach(cb => cb.checked = checked);
         };
 
-        window.sendBulkRemindersNow = function() {
+        window.sendBulkRemindersNow = async function() {
             const selected = Array.from(document.querySelectorAll('.bulk-remind-check:checked')).map(cb => cb.dataset.uid);
             if (selected.length === 0) return alert('يرجى تحديد طالب واحد على الأقل');
-            
-            if (confirm(`هل أنت متأكد من رغبتك في إرسال ${selected.length} تنبيه واتساب؟\nسيتم فتح النوافذ تباعاً.`)) {
+
+            if (await confirm(`هل أنت متأكد من رغبتك في إرسال ${selected.length} تنبيه واتساب؟\nسيتم فتح النوافذ تباعاً.`)) {
                 selected.forEach((uid, index) => {
                     setTimeout(() => {
                         sendWhatsAppReminder(uid);
@@ -3595,7 +3705,7 @@
             if (!u) return;
             const net = (Number(u.payroll?.base)||0) + (Number(u.payroll?.allowance)||0) - (Number(u.payroll?.deduction)||0);
 
-            if (!confirm(`هل تريد صرف راتب شهر (${monthName}) للموظف ${u.name} بقيمة ${net.toLocaleString()} د.ع؟`)) return;
+            if (!(await confirm(`هل تريد صرف راتب شهر (${monthName}) للموظف ${u.name} بقيمة ${net.toLocaleString()} د.ع؟`))) return;
 
             _payingSalary = true;
             // إظهار حالة التحميل في القائمة
@@ -3620,7 +3730,7 @@
             }
         };
 
-        window.saveGlobalFinancialSettings = function() {
+        window.saveGlobalFinancialSettings = async function() {
             const count = Number(document.getElementById('acc-setting-inst-count').value) || 5;
             const dates = {};
             const percents = {};
@@ -3634,7 +3744,7 @@
             }
 
             if (totalP > 0 && totalP !== 100) {
-                if(!confirm(`مجموع النسب الحالية هو ${totalP}%. يفضل أن يكون المجموع 100% لضمان دقة الحسابات. هل تود الحفظ على أي حال؟`)) return;
+                if(!(await confirm(`مجموع النسب الحالية هو ${totalP}%. يفضل أن يكون المجموع 100% لضمان دقة الحسابات. هل تود الحفظ على أي حال؟`))) return;
             }
 
             const branchId = currentUser?.branchId || 'samawah';
@@ -3664,7 +3774,7 @@
             const s = accountantStudents.find(x => x.uid === uid);
             if (!s || !s.phone) return alert('خطأ: لا يوجد رقم هاتف مسجل لهذا الطالب');
             
-            const myRevs = accountantFinance.revenues.filter(r => r.studentUid === uid).sort((a,b) => b.timestamp - a.timestamp);
+            const myRevs = accountantFinance.revenues.filter(r => r.studentUid === uid && !_isTransportRev(r)).sort((a,b) => b.timestamp - a.timestamp);
             if (myRevs.length === 0) return alert('لا توجد دفعات لمشاركتها');
             
             const last = myRevs[0];
@@ -3764,11 +3874,11 @@
             if (!phone || phone.length < 8) { alert('رقم الهاتف غير متوفر لهذا الطالب.'); return; }
             let paid = 0;
             if (accountantFinance.revenues)
-                paid = accountantFinance.revenues.filter(r => r.studentUid === uid).reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+                paid = accountantFinance.revenues.filter(r => r.studentUid === uid && !_isTransportRev(r)).reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
             const tuition = (s.finance && s.finance.tuition !== undefined && s.finance.tuition !== '')
                 ? Number(s.finance.tuition) : (Number(accountantFinance.defaults[s.classId]) || 0);
             const transport = Object.values(s.finance?.transportHistory || {}).reduce((sum, t) => sum + (Number(t.amount||0) - Number(t.discount||0)), 0);
-            const remaining = (tuition + transport - (Number(s.finance?.discount) || 0)) - paid;
+            const remaining = (tuition - (Number(s.finance?.discount) || 0)) - paid;
             let fp = phone.startsWith('0') ? '964' + phone.substring(1) : phone;
             if (!fp.startsWith('964')) fp = '964' + fp;
             const msg = 'عزيزي ولي أمر الطالب (' + s.name + ')، المتبقي من القسط: (' + remaining.toLocaleString() + ' د.ع). نرجو المراجعة. مدرسة النهرين الأهلية.';
@@ -4136,7 +4246,7 @@
         };
 
         window.removeExpenseCategory = async function(cat) {
-            if (!confirm(`هل أنت متأكد من حذف التصنيف (${cat})؟`)) return;
+            if (!(await confirm(`هل أنت متأكد من حذف التصنيف (${cat})؟`))) return;
             accountantFinance.expenseCategories = accountantFinance.expenseCategories.filter(c => c !== cat);
             try {
                 await _restSet('financialSettings/expenseCategories', accountantFinance.expenseCategories);
@@ -4149,7 +4259,7 @@
             let cat = input ? input.value.trim() : '';
             
             if (!cat) {
-                cat = prompt("أدخل اسم التصنيف الجديد:");
+                cat = await prompt("أدخل اسم التصنيف الجديد:");
             }
             
             if (!cat || cat.trim() === "") return;
@@ -4275,7 +4385,7 @@
                 
                 loadAccountantData();
                 
-                if (confirm('هل تريد طباعة سند الصرف الآن؟')) {
+                if (await confirm('هل تريد طباعة سند الصرف الآن؟')) {
                     const dateStr = manualDate ? new Date(manualDate).toLocaleString('ar-IQ') : new Date().toLocaleString('ar-IQ');
                     window.printAccReceipt(txId, 'expense', amount, note, dateStr, category, '', '', payee, method, refNum);
                 }
@@ -4547,4 +4657,989 @@
             `);
             printWindow.document.close();
         }
+
+
+        /* ═══════════════════════════════════════════════════════════════
+           وحدة النقل المدرسي — الخطوط والسواق والتحصيل
+           نموذج البيانات:
+             schoolDB/transport/drivers/<id>  = { name, phone, vehicle, plate,
+                                                  payType:'fixed'|'perStudent',
+                                                  fixedMonthly, perStudentAmount, branchId, active }
+             schoolDB/transport/routes/<id>   = { name, areas:[..], driverId,
+                                                  monthlyFee, branchId, active }
+             schoolDB/transport/subs/<YYYY-MM>/<studentUid> = { routeId, fee, discount, ts, by }
+             finance/driverPayouts/<id>       = { driverId, month, amount, ts, by, receiptNo }
+           الاشتراك سجلٌ لكل شهر: الطالب قد يشترك شهراً ويترك آخر.
+           الشهر يُحسب كاملاً — لا احتساب بالأيام.
+           ═══════════════════════════════════════════════════════════════ */
+
+        window.trBranch = function () {
+            return (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.branchId || 'samawah') : 'samawah';
+        };
+        window.TR = { drivers: {}, routes: {}, subs: {}, payouts: {}, month: '' };
+
+        function trCurMonth() {
+            return document.getElementById('tr-month')?.value || new Date().toISOString().slice(0, 7);
+        }
+        function trMonthLabel(m) {
+            if (!m) return '';
+            const [y, mo] = m.split('-');
+            const names = ['كانون الثاني','شباط','آذار','نيسان','أيار','حزيران',
+                           'تموز','آب','أيلول','تشرين الأول','تشرين الثاني','كانون الأول'];
+            return `${names[Number(mo) - 1]} ${y}`;
+        }
+        const trFmt = n => (Number(n) || 0).toLocaleString('en-US');
+
+        // ── تحميل بيانات النقل ──
+        async function trLoad() {
+            const m = trCurMonth();
+            window.TR.month = m;
+            try {
+                const [dSnap, rSnap, sSnap, pSnap] = await Promise.all([
+                    _restGet('schoolDB/transport/drivers'),
+                    _restGet('schoolDB/transport/routes'),
+                    _restGet('schoolDB/transport/subs/' + m),
+                    _restGet('finance/driverPayouts')
+                ]);
+                window.TR.drivers = dSnap.val() || {};
+                window.TR.routes  = rSnap.val() || {};
+                window.TR.subs    = sSnap.val() || {};
+                window.TR.payouts = pSnap.val() || {};
+            } catch (e) {
+                console.warn('trLoad', e);
+            }
+        }
+
+        function trBranchRoutes() {
+            return Object.entries(window.TR.routes)
+                .filter(([, r]) => r && r.branchId === trBranch())
+                .sort((a, b) => (a[1].name || '').localeCompare(b[1].name || '', 'ar'));
+        }
+        function trBranchDrivers() {
+            return Object.entries(window.TR.drivers)
+                .filter(([, d]) => d && d.branchId === trBranch())
+                .sort((a, b) => (a[1].name || '').localeCompare(b[1].name || '', 'ar'));
+        }
+        function trRouteStudents(routeId) {
+            return Object.entries(window.TR.subs)
+                .filter(([, s]) => s && s.routeId === routeId)
+                .map(([uid, s]) => ({ uid, ...s, student: accountantStudents.find(x => String(x.uid) === String(uid)) }))
+                .filter(x => x.student);
+        }
+        // المدفوع لهذا الطالب عن هذا الشهر (من الإيرادات المؤشّرة كنقل)
+        function trPaidFor(uid, month) {
+            const revs = Object.values(accountantFinance.revenues || {});
+            return revs.filter(r => r && String(r.studentUid) === String(uid) && r.transportMonth === month)
+                       .reduce((s, r) => s + (Number(r.amount) || 0), 0);
+        }
+        function trNet(sub) { return (Number(sub.fee) || 0) - (Number(sub.discount) || 0); }
+
+        // ── التنقل بين الأقسام ──
+        window.trSwitch = function (sec) {
+            document.querySelectorAll('.tr-sec').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.tr-nav').forEach(b => { b.classList.remove('active'); b.style.background = '#64748b'; });
+            const t = document.getElementById('tr-sec-' + sec);
+            if (t) t.style.display = 'block';
+            const b = document.getElementById('trbtn-' + sec);
+            if (b) { b.classList.add('active'); b.style.background = ''; }
+            if (sec === 'routes')  trRenderRoutes();
+            if (sec === 'drivers') trRenderDrivers();
+            if (sec === 'dues')    trRenderDues();
+        };
+
+        window.trOnMonthChange = async function () {
+            await trLoad();
+            trRenderRoutes(); trRenderDrivers(); trRenderDues();
+        };
+
+        // ══════════ الخطوط ══════════
+        window.trRenderRoutes = function () {
+            const wrap = document.getElementById('tr-routes-list');
+            const kpi  = document.getElementById('tr-routes-kpi');
+            if (!wrap) return;
+            const routes = trBranchRoutes();
+            const m = trCurMonth();
+
+            let totalStudents = 0, totalDue = 0, totalPaid = 0;
+            routes.forEach(([id]) => {
+                trRouteStudents(id).forEach(s => {
+                    totalStudents++; totalDue += trNet(s); totalPaid += trPaidFor(s.uid, m);
+                });
+            });
+            if (kpi) kpi.innerHTML = `
+                ${trKpi('🚌', 'الخطوط', routes.length, '#1e3a8a')}
+                ${trKpi('👥', 'المشتركون', totalStudents, '#0369a1')}
+                ${trKpi('💰', 'المستحق', trFmt(totalDue) + ' د.ع', '#b45309')}
+                ${trKpi('✅', 'المحصّل', trFmt(totalPaid) + ' د.ع', '#15803d')}
+                ${trKpi('⏳', 'المتبقي', trFmt(totalDue - totalPaid) + ' د.ع', '#b91c1c')}`;
+
+            if (!routes.length) {
+                wrap.innerHTML = `<div style="text-align:center;padding:50px 20px;color:#94a3b8;">
+                    <i class="fa-solid fa-route" style="font-size:2.6rem;display:block;margin-bottom:12px;color:#cbd5e1;"></i>
+                    <div style="font-weight:700;">لا توجد خطوط نقل بعد</div>
+                    <div style="font-size:0.85rem;margin-top:6px;">ابدأ بإضافة سائق ثم أنشئ الخط</div></div>`;
+                return;
+            }
+
+            wrap.innerHTML = routes.map(([id, r]) => {
+                const studs = trRouteStudents(id);
+                const drv = window.TR.drivers[r.driverId];
+                const due = studs.reduce((s, x) => s + trNet(x), 0);
+                const paid = studs.reduce((s, x) => s + trPaidFor(x.uid, m), 0);
+                return `
+                <div class="acc-panel" style="padding:16px 18px; border:1px solid #e2e8f0;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
+                        <div>
+                            <div style="font-weight:900; font-size:1.05rem; color:#1e3a8a;">
+                                <i class="fa-solid fa-route"></i> ${escHtml(r.name || 'خط')}
+                            </div>
+                            <div style="font-size:0.83rem; color:#64748b; margin-top:5px;">
+                                📍 ${(r.areas || []).map(escHtml).join(' · ') || '—'}
+                            </div>
+                            <div style="font-size:0.83rem; color:#64748b; margin-top:3px;">
+                                👤 ${escHtml(drv ? drv.name : '— بلا سائق —')}
+                                ${drv && drv.vehicle ? ' · 🚐 ' + escHtml(drv.vehicle) : ''}
+                                · 💵 ${trFmt(r.monthlyFee)} د.ع/شهر
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                            <button onclick="trAddStudents('${id}')" class="acc-btn-primary" style="padding:7px 14px; font-size:0.82rem;"><i class="fa-solid fa-user-plus"></i> إضافة طلاب</button>
+                            <button onclick="trCopyPrevMonth('${id}')" class="acc-btn-primary" style="padding:7px 14px; font-size:0.82rem; background:#7c3aed;" title="نسخ مشتركي الشهر الماضي"><i class="fa-solid fa-repeat"></i> تجديد الشهر</button>
+                            <button onclick="trEditRoute('${id}')" class="acc-btn-primary" style="padding:7px 12px; font-size:0.82rem; background:#64748b;"><i class="fa-solid fa-pen"></i title="تعديل"></button>
+                            <button onclick="trDeleteRoute('${id}')" class="acc-btn-danger" style="padding:7px 12px; font-size:0.82rem;" title="حذف الخط"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:16px; flex-wrap:wrap; margin:12px 0 10px; font-size:0.85rem;">
+                        <span class="acc-badge" style="background:#eff6ff;color:#1e3a8a;">👥 ${studs.length} مشترك</span>
+                        <span class="acc-badge" style="background:#fef3c7;color:#b45309;">المستحق ${trFmt(due)}</span>
+                        <span class="acc-badge" style="background:#dcfce7;color:#15803d;">المحصّل ${trFmt(paid)}</span>
+                        ${due - paid > 0 ? `<span class="acc-badge" style="background:#fee2e2;color:#b91c1c;">المتبقي ${trFmt(due - paid)}</span>` : ''}
+                    </div>
+                    ${studs.length ? `<div style="overflow-x:auto;"><table class="acc-table" style="font-size:0.85rem;">
+                        <thead><tr><th>الطالب</th><th>الأجرة</th><th>الخصم</th><th>الصافي</th><th>المدفوع</th><th>الحالة</th><th></th></tr></thead>
+                        <tbody>${studs.map(s => {
+                            const net = trNet(s), pd = trPaidFor(s.uid, m);
+                            const done = pd >= net && net > 0;
+                            return `<tr>
+                                <td style="font-weight:700;">${escHtml(s.student.name || '')}</td>
+                                <td>${trFmt(s.fee)}</td>
+                                <td>${trFmt(s.discount)}</td>
+                                <td style="font-weight:800;">${trFmt(net)}</td>
+                                <td style="color:#15803d;font-weight:700;">${trFmt(pd)}</td>
+                                <td>${done ? '<span class="acc-badge" style="background:#dcfce7;color:#15803d;">مسدّد ✓</span>'
+                                            : '<span class="acc-badge" style="background:#fee2e2;color:#b91c1c;">متبقٍ ' + trFmt(net - pd) + '</span>'}</td>
+                                <td style="white-space:nowrap;">
+                                    ${!done ? `<button onclick="trPayStudent('${s.uid}','${id}')" class="acc-btn-primary" style="padding:5px 12px;font-size:0.78rem;">قبض</button>` : ''}
+                                    <button onclick="trEditSub('${s.uid}','${id}')" class="acc-btn-primary" style="padding:5px 10px;font-size:0.78rem;background:#64748b;" title="تعديل الأجرة أو الخصم"><i class="fa-solid fa-pen"></i></button>
+                                    <button onclick="trRemoveSub('${s.uid}')" class="acc-btn-danger" style="padding:5px 10px;font-size:0.78rem;" title="إزالة من الخط لهذا الشهر"><i class="fa-solid fa-xmark"></i></button>
+                                </td></tr>`;
+                        }).join('')}</tbody></table></div>`
+                    : `<div style="text-align:center;padding:18px;color:#94a3b8;font-size:0.86rem;">لا مشتركين في ${trMonthLabel(m)} — اضغط «إضافة طلاب» أو «تجديد الشهر»</div>`}
+                </div>`;
+            }).join('');
+
+            const sel = document.getElementById('tr-dues-route');
+            if (sel) {
+                const cur = sel.value;
+                sel.innerHTML = '<option value="all">🚌 جميع الخطوط</option>' +
+                    routes.map(([id, r]) => `<option value="${id}">${escHtml(r.name || '')}</option>`).join('');
+                sel.value = cur;
+            }
+        };
+
+        function trKpi(icon, label, val, color) {
+            return `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;text-align:center;">
+                <div style="font-size:1.3rem;">${icon}</div>
+                <div style="font-weight:900;font-size:1.05rem;color:${color};margin-top:4px;">${val}</div>
+                <div style="font-size:0.76rem;color:#64748b;margin-top:2px;">${label}</div></div>`;
+        }
+
+
+        // ══════════ نافذة النماذج ══════════
+        window.trClosePrompt = function () {
+            const m = document.getElementById('tr-prompt-modal');
+            if (m) m.style.display = 'none';
+        };
+        function showAccPrompt(title, bodyHtml, onOk) {
+            const m = document.getElementById('tr-prompt-modal');
+            if (!m) return;
+            // وسم #admin-dash في index.html لا يُغلق، فكل ما بعده يُعشَّش داخله.
+            // ولوحة المحاسب تُخفي admin-dash، فتصير هذه النافذة داخل أبٍ مخفي = صفر أبعاد.
+            // نفس الحل المستعمل في showStudentReport: نُعيدها إلى body قبل الإظهار.
+            if (m.parentElement !== document.body) document.body.appendChild(m);
+            document.getElementById('tr-prompt-title').innerText = title;
+            document.getElementById('tr-prompt-body').innerHTML = bodyHtml;
+            const ok = document.getElementById('tr-prompt-ok');
+            const fresh = ok.cloneNode(true);           // إزالة أي مستمع سابق
+            ok.parentNode.replaceChild(fresh, ok);
+            fresh.onclick = async () => {
+                fresh.disabled = true;
+                const prev = fresh.innerHTML;
+                fresh.innerHTML = '⏳ جارٍ الحفظ...';
+                try {
+                    const res = await onOk();
+                    if (res !== false) trClosePrompt();
+                } catch (e) {
+                    console.error(e);
+                    showCustomAlert('خطأ', 'تعذّر الحفظ: ' + e.message, 'error');
+                }
+                fresh.disabled = false;
+                fresh.innerHTML = prev;
+            };
+            m.style.display = 'flex';
+        }
+
+        // ══════════ السواق ══════════
+        window.trNewDriver  = function () { trDriverDialog(null); };
+        window.trEditDriver = function (id) { trDriverDialog(id); };
+
+        function trDriverDialog(id) {
+            const d = id ? (window.TR.drivers[id] || {}) : {};
+            const html = `<div style="text-align:right;">
+                <label class="acc-label">اسم السائق</label>
+                <input id="trv-name" class="acc-input" value="${escHtml(d.name || '')}">
+                <label class="acc-label">الهاتف</label>
+                <input id="trv-phone" class="acc-input" value="${escHtml(d.phone || '')}" placeholder="07XX XXX XXXX">
+                <label class="acc-label">المركبة</label>
+                <input id="trv-vehicle" class="acc-input" value="${escHtml(d.vehicle || '')}" placeholder="كيا 2018">
+                <label class="acc-label">رقم اللوحة</label>
+                <input id="trv-plate" class="acc-input" value="${escHtml(d.plate || '')}">
+                <label class="acc-label">طريقة احتساب الأجر</label>
+                <select id="trv-paytype" class="acc-input" onchange="trTogglePay()">
+                    <option value="fixed"      ${d.payType !== 'perStudent' ? 'selected' : ''}>راتب شهري ثابت</option>
+                    <option value="perStudent" ${d.payType === 'perStudent' ? 'selected' : ''}>مبلغ عن كل طالب</option>
+                </select>
+                <div id="trv-fixed-wrap">
+                    <label class="acc-label">الراتب الشهري (د.ع)</label>
+                    <input id="trv-fixed" type="number" class="acc-input" value="${Number(d.fixedMonthly) || ''}">
+                </div>
+                <div id="trv-per-wrap" style="display:none;">
+                    <label class="acc-label">المبلغ عن كل طالب (د.ع)</label>
+                    <input id="trv-per" type="number" class="acc-input" value="${Number(d.perStudentAmount) || ''}">
+                </div>
+            </div>`;
+            showAccPrompt(id ? 'تعديل بيانات السائق' : 'سائق جديد', html, async () => {
+                const name = document.getElementById('trv-name').value.trim();
+                if (!name) { showCustomAlert('تنبيه', 'اسم السائق مطلوب.', 'warning'); return false; }
+                const payType = document.getElementById('trv-paytype').value;
+                const fixedMonthly     = Number(document.getElementById('trv-fixed').value) || 0;
+                const perStudentAmount = Number(document.getElementById('trv-per').value) || 0;
+                if (payType === 'fixed' && fixedMonthly <= 0)      { showCustomAlert('تنبيه', 'أدخل الراتب الشهري.', 'warning'); return false; }
+                if (payType === 'perStudent' && perStudentAmount <= 0) { showCustomAlert('تنبيه', 'أدخل المبلغ عن كل طالب.', 'warning'); return false; }
+                const did = id || ('drv_' + Date.now());
+                await _restSet('schoolDB/transport/drivers/' + did, {
+                    name, phone: document.getElementById('trv-phone').value.trim(),
+                    vehicle: document.getElementById('trv-vehicle').value.trim(),
+                    plate: document.getElementById('trv-plate').value.trim(),
+                    payType, fixedMonthly, perStudentAmount,
+                    branchId: trBranch(), active: true,
+                    createdAt: d.createdAt || Date.now()
+                });
+                if (window.addAccAuditLog) window.addAccAuditLog(id ? 'تعديل سائق' : 'إضافة سائق', name);
+                await trLoad(); trRenderDrivers(); trRenderRoutes();
+                showCustomAlert('تم', 'حُفظت بيانات السائق ✅', 'success');
+                return true;
+            });
+            trTogglePay();
+        }
+        window.trTogglePay = function () {
+            const v = document.getElementById('trv-paytype')?.value;
+            const f = document.getElementById('trv-fixed-wrap'), p = document.getElementById('trv-per-wrap');
+            if (f) f.style.display = v === 'fixed' ? 'block' : 'none';
+            if (p) p.style.display = v === 'perStudent' ? 'block' : 'none';
+        };
+
+        // استحقاق السائق لشهر معيّن
+        function trDriverDue(driverId, month) {
+            const d = window.TR.drivers[driverId] || {};
+            const myRoutes = Object.entries(window.TR.routes)
+                .filter(([, r]) => r && r.driverId === driverId).map(([id]) => id);
+            const students = Object.values(window.TR.subs).filter(s => s && myRoutes.includes(s.routeId)).length;
+            const due = d.payType === 'perStudent'
+                ? students * (Number(d.perStudentAmount) || 0)
+                : (Number(d.fixedMonthly) || 0);
+            const paid = Object.values(window.TR.payouts)
+                .filter(p => p && p.driverId === driverId && p.month === month)
+                .reduce((s, p) => s + (Number(p.amount) || 0), 0);
+            return { students, routes: myRoutes.length, due, paid, rest: due - paid };
+        }
+
+        window.trRenderDrivers = function () {
+            const wrap = document.getElementById('tr-drivers-list');
+            if (!wrap) return;
+            const m = trCurMonth();
+            const lbl = document.getElementById('tr-drv-month-label');
+            if (lbl) lbl.innerText = trMonthLabel(m);
+            const drivers = trBranchDrivers();
+            if (!drivers.length) {
+                wrap.innerHTML = `<div style="text-align:center;padding:50px 20px;color:#94a3b8;">
+                    <i class="fa-solid fa-id-card" style="font-size:2.6rem;display:block;margin-bottom:12px;color:#cbd5e1;"></i>
+                    <div style="font-weight:700;">لا يوجد سواق بعد</div></div>`;
+                return;
+            }
+            wrap.innerHTML = drivers.map(([id, d]) => {
+                const x = trDriverDue(id, m);
+                const payLabel = d.payType === 'perStudent'
+                    ? `${trFmt(d.perStudentAmount)} د.ع × ${x.students} طالب`
+                    : `راتب ثابت ${trFmt(d.fixedMonthly)} د.ع`;
+                return `<div class="acc-panel" style="padding:16px 18px; border:1px solid #e2e8f0;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+                        <div>
+                            <div style="font-weight:900; font-size:1.05rem; color:${d.active === false ? '#94a3b8' : '#1e3a8a'};">
+                                👤 ${escHtml(d.name)}
+                                ${d.active === false ? '<span class="acc-badge" style="background:#f1f5f9;color:#64748b;font-size:.7rem;">مؤرشف</span>' : ''}
+                            </div>
+                            <div style="font-size:0.83rem; color:#64748b; margin-top:5px;">
+                                ${d.phone ? '📞 ' + escHtml(d.phone) + ' · ' : ''}${d.vehicle ? '🚐 ' + escHtml(d.vehicle) : ''}${d.plate ? ' · ' + escHtml(d.plate) : ''}
+                            </div>
+                            <div style="font-size:0.83rem; color:#64748b; margin-top:3px;">
+                                🛣️ ${x.routes} خط · 👥 ${x.students} طالب · 💼 ${payLabel}
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:6px;">
+                            ${x.rest > 0 ? `<button onclick="trPayDriver('${id}')" class="acc-btn-primary" style="padding:7px 16px;font-size:0.83rem;background:#059669;"><i class="fa-solid fa-money-bill"></i> صرف</button>` : ''}
+                            <button onclick="trEditDriver('${id}')" class="acc-btn-primary" style="padding:7px 12px;font-size:0.83rem;background:#64748b;" title="تعديل"><i class="fa-solid fa-pen"></i></button>
+                            ${d.active === false
+                                ? `<button onclick="trRestoreDriver('${id}')" class="acc-btn-primary" style="padding:7px 12px;font-size:0.83rem;background:#0d9488;" title="إعادة تفعيل"><i class="fa-solid fa-rotate-left"></i></button>`
+                                : `<button onclick="trDeleteDriver('${id}')" class="acc-btn-danger" style="padding:7px 12px;font-size:0.83rem;" title="حذف"><i class="fa-solid fa-trash"></i></button>`}
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
+                        <span class="acc-badge" style="background:#fef3c7;color:#b45309;">استحقاق ${trMonthLabel(m)}: ${trFmt(x.due)}</span>
+                        <span class="acc-badge" style="background:#dcfce7;color:#15803d;">المصروف: ${trFmt(x.paid)}</span>
+                        ${x.rest > 0 ? `<span class="acc-badge" style="background:#fee2e2;color:#b91c1c;">المتبقي: ${trFmt(x.rest)}</span>`
+                                     : `<span class="acc-badge" style="background:#dcfce7;color:#15803d;">مسدّد بالكامل ✓</span>`}
+                    </div>
+                </div>`;
+            }).join('');
+        };
+
+        // ══════════ حذف السائق ══════════
+        /* السائق مرتبط بشيئين: خطوط (routes.driverId) وسندات صرف (finance/driverPayouts).
+           لذلك ثلاث حالات:
+             1) بلا خطوط وبلا صرف        → حذف نهائي
+             2) له خطوط وبلا صرف          → يُرفض حتى تُنقل خطوطه
+             3) له سجل صرف مالي           → أرشفة (active:false) لا حذف، حفاظاً على السندات */
+        function trDriverLinks(driverId) {
+            const routes = Object.entries(window.TR.routes || {})
+                .filter(([, r]) => r && r.driverId === driverId);
+            const payouts = Object.values(window.TR.payouts || {})
+                .filter(pp => pp && pp.driverId === driverId);
+            const paidTotal = payouts.reduce((n, pp) => n + (Number(pp.amount) || 0), 0);
+            return { routes, payouts, paidTotal };
+        }
+
+        window.trDeleteDriver = async function (driverId) {
+            const d = (window.TR.drivers || {})[driverId];
+            if (!d) return;
+            const { routes, payouts, paidTotal } = trDriverLinks(driverId);
+
+            // (2) له خطوط — لا نكسرها
+            if (routes.length) {
+                return showCustomAlert('لا يمكن الحذف',
+                    `السائق «${d.name}» مسنَد إلى ${routes.length} خط: ` +
+                    routes.map(([, r]) => r.name || '—').join('، ') +
+                    '.\nانقل هذه الخطوط إلى سائق آخر أولاً، ثم احذفه.', 'warning');
+            }
+
+            // (3) له سجل صرف — أرشفة لا حذف
+            if (payouts.length) {
+                const ok = await confirm(
+                    `للسائق «${d.name}» ${payouts.length} سند صرف بمجموع ${trFmt(paidTotal)} د.ع.\n` +
+                    'حذفه نهائياً يترك سنداته بلا صاحب، لذلك سيُؤرشف بدل الحذف: ' +
+                    'يختفي من القوائم وتبقى سنداته وتقاريره سليمة، ويمكن إعادة تفعيله لاحقاً.\nنؤرشفه؟');
+                if (!ok) return;
+                await _restUpdate('schoolDB/transport/drivers/' + driverId, { active: false, archivedAt: Date.now() });
+                if (window.addAccAuditLog) window.addAccAuditLog('أرشفة سائق', `${d.name} — ${payouts.length} سند`);
+                await trLoad(); trRenderDrivers(); trRenderRoutes();
+                return showCustomAlert('تمت الأرشفة', `أُرشف «${d.name}» وبقيت سنداته المالية كما هي.`, 'success');
+            }
+
+            // (1) لا شيء مرتبط — حذف نهائي
+            const ok = await confirm(
+                `حذف «${d.name}» نهائياً؟ لا توجد خطوط ولا سندات صرف مرتبطة به.`);
+            if (!ok) return;
+            await _restSet('schoolDB/transport/drivers/' + driverId, null);
+            if (window.addAccAuditLog) window.addAccAuditLog('حذف سائق', d.name || '');
+            await trLoad(); trRenderDrivers(); trRenderRoutes();
+            showCustomAlert('تم', `حُذف «${d.name}».`, 'success');
+        };
+
+        window.trRestoreDriver = async function (driverId) {
+            const d = (window.TR.drivers || {})[driverId];
+            if (!d) return;
+            await _restUpdate('schoolDB/transport/drivers/' + driverId, { active: true, archivedAt: null });
+            if (window.addAccAuditLog) window.addAccAuditLog('إعادة تفعيل سائق', d.name || '');
+            await trLoad(); trRenderDrivers(); trRenderRoutes();
+            showCustomAlert('تم', `أُعيد تفعيل «${d.name}».`, 'success');
+        };
+
+        // ══════════ حذف الخط ══════════
+        window.trDeleteRoute = async function (routeId) {
+            const r = (window.TR.routes || {})[routeId];
+            if (!r) return;
+            const m = trCurMonth();
+            const subs = Object.entries(window.TR.subs || {})
+                .filter(([, sb]) => sb && sb.routeId === routeId);
+
+            if (subs.length) {
+                return showCustomAlert('لا يمكن الحذف',
+                    `الخط «${r.name}» فيه ${subs.length} طالب مشترك في ${trMonthLabel(m)}.\n` +
+                    'أزل اشتراكاتهم أو انقلهم إلى خط آخر أولاً.', 'warning');
+            }
+            const ok = await confirm(
+                `حذف الخط «${r.name}» نهائياً؟ لا يوجد مشتركون فيه هذا الشهر.\n` +
+                'اشتراكات الأشهر السابقة وسنداتها تبقى محفوظة كما هي.');
+            if (!ok) return;
+            await _restSet('schoolDB/transport/routes/' + routeId, null);
+            if (window.addAccAuditLog) window.addAccAuditLog('حذف خط نقل', r.name || '');
+            await trLoad(); trRenderRoutes(); trRenderDrivers();
+            showCustomAlert('تم', `حُذف الخط «${r.name}».`, 'success');
+        };
+
+        // ── صرف مستحق السائق + وصل ──
+        window.trPayDriver = function (driverId) {
+            const d = window.TR.drivers[driverId]; if (!d) return;
+            const m = trCurMonth();
+            const x = trDriverDue(driverId, m);
+            const html = `<div style="text-align:right;">
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:6px;">
+                    <div style="font-weight:800;">${escHtml(d.name)}</div>
+                    <div style="font-size:0.85rem;color:#64748b;margin-top:6px;">
+                        شهر ${trMonthLabel(m)} · ${x.routes} خط · ${x.students} طالب<br>
+                        الاستحقاق ${trFmt(x.due)} · المصروف ${trFmt(x.paid)} · <b style="color:#b91c1c;">المتبقي ${trFmt(x.rest)}</b>
+                    </div>
+                </div>
+                <label class="acc-label">المبلغ المصروف (د.ع)</label>
+                <input id="trp-amount" type="number" class="acc-input" value="${x.rest}">
+                <label class="acc-label">ملاحظة (اختياري)</label>
+                <input id="trp-note" class="acc-input" placeholder="مثال: صرف نقداً">
+            </div>`;
+            showAccPrompt('صرف مستحق سائق', html, async () => {
+                const amount = Number(document.getElementById('trp-amount').value) || 0;
+                if (amount <= 0) { showCustomAlert('تنبيه', 'أدخل مبلغاً صحيحاً.', 'warning'); return false; }
+                const note = document.getElementById('trp-note').value.trim();
+                const receiptNo = await _nextReceiptNum(trBranch(), 'expense');
+                const pid = 'dp_' + Date.now();
+                const payout = {
+                    driverId, driverName: d.name, month: m, amount,
+                    students: x.students, payType: d.payType, note,
+                    receiptNo, ts: Date.now(), by: (currentUser && currentUser.name) || ''
+                };
+                // قيد مصروف حقيقي حتى يظهر في المصروفات والتقارير
+                const expId = await _restPush('finance/expenses', {
+                    amount, category: 'أجور نقل',
+                    note: `أجور نقل — ${d.name} — ${trMonthLabel(m)}${note ? ' — ' + note : ''}`,
+                    payee: d.name, method: 'نقداً', refNum: String(receiptNo),
+                    branchId: trBranch(), timestamp: Date.now(),
+                    by: (currentUser && currentUser.name) || ''
+                });
+                payout.expenseId = expId;
+                await _restSet('finance/driverPayouts/' + pid, payout);
+                if (window.addAccAuditLog) window.addAccAuditLog('صرف أجور نقل', `${d.name} — ${trFmt(amount)} د.ع — ${m}`);
+                await loadAccountantData();
+                await trLoad(); trRenderDrivers();
+                trPrintDriverVoucher(payout);
+                return true;
+            });
+        };
+
+        // وصل صرف السائق
+        window.trPrintDriverVoucher = function (p) {
+            const br = (window.NAHRAIN_BRANCHES && window.NAHRAIN_BRANCHES[trBranch()]) || {};
+            const win = window.open('', '_blank');
+            const payLine = p.payType === 'perStudent'
+                ? `مبلغ عن كل طالب × ${p.students} طالب` : 'راتب شهري ثابت';
+            win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8">
+<title>وصل صرف أجور نقل</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+ *{margin:0;padding:0;box-sizing:border-box;font-family:'Cairo',sans-serif;}
+ body{padding:26px;color:#0f172a;}
+ .box{border:2px solid #1e3a8a;border-radius:14px;overflow:hidden;max-width:760px;margin:auto;}
+ .hd{background:#1e3a8a;color:#fff;padding:16px 22px;display:flex;justify-content:space-between;align-items:center;}
+ .hd h1{font-size:1.15rem;} .hd .no{font-weight:900;}
+ .bd{padding:22px;}
+ .row{display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px dashed #cbd5e1;font-size:.98rem;}
+ .row b{font-weight:900;}
+ .amt{background:#f0fdf4;border:2px solid #16a34a;border-radius:12px;padding:16px;text-align:center;margin-top:16px;}
+ .amt .v{font-size:2rem;font-weight:900;color:#15803d;}
+ .sg{display:flex;justify-content:space-between;margin-top:44px;text-align:center;font-size:.85rem;}
+ .sg div{width:44%;} .ln{border-top:1.5px solid #94a3b8;margin-top:40px;padding-top:6px;}
+ @media print{body{padding:0;}}
+</style></head><body>
+<div class="box">
+ <div class="hd"><h1>وصل صرف أجور نقل</h1><span class="no">EX-${p.receiptNo}</span></div>
+ <div class="bd">
+  <div class="row"><span>المدرسة</span><b>${escHtml(br.name || 'مؤسسة النهرين التعليمية')}</b></div>
+  <div class="row"><span>اسم السائق</span><b>${escHtml(p.driverName)}</b></div>
+  <div class="row"><span>عن شهر</span><b>${trMonthLabel(p.month)}</b></div>
+  <div class="row"><span>طريقة الاحتساب</span><b>${payLine}</b></div>
+  <div class="row"><span>عدد الطلاب</span><b>${p.students}</b></div>
+  <div class="row"><span>تاريخ الصرف</span><b>${new Date(p.ts).toLocaleDateString('ar-IQ')}</b></div>
+  ${p.note ? `<div class="row"><span>ملاحظة</span><b>${escHtml(p.note)}</b></div>` : ''}
+  <div class="amt"><div style="font-size:.85rem;color:#475569;">المبلغ المصروف</div>
+    <div class="v">${trFmt(p.amount)} د.ع</div></div>
+  <div class="sg">
+    <div><div class="ln">توقيع المحاسب</div></div>
+    <div><div class="ln">توقيع المستلم (السائق)</div></div>
+  </div>
+ </div>
+</div>
+<script>window.onload=function(){window.print();}<\/script>
+</body></html>`);
+            win.document.close();
+        };
+
+
+        // ══════════ حوارات الخط ══════════
+        window.trNewRoute  = function () { trRouteDialog(null); };
+        window.trEditRoute = function (id) { trRouteDialog(id); };
+
+        function trRouteDialog(id) {
+            const r = id ? (window.TR.routes[id] || {}) : {};
+            // المؤرشفون لا يُسنَد إليهم خط جديد، لكن يبقى الظاهر إن كان الخط مسنَداً لأحدهم
+            const drivers = trBranchDrivers().filter(([did, d]) => d.active !== false || did === r.driverId);
+            if (!drivers.length && !id) {
+                return showCustomAlert('تنبيه', 'أضف سائقاً أولاً من قسم «السواق» ثم أنشئ الخط.', 'warning');
+            }
+            const html = `
+                <div style="text-align:right;">
+                    <label class="acc-label">اسم الخط</label>
+                    <input id="trd-name" class="acc-input" value="${escHtml(r.name || '')}" placeholder="مثال: خط الحيدرية">
+                    <label class="acc-label">المناطق (افصل بفاصلة)</label>
+                    <input id="trd-areas" class="acc-input" value="${escHtml((r.areas || []).join('، '))}" placeholder="الحيدرية، الجزيرة، الصناعة">
+                    <label class="acc-label">السائق</label>
+                    <select id="trd-driver" class="acc-input">
+                        <option value="">— اختر السائق —</option>
+                        ${drivers.map(([did, d]) => `<option value="${did}" ${r.driverId === did ? 'selected' : ''}>${escHtml(d.name)}</option>`).join('')}
+                    </select>
+                    <label class="acc-label">الأجرة الشهرية للطالب (د.ع)</label>
+                    <input id="trd-fee" type="number" class="acc-input" value="${Number(r.monthlyFee) || ''}" placeholder="40000">
+                    <p style="font-size:0.8rem;color:#64748b;margin:10px 0 0;">هذه الأجرة الافتراضية — ويمكن تعديلها لكل طالب على حدة.</p>
+                </div>`;
+            showAccPrompt(id ? 'تعديل الخط' : 'خط نقل جديد', html, async () => {
+                const name  = document.getElementById('trd-name').value.trim();
+                const areas = document.getElementById('trd-areas').value.split(/[،,]/).map(x => x.trim()).filter(Boolean);
+                const driverId = document.getElementById('trd-driver').value;
+                const fee = Number(document.getElementById('trd-fee').value) || 0;
+                if (!name || !driverId || fee <= 0) { showCustomAlert('تنبيه', 'أكمل: اسم الخط، السائق، والأجرة.', 'warning'); return false; }
+                const rid = id || ('rt_' + Date.now());
+                await _restSet('schoolDB/transport/routes/' + rid, {
+                    name, areas, driverId, monthlyFee: fee,
+                    branchId: trBranch(), active: true,
+                    createdAt: r.createdAt || Date.now()
+                });
+                if (window.addAccAuditLog) window.addAccAuditLog(id ? 'تعديل خط نقل' : 'إنشاء خط نقل', name);
+                await trLoad(); trRenderRoutes(); trRenderDrivers();
+                showCustomAlert('تم', 'حُفظ الخط ✅', 'success');
+                return true;
+            });
+        }
+
+        // ══════════ إضافة طلاب إلى الخط ══════════
+        window.trAddStudents = function (routeId) {
+            const r = window.TR.routes[routeId]; if (!r) return;
+            const m = trCurMonth();
+            const taken = new Set(Object.keys(window.TR.subs));
+            const list = accountantStudents.filter(s => !taken.has(String(s.uid)));
+            if (!list.length) return showCustomAlert('تنبيه', 'كل الطلاب مشتركون في خطوط هذا الشهر.', 'info');
+
+            // خرائط الأقسام/المراحل/الشعب لبناء الفلاتر ولإظهار صف الطالب بجانب اسمه
+            const _secMap = _buildAccSectionMap();
+            const _depts = _asAccArr(window.schoolStructure);
+            const _deptOpts = _depts.map((d, i) => `<option value="${i}">${escHtml(d.name || ('قسم ' + (i + 1)))}</option>`).join('');
+
+            const html = `
+                <div style="text-align:right;">
+                    <p class="tr-muted" style="margin:0 0 10px;font-size:0.86rem;">
+                        الخط: <b>${escHtml(r.name)}</b> — الشهر: <b>${trMonthLabel(m)}</b> — الأجرة: <b>${trFmt(r.monthlyFee)}</b> د.ع
+                    </p>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;">
+                        <select id="trs-dept" class="acc-input" onchange="trPickDeptChange()">
+                            <option value="all">📚 جميع الأقسام</option>${_deptOpts}
+                        </select>
+                        <select id="trs-stage" class="acc-input" onchange="trPickStageChange()">
+                            <option value="all">📖 جميع المراحل</option>
+                        </select>
+                        <select id="trs-section" class="acc-input" onchange="trFilterPick()">
+                            <option value="all">🏫 جميع الشعب</option>
+                        </select>
+                    </div>
+
+                    <input id="trs-search" class="acc-input" placeholder="🔍 ابحث بالاسم..." oninput="trFilterPick()">
+
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin:8px 0 4px;">
+                        <button type="button" onclick="trPickAll(true)" class="acc-btn-primary" style="padding:5px 12px;font-size:0.76rem;background:#475569;">تحديد الظاهر</button>
+                        <span id="trs-count" class="tr-muted" style="font-size:0.8rem;font-weight:700;"></span>
+                        <button type="button" onclick="trPickAll(false)" class="acc-btn-primary" style="padding:5px 12px;font-size:0.76rem;background:#94a3b8;">إلغاء التحديد</button>
+                    </div>
+
+                    <div id="trs-list" style="max-height:300px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:10px;padding:6px;">
+                        ${list.map(s => {
+                            const info = _secMap[s.classId] || {};
+                            const cls = (typeof getClassName === 'function') ? (getClassName(s.classId) || '—') : '—';
+                            return `
+                            <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid #f1f5f9;cursor:pointer;"
+                                   data-nm="${escHtml(s.name || '')}"
+                                   data-dept="${info.deptIdx === undefined ? '' : info.deptIdx}"
+                                   data-stage="${info.stageIdx === undefined ? '' : info.stageIdx}"
+                                   data-sec="${escHtml(s.classId || '')}">
+                                <input type="checkbox" class="trs-cb" value="${s.uid}" style="width:18px;height:18px;flex-shrink:0;">
+                                <span style="font-weight:600;">${escHtml(s.name || '(بلا اسم)')}</span>
+                                <span class="trs-cls" style="margin-inline-start:auto;">${escHtml(cls)}</span>
+                            </label>`;
+                        }).join('')}
+                    </div>
+                    <div class="tr-muted" style="margin-top:8px;font-size:0.82rem;">المؤشَّرون يُضافون بأجرة الخط، ويمكن تعديل أي منهم لاحقاً.</div>
+                </div>`;
+            showAccPrompt('إضافة طلاب إلى ' + r.name, html, async () => {
+                const picked = [...document.querySelectorAll('.trs-cb:checked')].map(c => c.value);
+                if (!picked.length) { showCustomAlert('تنبيه', 'لم تختر أي طالب.', 'warning'); return false; }
+                const updates = {};
+                picked.forEach(uid => {
+                    updates[`schoolDB/transport/subs/${m}/${uid}`] = {
+                        routeId, fee: Number(r.monthlyFee) || 0, discount: 0,
+                        ts: Date.now(), by: (currentUser && currentUser.name) || ''
+                    };
+                    updates[`users/${uid}/finance/transportRouteId`] = routeId;
+                });
+                await _restUpdate('', updates);
+                if (window.addAccAuditLog) window.addAccAuditLog('إضافة مشتركي نقل', `${picked.length} طالب — ${r.name} — ${m}`);
+                await trLoad(); trRenderRoutes();
+                showCustomAlert('تم', `أُضيف ${picked.length} طالب ✅`, 'success');
+                return true;
+            });
+            trFilterPick();   // يضبط العدّاد فور الفتح
+        };
+
+        /** Firebase يُرجع أحياناً كائناً بدل مصفوفة — نُوحّد الشكل */
+        function _asAccArr(v) {
+            if (Array.isArray(v)) return v.filter(Boolean);
+            if (v && typeof v === 'object') return Object.values(v).filter(Boolean);
+            return [];
+        }
+
+        /** فلترة قائمة اختيار الطلاب: بحث بالاسم + قسم + مرحلة + شعبة */
+        window.trFilterPick = function () {
+            const q    = (document.getElementById('trs-search')?.value || '').trim();
+            const dept = document.getElementById('trs-dept')?.value    || 'all';
+            const stg  = document.getElementById('trs-stage')?.value   || 'all';
+            const sec  = document.getElementById('trs-section')?.value || 'all';
+
+            let shown = 0;
+            document.querySelectorAll('#trs-list label').forEach(l => {
+                const nm = l.getAttribute('data-nm') || '';
+                let ok = !q || nm.includes(q);
+                if (ok && sec !== 'all')  ok = (l.getAttribute('data-sec') === sec);
+                else if (ok) {
+                    if (dept !== 'all') ok = (l.getAttribute('data-dept') === dept);
+                    if (ok && stg !== 'all') ok = (l.getAttribute('data-stage') === stg);
+                }
+                l.style.display = ok ? 'flex' : 'none';
+                if (ok) shown++;
+                // نُبقي التأشير عبر تبديل الفلاتر: المحاسب يختار من شعبة ثم ينتقل لأخرى
+            });
+
+            const total = document.querySelectorAll('#trs-list label').length;
+            const picked = document.querySelectorAll('.trs-cb:checked').length;
+            const c = document.getElementById('trs-count');
+            if (c) c.textContent = `ظاهر ${shown} من ${total}` + (picked ? ` · مؤشَّر ${picked}` : '');
+        };
+
+        /** تغيّر القسم → نُعيد بناء المراحل التابعة له */
+        window.trPickDeptChange = function () {
+            const dIdx = document.getElementById('trs-dept').value;
+            const stgSel = document.getElementById('trs-stage');
+            const secSel = document.getElementById('trs-section');
+            stgSel.innerHTML = '<option value="all">📖 جميع المراحل</option>';
+            secSel.innerHTML = '<option value="all">🏫 جميع الشعب</option>';
+            if (dIdx !== 'all') {
+                const dept = _asAccArr(window.schoolStructure)[Number(dIdx)];
+                _asAccArr(dept && dept.stages).forEach((st, i) => {
+                    stgSel.innerHTML += `<option value="${i}">${escHtml(st.name || ('المرحلة ' + (i + 1)))}</option>`;
+                });
+            }
+            trFilterPick();
+        };
+
+        /** تغيّر المرحلة → نُعيد بناء شعبها */
+        window.trPickStageChange = function () {
+            const dIdx = document.getElementById('trs-dept').value;
+            const sIdx = document.getElementById('trs-stage').value;
+            const secSel = document.getElementById('trs-section');
+            secSel.innerHTML = '<option value="all">🏫 جميع الشعب</option>';
+            if (dIdx !== 'all' && sIdx !== 'all') {
+                const dept = _asAccArr(window.schoolStructure)[Number(dIdx)];
+                const stage = _asAccArr(dept && dept.stages)[Number(sIdx)];
+                _asAccArr(stage && stage.sections).forEach(sc => {
+                    if (sc && sc.id) secSel.innerHTML += `<option value="${escHtml(sc.id)}">${escHtml(sc.name || sc.id)}</option>`;
+                });
+            }
+            trFilterPick();
+        };
+
+        /** تحديد/إلغاء تحديد الطلاب الظاهرين فقط */
+        window.trPickAll = function (on) {
+            document.querySelectorAll('#trs-list label').forEach(l => {
+                if (l.style.display === 'none') return;
+                const cb = l.querySelector('.trs-cb');
+                if (cb) cb.checked = !!on;
+            });
+            trFilterPick();
+        };
+
+        // ── تجديد الشهر: نسخ مشتركي الشهر السابق ──
+        window.trCopyPrevMonth = async function (routeId) {
+            const m = trCurMonth();
+            const d = new Date(m + '-01'); d.setMonth(d.getMonth() - 1);
+            const prev = d.toISOString().slice(0, 7);
+            const r = window.TR.routes[routeId];
+            const ok = await showAccConfirm('تجديد الشهر',
+                `نسخ مشتركي «${r.name}» من ${trMonthLabel(prev)} إلى ${trMonthLabel(m)}؟ (لن يُستبدل من هو مسجّل أصلاً)`);
+            if (!ok) return;
+            const snap = await _restGet('schoolDB/transport/subs/' + prev);
+            const prevSubs = snap.val() || {};
+            const updates = {}; let n = 0;
+            Object.entries(prevSubs).forEach(([uid, s]) => {
+                if (!s || s.routeId !== routeId) return;
+                if (window.TR.subs[uid]) return;
+                updates[`schoolDB/transport/subs/${m}/${uid}`] = {
+                    routeId, fee: Number(s.fee) || Number(r.monthlyFee) || 0,
+                    discount: Number(s.discount) || 0, ts: Date.now(),
+                    by: (currentUser && currentUser.name) || ''
+                };
+                updates[`users/${uid}/finance/transportRouteId`] = routeId;
+                n++;
+            });
+            if (!n) return showCustomAlert('تنبيه', 'لا يوجد مشتركون في الشهر السابق لهذا الخط.', 'info');
+            await _restUpdate('', updates);
+            if (window.addAccAuditLog) window.addAccAuditLog('تجديد اشتراكات نقل', `${n} طالب — ${r.name} — ${m}`);
+            await trLoad(); trRenderRoutes();
+            showCustomAlert('تم', `جُدّد اشتراك ${n} طالب ✅`, 'success');
+        };
+
+        window.trEditSub = function (uid, routeId) {
+            const s = window.TR.subs[uid] || {};
+            const st = accountantStudents.find(x => String(x.uid) === String(uid));
+            const html = `<div style="text-align:right;">
+                <p style="margin:0 0 10px;font-weight:700;">${escHtml(st ? st.name : '')}</p>
+                <label class="acc-label">الأجرة (د.ع)</label>
+                <input id="tre-fee" type="number" class="acc-input" value="${Number(s.fee) || 0}">
+                <label class="acc-label">الخصم (د.ع)</label>
+                <input id="tre-disc" type="number" class="acc-input" value="${Number(s.discount) || 0}">
+            </div>`;
+            showAccPrompt('تعديل اشتراك الشهر', html, async () => {
+                const fee = Number(document.getElementById('tre-fee').value) || 0;
+                const disc = Number(document.getElementById('tre-disc').value) || 0;
+                if (disc > fee) { showCustomAlert('تنبيه', 'الخصم أكبر من الأجرة.', 'warning'); return false; }
+                await _restUpdate(`schoolDB/transport/subs/${trCurMonth()}/${uid}`, { fee, discount: disc });
+                await trLoad(); trRenderRoutes(); trRenderDues();
+                return true;
+            });
+        };
+
+        window.trRemoveSub = async function (uid) {
+            const st = accountantStudents.find(x => String(x.uid) === String(uid));
+            const ok = await showAccConfirm('إزالة من الخط',
+                `إزالة «${st ? st.name : ''}» من خط النقل لشهر ${trMonthLabel(trCurMonth())} فقط؟ (لا يؤثر على الأشهر الأخرى)`);
+            if (!ok) return;
+            await _restSet(`schoolDB/transport/subs/${trCurMonth()}/${uid}`, null);
+            await trLoad(); trRenderRoutes(); trRenderDues();
+            showCustomAlert('تم', 'أُزيل الاشتراك لهذا الشهر', 'success');
+        };
+
+
+        // ══════════ قبض أجرة النقل من الطالب ══════════
+        window.trPayStudent = function (uid, routeId) {
+            const s = window.TR.subs[uid]; if (!s) return;
+            const st = accountantStudents.find(x => String(x.uid) === String(uid));
+            const r = window.TR.routes[s.routeId] || {};
+            const m = trCurMonth();
+            const net = trNet(s), paid = trPaidFor(uid, m), rest = net - paid;
+            const html = `<div style="text-align:right;">
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:6px;">
+                    <div style="font-weight:800;">${escHtml(st ? st.name : '')}</div>
+                    <div style="font-size:0.85rem;color:#64748b;margin-top:6px;">
+                        🚌 ${escHtml(r.name || '')} · شهر ${trMonthLabel(m)}<br>
+                        الأجرة ${trFmt(s.fee)}${Number(s.discount) ? ' · خصم ' + trFmt(s.discount) : ''} · المدفوع ${trFmt(paid)} ·
+                        <b style="color:#b91c1c;">المتبقي ${trFmt(rest)}</b>
+                    </div>
+                </div>
+                <label class="acc-label">المبلغ المقبوض (د.ع)</label>
+                <input id="trq-amount" type="number" class="acc-input" value="${rest > 0 ? rest : 0}">
+                <label class="acc-label">ملاحظة (اختياري)</label>
+                <input id="trq-note" class="acc-input" placeholder="مثال: استلمت من ولي الأمر">
+            </div>`;
+            showAccPrompt('قبض أجرة نقل', html, async () => {
+                const amount = Number(document.getElementById('trq-amount').value) || 0;
+                if (amount <= 0) { showCustomAlert('تنبيه', 'أدخل مبلغاً صحيحاً.', 'warning'); return false; }
+                const note = document.getElementById('trq-note').value.trim();
+                const receiptNo = await _nextReceiptNum(trBranch(), 'revenue');
+                const rec = {
+                    studentUid: uid, amount,
+                    transportMonth: m, transportRouteId: s.routeId,
+                    note: `أجرة نقل — ${r.name || ''} — ${trMonthLabel(m)}${note ? ' — ' + note : ''}`,
+                    category: 'أجور نقل', receiptNo,
+                    branchId: trBranch(), timestamp: Date.now(),
+                    by: (currentUser && currentUser.name) || ''
+                };
+                await _restPush('finance/revenues', rec);
+                if (window.addAccAuditLog) window.addAccAuditLog('قبض أجرة نقل', `${st ? st.name : ''} — ${trFmt(amount)} د.ع — ${m}`);
+                await loadAccountantData();
+                await trLoad(); trRenderRoutes(); trRenderDues();
+                trPrintStudentTransportReceipt({
+                    name: st ? st.name : '', route: r.name || '', driver: (window.TR.drivers[r.driverId] || {}).name || '',
+                    month: m, fee: s.fee, discount: s.discount, amount,
+                    rest: Math.max(0, net - paid - amount), receiptNo, ts: Date.now()
+                });
+                return true;
+            });
+        };
+
+        // وصل قبض أجرة النقل الشهري
+        window.trPrintStudentTransportReceipt = function (o) {
+            const br = (window.NAHRAIN_BRANCHES && window.NAHRAIN_BRANCHES[trBranch()]) || {};
+            const win = window.open('', '_blank');
+            win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8">
+<title>وصل قبض أجرة نقل</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+ *{margin:0;padding:0;box-sizing:border-box;font-family:'Cairo',sans-serif;}
+ body{padding:26px;color:#0f172a;}
+ .box{border:2px solid #b45309;border-radius:14px;overflow:hidden;max-width:760px;margin:auto;}
+ .hd{background:#b45309;color:#fff;padding:16px 22px;display:flex;justify-content:space-between;align-items:center;}
+ .hd h1{font-size:1.15rem;} .hd .no{font-weight:900;}
+ .bd{padding:22px;}
+ .row{display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px dashed #cbd5e1;font-size:.98rem;}
+ .row b{font-weight:900;}
+ .amt{background:#fffbeb;border:2px solid #d97706;border-radius:12px;padding:16px;text-align:center;margin-top:16px;}
+ .amt .v{font-size:2rem;font-weight:900;color:#b45309;}
+ .rest{margin-top:12px;text-align:center;font-size:.95rem;}
+ .sg{display:flex;justify-content:space-between;margin-top:44px;text-align:center;font-size:.85rem;}
+ .sg div{width:44%;} .ln{border-top:1.5px solid #94a3b8;margin-top:40px;padding-top:6px;}
+ .note{margin-top:16px;font-size:.78rem;color:#64748b;text-align:center;}
+ @media print{body{padding:0;}}
+</style></head><body>
+<div class="box">
+ <div class="hd"><h1>وصل قبض أجرة نقل</h1><span class="no">RV-${o.receiptNo}</span></div>
+ <div class="bd">
+  <div class="row"><span>المدرسة</span><b>${escHtml(br.name || 'مؤسسة النهرين التعليمية')}</b></div>
+  <div class="row"><span>اسم الطالب</span><b>${escHtml(o.name)}</b></div>
+  <div class="row"><span>خط النقل</span><b>${escHtml(o.route)}</b></div>
+  ${o.driver ? `<div class="row"><span>السائق</span><b>${escHtml(o.driver)}</b></div>` : ''}
+  <div class="row"><span>عن شهر</span><b>${trMonthLabel(o.month)}</b></div>
+  <div class="row"><span>الأجرة الشهرية</span><b>${trFmt(o.fee)} د.ع</b></div>
+  ${Number(o.discount) ? `<div class="row"><span>الخصم</span><b>${trFmt(o.discount)} د.ع</b></div>` : ''}
+  <div class="row"><span>تاريخ القبض</span><b>${new Date(o.ts).toLocaleDateString('ar-IQ')}</b></div>
+  <div class="amt"><div style="font-size:.85rem;color:#475569;">المبلغ المقبوض</div>
+    <div class="v">${trFmt(o.amount)} د.ع</div></div>
+  <div class="rest">${o.rest > 0
+     ? `<span style="color:#b91c1c;font-weight:800;">المتبقي من أجرة هذا الشهر: ${trFmt(o.rest)} د.ع</span>`
+     : `<span style="color:#15803d;font-weight:800;">✓ سُدّدت أجرة الشهر بالكامل</span>`}</div>
+  <div class="sg">
+    <div><div class="ln">توقيع المحاسب</div></div>
+    <div><div class="ln">توقيع ولي الأمر</div></div>
+  </div>
+  <div class="note">هذا الوصل خاص بأجور النقل فقط ولا علاقة له بالأقساط الدراسية.</div>
+ </div>
+</div>
+<script>window.onload=function(){window.print();}<\/script>
+</body></html>`);
+            win.document.close();
+        };
+
+        // ══════════ شاشة التحصيل ══════════
+        window.trRenderDues = function () {
+            const wrap = document.getElementById('tr-dues-list');
+            const kpi  = document.getElementById('tr-dues-kpi');
+            if (!wrap) return;
+            const m = trCurMonth();
+            const fRoute  = document.getElementById('tr-dues-route')?.value || 'all';
+            const fStatus = document.getElementById('tr-dues-status')?.value || 'all';
+
+            let rows = Object.entries(window.TR.subs).map(([uid, s]) => {
+                const st = accountantStudents.find(x => String(x.uid) === String(uid));
+                if (!st) return null;
+                const net = trNet(s), paid = trPaidFor(uid, m);
+                return { uid, s, st, net, paid, rest: net - paid, route: window.TR.routes[s.routeId] || {} };
+            }).filter(Boolean);
+
+            const totDue = rows.reduce((a, x) => a + x.net, 0);
+            const totPaid = rows.reduce((a, x) => a + x.paid, 0);
+            const nPaid = rows.filter(x => x.rest <= 0).length;
+            if (kpi) kpi.innerHTML = `
+                ${trKpi('👥', 'المشتركون', rows.length, '#0369a1')}
+                ${trKpi('✅', 'مسدّدون', nPaid, '#15803d')}
+                ${trKpi('⏳', 'متبقّون', rows.length - nPaid, '#b91c1c')}
+                ${trKpi('💰', 'المستحق', trFmt(totDue), '#b45309')}
+                ${trKpi('🟢', 'المحصّل', trFmt(totPaid), '#15803d')}`;
+
+            if (fRoute !== 'all')     rows = rows.filter(x => x.s.routeId === fRoute);
+            if (fStatus === 'paid')   rows = rows.filter(x => x.rest <= 0);
+            if (fStatus === 'unpaid') rows = rows.filter(x => x.rest > 0);
+            rows.sort((a, b) => b.rest - a.rest || (a.st.name || '').localeCompare(b.st.name || '', 'ar'));
+
+            if (!rows.length) {
+                wrap.innerHTML = `<div style="text-align:center;padding:44px;color:#94a3b8;">لا نتائج لهذا الشهر</div>`;
+                return;
+            }
+            wrap.innerHTML = `<div style="overflow-x:auto;"><table class="acc-table" style="font-size:0.88rem;">
+                <thead><tr><th>الطالب</th><th>الخط</th><th>الأجرة</th><th>الخصم</th><th>الصافي</th><th>المدفوع</th><th>المتبقي</th><th></th></tr></thead>
+                <tbody>${rows.map(x => `<tr>
+                    <td style="font-weight:700;">${escHtml(x.st.name || '')}</td>
+                    <td style="color:#64748b;">${escHtml(x.route.name || '')}</td>
+                    <td>${trFmt(x.s.fee)}</td>
+                    <td>${trFmt(x.s.discount)}</td>
+                    <td style="font-weight:800;">${trFmt(x.net)}</td>
+                    <td style="color:#15803d;font-weight:700;">${trFmt(x.paid)}</td>
+                    <td>${x.rest > 0 ? `<span style="color:#b91c1c;font-weight:800;">${trFmt(x.rest)}</span>`
+                                      : '<span class="acc-badge" style="background:#dcfce7;color:#15803d;">مسدّد ✓</span>'}</td>
+                    <td>${x.rest > 0 ? `<button onclick="trPayStudent('${x.uid}','${x.s.routeId}')" class="acc-btn-primary" style="padding:5px 12px;font-size:0.78rem;">قبض</button>` : ''}</td>
+                </tr>`).join('')}</tbody></table></div>`;
+        };
+
+        // ══════════ الكشوف المطبوعة ══════════
+        window.trPrintRoutesReport = function () {
+            const m = trCurMonth();
+            const br = (window.NAHRAIN_BRANCHES && window.NAHRAIN_BRANCHES[trBranch()]) || {};
+            let body = '', gDue = 0, gPaid = 0, gStud = 0;
+            trBranchRoutes().forEach(([id, r]) => {
+                const studs = trRouteStudents(id);
+                if (!studs.length) return;
+                const drv = window.TR.drivers[r.driverId] || {};
+                const due = studs.reduce((s, x) => s + trNet(x), 0);
+                const paid = studs.reduce((s, x) => s + trPaidFor(x.uid, m), 0);
+                gDue += due; gPaid += paid; gStud += studs.length;
+                body += `<h3>${escHtml(r.name)} — ${escHtml(drv.name || '')} — ${(r.areas || []).map(escHtml).join(' · ')}</h3>
+                <table><thead><tr><th>#</th><th>الطالب</th><th>الأجرة</th><th>الخصم</th><th>الصافي</th><th>المدفوع</th><th>المتبقي</th></tr></thead><tbody>
+                ${studs.map((x, i) => {
+                    const net = trNet(x), pd = trPaidFor(x.uid, m);
+                    return `<tr><td>${i + 1}</td><td>${escHtml(x.student.name || '')}</td><td>${trFmt(x.fee)}</td>
+                    <td>${trFmt(x.discount)}</td><td>${trFmt(net)}</td><td>${trFmt(pd)}</td>
+                    <td>${net - pd > 0 ? trFmt(net - pd) : '—'}</td></tr>`;
+                }).join('')}
+                <tr style="background:#f1f5f9;font-weight:900;"><td colspan="4">مجموع الخط (${studs.length} طالب)</td>
+                <td>${trFmt(due)}</td><td>${trFmt(paid)}</td><td>${trFmt(due - paid)}</td></tr>
+                </tbody></table>`;
+            });
+            const win = window.open('', '_blank');
+            win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>كشف خطوط النقل</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+<style>*{margin:0;padding:0;box-sizing:border-box;font-family:'Cairo',sans-serif;}
+body{padding:22px;color:#0f172a;} h1{font-size:1.3rem;text-align:center;margin-bottom:4px;}
+.sub{text-align:center;color:#64748b;font-size:.9rem;margin-bottom:18px;}
+h3{background:#1e3a8a;color:#fff;padding:9px 14px;border-radius:8px;font-size:.95rem;margin:18px 0 8px;}
+table{width:100%;border-collapse:collapse;font-size:.85rem;} th,td{border:1px solid #cbd5e1;padding:7px;text-align:center;}
+th{background:#f1f5f9;} .tot{margin-top:20px;background:#fef3c7;border:2px solid #d97706;border-radius:10px;padding:14px;text-align:center;font-weight:900;}
+@media print{body{padding:0;}}</style></head><body>
+<h1>${escHtml(br.name || 'مؤسسة النهرين التعليمية')}</h1>
+<div class="sub">كشف خطوط النقل — ${trMonthLabel(m)}</div>
+${body || '<p style="text-align:center;color:#94a3b8;">لا مشتركين</p>'}
+<div class="tot">الإجمالي: ${gStud} طالب · المستحق ${trFmt(gDue)} د.ع · المحصّل ${trFmt(gPaid)} د.ع · المتبقي ${trFmt(gDue - gPaid)} د.ع</div>
+<script>window.onload=function(){window.print();}<\/script></body></html>`);
+            win.document.close();
+        };
+        window.trPrintDuesReport = window.trPrintRoutesReport;
 
