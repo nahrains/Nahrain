@@ -5573,50 +5573,188 @@
             // المتصفح قد يحجب النافذة المنبثقة — بلا هذا الفحص يتحطّم الكود
             // ويظهر «تعذّر الحفظ» رغم أن القيد حُفظ، فيعيد المستخدم العملية.
             if (!win) { showCustomAlert('تعذّرت الطباعة', 'حُفظت العملية بنجاح ✅ لكن المتصفح حجب نافذة الطباعة.\n' + 'اسمح بالنوافذ المنبثقة لهذا الموقع ثم أعد الطباعة من السجل.', 'warning'); return; }
-            win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8">
-<title>وصل قبض أجرة نقل</title>
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+
+            // رقم الوصل يأتي من _nextReceiptNum كاملاً بالبادئة (RV-2026-000xx)
+            // فلا نُضيف بادئة ثانية — كان يُطبع RV-RV-...
+            const _no = String(o.receiptNo || '').replace(/^RV-RV-/, 'RV-');
+            const _words = (typeof arabicNumberToWords === 'function')
+                ? arabicNumberToWords(Number(o.amount) || 0) : '';
+            const _year = (window.ACADEMIC_YEAR || (new Date().getFullYear() + ' / ' + (new Date().getFullYear() + 1)));
+
+            win.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8">
+<title>وصل قبض أجرة نقل — ${escHtml(o.name || '')}</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
- *{margin:0;padding:0;box-sizing:border-box;font-family:'Cairo',sans-serif;}
- body{padding:26px;color:#0f172a;}
- .box{border:2px solid #b45309;border-radius:14px;overflow:hidden;max-width:760px;margin:auto;}
- .hd{background:#b45309;color:#fff;padding:16px 22px;display:flex;justify-content:space-between;align-items:center;}
- .hd h1{font-size:1.15rem;} .hd .no{font-weight:900;}
- .bd{padding:22px;}
- .row{display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px dashed #cbd5e1;font-size:.98rem;}
- .row b{font-weight:900;}
- .amt{background:#fffbeb;border:2px solid #d97706;border-radius:12px;padding:16px;text-align:center;margin-top:16px;}
- .amt .v{font-size:2rem;font-weight:900;color:#b45309;}
- .rest{margin-top:12px;text-align:center;font-size:.95rem;}
- .sg{display:flex;justify-content:space-between;margin-top:44px;text-align:center;font-size:.85rem;}
- .sg div{width:44%;} .ln{border-top:1.5px solid #94a3b8;margin-top:40px;padding-top:6px;}
- .note{margin-top:16px;font-size:.78rem;color:#64748b;text-align:center;}
- @media print{body{padding:0;}}
-</style></head><body>
-<div class="box">
- <div class="hd"><h1>وصل قبض أجرة نقل</h1><span class="no">RV-${o.receiptNo}</span></div>
- <div class="bd">
-  <div class="row"><span>المدرسة</span><b>${escHtml(br.name || 'مؤسسة النهرين التعليمية')}</b></div>
-  <div class="row"><span>اسم الطالب</span><b>${escHtml(o.name)}</b></div>
-  <div class="row"><span>خط النقل</span><b>${escHtml(o.route)}</b></div>
-  ${o.driver ? `<div class="row"><span>السائق</span><b>${escHtml(o.driver)}</b></div>` : ''}
-  <div class="row"><span>عن شهر</span><b>${trMonthLabel(o.month)}</b></div>
-  <div class="row"><span>الأجرة الشهرية</span><b>${trFmt(o.fee)} د.ع</b></div>
-  ${Number(o.discount) ? `<div class="row"><span>الخصم</span><b>${trFmt(o.discount)} د.ع</b></div>` : ''}
-  <div class="row"><span>تاريخ القبض</span><b>${new Date(o.ts).toLocaleDateString('ar-IQ')}</b></div>
-  <div class="amt"><div style="font-size:.85rem;color:#475569;">المبلغ المقبوض</div>
-    <div class="v">${trFmt(o.amount)} د.ع</div></div>
-  <div class="rest">${o.rest > 0
-     ? `<span style="color:#b91c1c;font-weight:800;">المتبقي من أجرة هذا الشهر: ${trFmt(o.rest)} د.ع</span>`
-     : `<span style="color:#15803d;font-weight:800;">✓ سُدّدت أجرة الشهر بالكامل</span>`}</div>
-  <div class="sg">
-    <div><div class="ln">توقيع المحاسب</div></div>
-    <div><div class="ln">توقيع ولي الأمر</div></div>
-  </div>
-  <div class="note">هذا الوصل خاص بأجور النقل فقط ولا علاقة له بالأقساط الدراسية.</div>
- </div>
+                        *{margin:0;padding:0;box-sizing:border-box;}
+                        body{font-family:'Cairo',sans-serif;background:#f1f5f9;color:#1e293b;}
+                        .page{width:210mm;min-height:297mm;margin:0 auto;background:white;display:flex;flex-direction:column;position:relative;overflow:hidden;}
+
+                        /* HEADER */
+                        .rh{background:#1e293b;padding:22px 35px 18px;position:relative;overflow:hidden;display:flex;justify-content:space-between;align-items:center;}
+                        .rh::before{content:'';position:absolute;top:-25px;right:-15px;width:130px;height:130px;background:#059669;transform:rotate(45deg);opacity:.75;}
+                        .rh::after{content:'';position:absolute;top:-35px;right:75px;width:85px;height:130px;background:#34d399;transform:rotate(45deg);opacity:.4;}
+                        .rh-logo{display:flex;align-items:center;gap:12px;z-index:1;position:relative;}
+                        .rh-logo img{height:58px;filter:brightness(0) invert(1);}
+                        .rh-logo-text h2{font-size:1.1rem;font-weight:900;color:white;margin:0;}
+                        .rh-logo-text p{font-size:0.68rem;color:#94a3b8;margin:0;font-weight:600;letter-spacing:1px;}
+                        .rh-title{text-align:left;z-index:1;position:relative;}
+                        .rh-title h1{font-size:2.2rem;font-weight:900;color:white;letter-spacing:2px;line-height:1;}
+                        .rh-title span{font-size:0.75rem;color:#059669;font-weight:700;letter-spacing:2px;}
+
+                        /* CLIENT BAR */
+                        .cb{background:#f8fafc;border-bottom:3px solid #059669;padding:15px 35px;display:flex;align-items:center;gap:20px;}
+                        .cb-name{flex:1;}
+                        .cb-name small{font-size:0.65rem;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:1px;display:block;}
+                        .cb-name strong{font-size:1.3rem;font-weight:900;color:#1e293b;}
+                        .cb-meta{display:flex;gap:0;}
+                        .mi{padding:0 18px;border-right:2px solid #e2e8f0;text-align:center;}
+                        .mi:last-child{border-right:none;padding-left:0;}
+                        .mi small{font-size:0.63rem;color:#64748b;font-weight:700;letter-spacing:.5px;display:block;}
+                        .mi strong{font-size:0.88rem;font-weight:800;color:#1e293b;}
+                        .mi.hl strong{color:#059669;}
+
+                        /* BODY */
+                        .rb{display:flex;flex:1;padding:20px 0 0;}
+                        .sidebar{width:160px;background:#f8fafc;padding:18px 15px 18px 18px;border-left:1px solid #e2e8f0;flex-shrink:0;}
+                        .si{margin-bottom:16px;}
+                        .si .sl{font-size:0.62rem;color:#059669;font-weight:800;letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:2px;}
+                        .si .sv{font-size:0.8rem;color:#334155;font-weight:600;line-height:1.4;}
+                        .mc{flex:1;padding:0 25px 15px 25px;}
+
+                        /* TABLE */
+                        .dt{width:100%;border-collapse:collapse;margin-bottom:18px;}
+                        .dt thead tr{background:#1e293b;color:white;}
+                        .dt thead th{padding:9px 12px;font-size:0.73rem;font-weight:700;letter-spacing:.5px;text-align:right;}
+                        .dt thead th:last-child{text-align:left;}
+                        .dt tbody tr{border-bottom:1px solid #f1f5f9;}
+                        .dt tbody tr:nth-child(even){background:#f8fafc;}
+                        .dt tbody td{padding:11px 12px;font-size:0.85rem;color:#334155;}
+                        .dt tbody td:last-child{text-align:left;font-weight:700;color:#059669;}
+                        .td-desc{font-weight:700;color:#1e293b;}
+                        .td-sub{font-size:0.72rem;color:#64748b;}
+
+                        /* SUMMARY */
+                        .sa{display:flex;justify-content:flex-end;margin-bottom:16px;}
+                        .st{width:250px;}
+                        .sr{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:0.85rem;}
+                        .sr .sl{color:#64748b;font-weight:600;}
+                        .sr .sv{font-weight:700;color:#1e293b;}
+                        .sr.total{background:#059669;color:white;padding:9px 12px;border-radius:6px;margin-top:4px;border:none;}
+                        .sr.total .sl{color:rgba(255,255,255,.85);font-size:0.88rem;}
+                        .sr.total .sv{color:white;font-size:1.05rem;font-weight:900;}
+
+                        /* CREDENTIALS */
+                        .cred{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 15px;margin-bottom:16px;display:flex;gap:20px;align-items:center;flex-wrap:wrap;}
+                        .cred-t{font-size:0.72rem;color:#15803d;font-weight:800;letter-spacing:1px;white-space:nowrap;}
+                        .cred-p{font-size:0.82rem;}
+                        .cred-p span{color:#64748b;font-weight:600;}
+                        .cred-p b{color:#166534;direction:ltr;display:inline-block;font-size:0.9rem;}
+
+                        /* SIGS */
+                        .sigs{display:flex;justify-content:space-between;padding:10px 35px 20px;}
+                        .sb{text-align:center;width:30%;}
+                        .sb .sn{font-size:0.8rem;font-weight:800;color:#475569;margin-bottom:38px;}
+                        .sb .sl2{border-top:2px solid #e2e8f0;padding-top:5px;}
+                        .sb .sl2 span{font-size:0.65rem;color:#94a3b8;}
+
+                        /* FOOTER */
+                        .rf{background:#1e293b;padding:12px 35px;display:flex;justify-content:center;gap:35px;align-items:center;margin-top:auto;position:relative;overflow:hidden;}
+                        .rf::before{content:'';position:absolute;bottom:-20px;left:-10px;width:100px;height:80px;background:#059669;transform:rotate(45deg);opacity:.6;}
+                        .rf::after{content:'';position:absolute;bottom:-30px;left:60px;width:70px;height:80px;background:#34d399;transform:rotate(45deg);opacity:.35;}
+                        .fi{display:flex;align-items:center;gap:7px;color:#94a3b8;font-size:0.72rem;z-index:1;}
+                        .fi i{color:#059669;font-size:0.85rem;}
+
+                        .wm{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-30deg);font-size:9rem;font-weight:900;color:rgba(5,150,105,.04);pointer-events:none;white-space:nowrap;z-index:0;}
+                        .no-print-bar{background:#1e293b;color:white;padding:11px;text-align:center;position:sticky;top:0;z-index:100;}
+                        .no-print-bar button{background:#059669;color:white;border:none;padding:7px 28px;font-family:'Cairo';font-weight:800;cursor:pointer;border-radius:6px;font-size:0.9rem;}
+
+                        @media print{
+                            body{background:white!important;}
+                            .no-print{display:none!important;}
+                            .page{margin:0;width:100%;min-height:100vh;}
+                            @page{size:A4 portrait;margin:0;}
+                        }
+                    </style></head>
+<body>
+<div class="no-print-bar no-print">
+    <button onclick="window.print()">🖨️ طباعة الوصل الآن</button>
 </div>
-<script>window.onload=function(){window.print();}<\/script>
+<div class="page">
+    <div class="wm">مدفوع</div>
+
+    <div class="rh">
+        <div class="rh-logo">
+            <div class="rh-logo-text">
+                <h2>مؤسسة النهرين التعليمية</h2>
+                <p>AL-NAHRAIN EDUCATIONAL INSTITUTION</p>
+            </div>
+        </div>
+        <div class="rh-title">
+            <h1>وصل أجرة نقل</h1>
+            <span>TRANSPORT FEE RECEIPT</span>
+        </div>
+    </div>
+
+    <div class="cb">
+        <div class="cb-name">
+            <small>اسم الطالب / Student Name</small>
+            <strong>${escHtml(o.name || '—')}</strong>
+        </div>
+        <div class="cb-meta">
+            <div class="mi"><span class="mc">رقم الوصل</span><span class="mv">${escHtml(_no)}</span></div>
+            <div class="mi"><span class="mc">تاريخ الإصدار</span><span class="mv">${new Date(o.ts || Date.now()).toLocaleString('ar-IQ')}</span></div>
+        </div>
+    </div>
+
+    <div class="rb">
+        <div class="sidebar">
+            <div class="si"><span class="sl">المؤسسة</span><span class="sv">مؤسسة النهرين التعليمية الدولية</span></div>
+            <div class="si"><span class="sl">الفرع</span><span class="sv">${escHtml(br.name || 'إعدادية النهرين المهنية الأهلية')}</span></div>
+            <div class="si"><span class="sl">السنة الدراسية</span><span class="sv">${escHtml(_year)}</span></div>
+            <div class="si"><span class="sl">خط النقل</span><span class="sv">${escHtml(o.route || '—')}</span></div>
+            ${o.driver ? `<div class="si"><span class="sl">السائق</span><span class="sv">${escHtml(o.driver)}</span></div>` : ''}
+            <div class="si"><span class="sl">عن شهر</span><span class="sv">${escHtml(trMonthLabel(o.month))}</span></div>
+            <div class="si"><span class="sl">بواسطة</span><span class="sv">${escHtml((currentUser && currentUser.name) || 'المحاسب')}</span></div>
+        </div>
+
+        <div class="mc-body">
+            <table class="dt">
+                <thead><tr><th>ت</th><th>البيان</th><th>التفاصيل</th><th>المبلغ</th></tr></thead>
+                <tbody>
+                    <tr>
+                        <td>1</td>
+                        <td class="td-desc">أجرة نقل — ${escHtml(trMonthLabel(o.month))}</td>
+                        <td class="td-sub">${_words}</td>
+                        <td class="total">${trFmt(o.amount)} د.ع</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="sa">
+                <div class="st">
+                    <div class="sr"><span class="sl">الأجرة الشهرية</span><span class="sv">${trFmt(o.fee)} د.ع</span></div>
+                    ${Number(o.discount) ? `<div class="sr"><span class="sl">الخصم</span><span class="sv">${trFmt(o.discount)} د.ع</span></div>` : ''}
+                    <div class="sr"><span class="sl">المبلغ المقبوض اليوم</span><span class="sv" style="color:#059669">${trFmt(o.amount)} د.ع</span></div>
+                    ${Number(o.rest) > 0
+                        ? `<div class="sr"><span class="sl">المتبقي من أجرة الشهر</span><span class="sv" style="color:#c62828;font-weight:900;">${trFmt(o.rest)} د.ع</span></div>`
+                        : `<div class="sr total"><span class="sl">الحالة</span><span class="sv">سُدّدت أجرة الشهر بالكامل ✓</span></div>`}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="sigs">
+        <div class="sb"><div class="sn">المستلم</div><div class="st">Receiver Signature</div></div>
+        <div class="sb"><div class="sn">المحاسب المختص</div><div class="st">Accountant Signature</div></div>
+        <div class="sb"><div class="sn">الختم الرسمي</div><div class="st">Official Stamp</div></div>
+    </div>
+
+    <div class="rf">
+        <div class="fi">${escHtml(br.address || 'السماوة - الحيدرية، مجاور ملعب الحيدرية')}</div>
+        <div class="fi">${escHtml(br.phone || '07870777892')}</div>
+        <div class="fi">هذا الوصل خاص بأجور النقل ولا علاقة له بالأقساط الدراسية</div>
+    </div>
+</div>
 </body></html>`);
             win.document.close();
         };
