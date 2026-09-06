@@ -13912,6 +13912,8 @@ ${rows.map((r, i) => `<tr><td>${i + 1}</td><td>${r.num}/${r.year}</td><td>${escH
 
             window.attClassId = classId;
             const modal = document.getElementById('attendance-modal');
+            // #admin-dash لا يُغلق في الـHTML فتُعشَّش النوافذ داخله — نرفعها إلى body
+            if (modal.parentElement !== document.body) document.body.appendChild(modal);
             modal.style.display = 'flex';
             modal.classList.add('active');
             renderAttendanceUI();

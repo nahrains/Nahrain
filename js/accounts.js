@@ -2434,6 +2434,20 @@
             });
         };
 
+        /**
+         * يرفع النافذة إلى <body> قبل إظهارها.
+         * السبب: وسم <div id="admin-dash"> في index.html لا يُغلق، فكل ما بعده
+         * يُعشَّش داخله. ولوحة المحاسب/المدرّس تُخفي admin-dash، فتصير النافذة
+         * موجودة بـ display صحيح لكن بأبعاد 0×0 — أو أسوأ: تظهر طبقتها السوداء
+         * وحدها (إن كانت قد نُقلت) فيرى المستخدم شاشة مظللة فارغة.
+         */
+        window._accLift = function () {
+            for (let i = 0; i < arguments.length; i++) {
+                const el = document.getElementById(arguments[i]);
+                if (el && el.parentElement !== document.body) document.body.appendChild(el);
+            }
+        };
+
         window.openAccStudentManage = function(uid) {
             const s = accountantStudents.find(x => String(x.uid) === String(uid));
             if (!s) return;
@@ -2446,6 +2460,7 @@
             document.getElementById('acc-modal-transport-route').value = s.finance?.transportRoute || '';
             ['inst1', 'inst2', 'inst3', 'inst4', 'inst5'].forEach(k => { const el = document.getElementById('acc-modal-' + k); if (el) el.value = s.finance?.[k] || ''; });
             document.getElementById('acc-modal-doc-url').value = s.finance?.docUrl || '';
+            _accLift('acc-student-modal', 'acc-modal-overlay');
             document.getElementById('acc-modal-overlay').style.display = 'block';
             document.getElementById('acc-student-modal').style.display = 'block';
         };
@@ -2552,6 +2567,7 @@
                 bodyElem.innerHTML = html || '<tr><td colspan="5" style="text-align:center; padding:30px; color:#94a3b8;"><i class="fa-solid fa-folder-open" style="font-size:2rem; display:block; margin-bottom:10px;"></i> لا توجد حركات مالية مسجلة لهذا الطالب</td></tr>';
             }
 
+            _accLift('acc-statement-modal', 'acc-modal-overlay');
             const overlay = document.getElementById('acc-modal-overlay');
             const modal = document.getElementById('acc-statement-modal');
             if (overlay && modal) {
@@ -3554,6 +3570,7 @@
             const _payMonthEl = document.getElementById('acc-hr-pay-month');
             if (_payMonthEl) _payMonthEl.value = _monthVal;
             calculateNetSalaryLive();
+            _accLift('acc-hr-modal', 'acc-modal-overlay');
             document.getElementById('acc-modal-overlay').style.display = 'block';
             document.getElementById('acc-hr-modal').style.display = 'block';
         };
@@ -3625,6 +3642,7 @@
             const bodyElem = document.getElementById('acc-salary-body');
             const modal = document.getElementById('acc-salary-modal');
             if (!headerElem || !bodyElem || !modal) return;
+            _accLift('acc-salary-modal', 'acc-modal-overlay');
 
             headerElem.innerHTML = `
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
@@ -4201,6 +4219,7 @@
             document.getElementById('edit-tx-type').value = type;
             document.getElementById('edit-tx-amount').value = amount;
             document.getElementById('edit-tx-note').value = note;
+            _accLift('acc-edit-transaction-modal', 'acc-modal-overlay');
             document.getElementById('acc-modal-overlay').style.display = 'block';
             document.getElementById('acc-edit-transaction-modal').style.display = 'block';
         };
