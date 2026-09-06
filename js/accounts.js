@@ -804,11 +804,11 @@
                         window._revCache[r.id] = r;
                         revHtml += `
                             <tr>
-                                <td style="font-size:0.75rem; color:#64748b; font-weight:700;">${escHtml(r.receiptNum || '-')}</td>
+                                <td style="font-size:0.75rem; color:#64748b; font-weight:700;">${escHtml(r.receiptNum || r.receiptNo || '-')}</td>
                                 <td>${dateObj.toLocaleString('en-US')}</td>
                                 <td>${escHtml(r.note || '-')}</td>
                                 <td><span class="acc-badge badge-success">${Number(r.amount || 0).toLocaleString('en-US')} د.ع</span></td>
-                                <td>${escHtml(r.addedBy || 'المحاسب')}</td>
+                                <td>${escHtml(r.addedBy || r.by || 'المحاسب')}</td>
                                 <td>
                                     <div style="display:flex; gap:5px;">
                                         <button class="quick-action-btn" onclick="_openRevEdit('${r.id}')" title="تعديل"><i class="fa-solid fa-pen-to-square"></i></button>
@@ -5151,6 +5151,7 @@
                     amount, category: 'أجور نقل',
                     note: `أجور نقل — ${d.name} — ${trMonthLabel(m)}${note ? ' — ' + note : ''}`,
                     payee: d.name, method: 'نقداً', refNum: String(receiptNo),
+                    receiptNum: receiptNo, addedBy: (currentUser && currentUser.name) || '',
                     branchId: trBranch(), timestamp: Date.now(),
                     by: (currentUser && currentUser.name) || ''
                 });
@@ -5495,15 +5496,36 @@
             showAccPrompt('قبض أجرة نقل', html, async () => {
                 const amount = Number(document.getElementById('trq-amount').value) || 0;
                 if (amount <= 0) { showCustomAlert('تنبيه', 'أدخل مبلغاً صحيحاً.', 'warning'); return false; }
+
+                // حارس التكرار: نُعيد قراءة المدفوع لحظة الحفظ لا لحظة فتح النافذة،
+                // فقد تكون دفعة سُجّلت للتوّ من جهاز آخر أو من نافذة بقيت مفتوحة.
+                const _paidNow = trPaidFor(uid, m);
+                const _restNow = trNet(s) - _paidNow;
+                if (_restNow <= 0) {
+                    showCustomAlert('مسدَّد مسبقاً',
+                        `أجرة ${trMonthLabel(m)} لهذا الطالب مسدَّدة بالكامل (${trFmt(_paidNow)} د.ع).\n` +
+                        'لا حاجة لقبض جديد. إن أردت تصحيح مبلغ، احذف القيد القديم من المقبوضات.', 'warning');
+                    return false;
+                }
+                if (amount > _restNow) {
+                    const ok = await confirm(
+                        `المبلغ ${trFmt(amount)} أكبر من المتبقي ${trFmt(_restNow)} د.ع.\nهل تريد المتابعة؟`);
+                    if (!ok) return false;
+                }
+
                 const note = document.getElementById('trq-note').value.trim();
                 const receiptNo = await _nextReceiptNum(trBranch(), 'revenue');
+                const _who = (currentUser && currentUser.name) || '';
                 const rec = {
                     studentUid: uid, amount,
                     transportMonth: m, transportRouteId: s.routeId,
                     note: `أجرة نقل — ${r.name || ''} — ${trMonthLabel(m)}${note ? ' — ' + note : ''}`,
-                    category: 'أجور نقل', receiptNo,
-                    branchId: trBranch(), timestamp: Date.now(),
-                    by: (currentUser && currentUser.name) || ''
+                    category: 'أجور نقل',
+                    // الأسماء القياسية التي تقرأها الجداول والتقارير — كانت receiptNo/by
+                    // فكانت سجلات النقل تظهر بلا رقم وصل وبلا اسم محاسب.
+                    receiptNum: receiptNo, addedBy: _who, method: 'نقداً',
+                    receiptNo, by: _who,          // نُبقيهما لتوافق السجلات القديمة
+                    branchId: trBranch(), timestamp: Date.now()
                 };
                 await _restPush('finance/revenues', rec);
                 if (window.addAccAuditLog) window.addAccAuditLog('قبض أجرة نقل', `${st ? st.name : ''} — ${trFmt(amount)} د.ع — ${m}`);
