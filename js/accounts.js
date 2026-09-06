@@ -3015,6 +3015,9 @@
             const unpaidCount = allEntries.length - paidCount;
 
             const printWindow = window.open('', '_blank');
+            // المتصفح قد يحجب النافذة المنبثقة — بلا هذا الفحص يتحطّم الكود
+            // ويظهر «تعذّر الحفظ» رغم أن القيد حُفظ، فيعيد المستخدم العملية.
+            if (!printWindow) { showCustomAlert('تعذّرت الطباعة', 'حُفظت العملية بنجاح ✅ لكن المتصفح حجب نافذة الطباعة.\n' + 'اسمح بالنوافذ المنبثقة لهذا الموقع ثم أعد الطباعة من السجل.', 'warning'); return; }
             const html = `
                 <html dir="rtl">
                 <head>
@@ -3381,6 +3384,9 @@
             late.sort((a, b) => a.className.localeCompare(b.className, 'ar'));
 
             const win = window.open('', '_blank');
+            // المتصفح قد يحجب النافذة المنبثقة — بلا هذا الفحص يتحطّم الكود
+            // ويظهر «تعذّر الحفظ» رغم أن القيد حُفظ، فيعيد المستخدم العملية.
+            if (!win) { showCustomAlert('تعذّرت الطباعة', 'حُفظت العملية بنجاح ✅ لكن المتصفح حجب نافذة الطباعة.\n' + 'اسمح بالنوافذ المنبثقة لهذا الموقع ثم أعد الطباعة من السجل.', 'warning'); return; }
             win.document.write(`
                 <html>
                 <head>
@@ -3578,6 +3584,9 @@
         window.printAdmissionApprovalFinal = function() {
             const content = document.getElementById('admission-document-content').innerHTML;
             const win = window.open('', '_blank');
+            // المتصفح قد يحجب النافذة المنبثقة — بلا هذا الفحص يتحطّم الكود
+            // ويظهر «تعذّر الحفظ» رغم أن القيد حُفظ، فيعيد المستخدم العملية.
+            if (!win) { showCustomAlert('تعذّرت الطباعة', 'حُفظت العملية بنجاح ✅ لكن المتصفح حجب نافذة الطباعة.\n' + 'اسمح بالنوافذ المنبثقة لهذا الموقع ثم أعد الطباعة من السجل.', 'warning'); return; }
             win.document.write(`<html><head><title>وثيقة قبول</title><link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap" rel="stylesheet"><style>body { font-family: 'Amiri', serif; direction: rtl; padding: 20mm; }</style></head><body onload="window.print(); window.close();">${content}</body></html>`);
             win.document.close();
         };
@@ -4587,6 +4596,9 @@
             const roleAr = u.role === 'teacher' ? 'مدرس' : (u.role === 'admin' ? 'إداري' : (u.role === 'accountant' ? 'محاسب' : 'موظف'));
 
             const printWindow = window.open('', '_blank');
+            // المتصفح قد يحجب النافذة المنبثقة — بلا هذا الفحص يتحطّم الكود
+            // ويظهر «تعذّر الحفظ» رغم أن القيد حُفظ، فيعيد المستخدم العملية.
+            if (!printWindow) { showCustomAlert('تعذّرت الطباعة', 'حُفظت العملية بنجاح ✅ لكن المتصفح حجب نافذة الطباعة.\n' + 'اسمح بالنوافذ المنبثقة لهذا الموقع ثم أعد الطباعة من السجل.', 'warning'); return; }
             printWindow.document.write(`
                 <html>
                 <head>
@@ -5160,7 +5172,11 @@
                 if (window.addAccAuditLog) window.addAccAuditLog('صرف أجور نقل', `${d.name} — ${trFmt(amount)} د.ع — ${m}`);
                 await loadAccountantData();
                 await trLoad(); trRenderDrivers();
-                trPrintDriverVoucher(payout);
+                setTimeout(() => {
+                    try { trPrintDriverVoucher(payout); }
+                    catch (e) { console.warn('تعذّرت طباعة سند الصرف', e); }
+                }, 60);
+                showCustomAlert('تم الصرف', `صُرف ${trFmt(amount)} د.ع — سند ${receiptNo} ✅`, 'success');
                 return true;
             });
         };
@@ -5169,6 +5185,9 @@
         window.trPrintDriverVoucher = function (p) {
             const br = (window.NAHRAIN_BRANCHES && window.NAHRAIN_BRANCHES[trBranch()]) || {};
             const win = window.open('', '_blank');
+            // المتصفح قد يحجب النافذة المنبثقة — بلا هذا الفحص يتحطّم الكود
+            // ويظهر «تعذّر الحفظ» رغم أن القيد حُفظ، فيعيد المستخدم العملية.
+            if (!win) { showCustomAlert('تعذّرت الطباعة', 'حُفظت العملية بنجاح ✅ لكن المتصفح حجب نافذة الطباعة.\n' + 'اسمح بالنوافذ المنبثقة لهذا الموقع ثم أعد الطباعة من السجل.', 'warning'); return; }
             const payLine = p.payType === 'perStudent'
                 ? `مبلغ عن كل طالب × ${p.students} طالب` : 'راتب شهري ثابت';
             win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8">
@@ -5531,11 +5550,18 @@
                 if (window.addAccAuditLog) window.addAccAuditLog('قبض أجرة نقل', `${st ? st.name : ''} — ${trFmt(amount)} د.ع — ${m}`);
                 await loadAccountantData();
                 await trLoad(); trRenderRoutes(); trRenderDues();
-                trPrintStudentTransportReceipt({
-                    name: st ? st.name : '', route: r.name || '', driver: (window.TR.drivers[r.driverId] || {}).name || '',
-                    month: m, fee: s.fee, discount: s.discount, amount,
-                    rest: Math.max(0, net - paid - amount), receiptNo, ts: Date.now()
-                });
+                // الطباعة خارج مسار الحفظ: فشلها لا يعني فشل القيد،
+                // ولا يجوز أن يُبقي النافذة مفتوحة فيكرر المحاسب القبض.
+                setTimeout(() => {
+                    try {
+                        trPrintStudentTransportReceipt({
+                            name: st ? st.name : '', route: r.name || '', driver: (window.TR.drivers[r.driverId] || {}).name || '',
+                            month: m, fee: s.fee, discount: s.discount, amount,
+                            rest: Math.max(0, _restNow - amount), receiptNo, ts: Date.now()
+                        });
+                    } catch (e) { console.warn('تعذّرت طباعة وصل النقل', e); }
+                }, 60);
+                showCustomAlert('تم القبض', `استُلم ${trFmt(amount)} د.ع — وصل ${receiptNo} ✅`, 'success');
                 return true;
             });
         };
@@ -5544,6 +5570,9 @@
         window.trPrintStudentTransportReceipt = function (o) {
             const br = (window.NAHRAIN_BRANCHES && window.NAHRAIN_BRANCHES[trBranch()]) || {};
             const win = window.open('', '_blank');
+            // المتصفح قد يحجب النافذة المنبثقة — بلا هذا الفحص يتحطّم الكود
+            // ويظهر «تعذّر الحفظ» رغم أن القيد حُفظ، فيعيد المستخدم العملية.
+            if (!win) { showCustomAlert('تعذّرت الطباعة', 'حُفظت العملية بنجاح ✅ لكن المتصفح حجب نافذة الطباعة.\n' + 'اسمح بالنوافذ المنبثقة لهذا الموقع ثم أعد الطباعة من السجل.', 'warning'); return; }
             win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8">
 <title>وصل قبض أجرة نقل</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
@@ -5667,6 +5696,9 @@
                 </tbody></table>`;
             });
             const win = window.open('', '_blank');
+            // المتصفح قد يحجب النافذة المنبثقة — بلا هذا الفحص يتحطّم الكود
+            // ويظهر «تعذّر الحفظ» رغم أن القيد حُفظ، فيعيد المستخدم العملية.
+            if (!win) { showCustomAlert('تعذّرت الطباعة', 'حُفظت العملية بنجاح ✅ لكن المتصفح حجب نافذة الطباعة.\n' + 'اسمح بالنوافذ المنبثقة لهذا الموقع ثم أعد الطباعة من السجل.', 'warning'); return; }
             win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>كشف خطوط النقل</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
 <style>*{margin:0;padding:0;box-sizing:border-box;font-family:'Cairo',sans-serif;}
