@@ -727,6 +727,8 @@ ${rows.map((r, i) => `<tr><td>${i + 1}</td><td>${r.num}/${r.year}</td><td>${escH
                 const modalEl = document.getElementById('admission-approval-modal');
                 if (!contentEl || !modalEl) return alert("Error: Printing elements not found in DOM.");
 
+                // #admin-dash لا يُغلق في الـHTML — نرفع النافذة إلى body قبل الإظهار
+                if (modalEl.parentElement !== document.body) document.body.appendChild(modalEl);
                 contentEl.innerHTML = content;
                 modalEl.style.display = 'flex';
 
@@ -13734,6 +13736,9 @@ ${rows.map((r, i) => `<tr><td>${i + 1}</td><td>${r.num}/${r.year}</td><td>${escH
             }
 
             const overlay = document.getElementById('gradebook-overlay');
+            // #admin-dash لا يُغلق في الـHTML فتُعشَّش النوافذ داخله،
+            // ولوحة المدرّس/المحاسب تُخفيه — فنرفعها إلى body قبل الإظهار.
+            if (overlay.parentElement !== document.body) document.body.appendChild(overlay);
             overlay.style.display = 'flex';
             overlay.classList.add('active');
             renderGradebook();
@@ -17388,6 +17393,8 @@ ${rows.map((r, i) => `<tr><td>${i + 1}</td><td>${r.num}/${r.year}</td><td>${escH
     function openNoObjectionForm(prefillName, prefillClass) {
         const modal = document.getElementById('no-objection-modal');
         if (!modal) return;
+        // #admin-dash لا يُغلق في الـHTML — نرفع النافذة إلى body قبل الإظهار
+        if (modal.parentElement !== document.body) document.body.appendChild(modal);
         // Pre-fill fields
         const today = new Date();
         const bId = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser?.branchId || 'samawah') : 'samawah';

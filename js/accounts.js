@@ -3985,6 +3985,7 @@
             `;
 
             document.getElementById('admission-document-content').innerHTML = docContent;
+            _accLift('admission-approval-modal', 'acc-modal-overlay');
             document.getElementById('acc-modal-overlay').style.display = 'block';
             document.getElementById('admission-approval-modal').style.display = 'flex';
         };
