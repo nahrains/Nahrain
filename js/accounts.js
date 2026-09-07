@@ -7,6 +7,8 @@
         }
 
         function switchAccTab(tabId) {
+            // التنقّل بين التابات نقطة مناسبة لإزالة أي طبقة شاردة
+            try { window.closeStrayOverlays && window.closeStrayOverlays(); } catch (_) {}
             document.querySelectorAll('.acc-tab-content').forEach(el => el.style.display = 'none');
             document.querySelectorAll('.acc-tab-btn').forEach(el => el.classList.remove('active'));
             const target = document.getElementById('acc-tab-' + tabId);
@@ -1002,8 +1004,12 @@
                             <input type="date" id="acc-global-inst${i}" class="acc-input" value="${g['inst' + i] || ''}" style="margin-bottom:8px;">
                             <div style="display:flex; align-items:center; gap:5px;">
                                 <small style="color:#64748b;">النسبة:</small>
-                                <input type="number" id="acc-global-p${i}" class="acc-input" placeholder="مثال: 20" value="${p['p' + i] || ''}" style="padding:5px; font-size:0.85rem;">
+                                <input type="number" id="acc-global-p${i}" class="acc-input" min="1" max="100" placeholder="بالتساوي" value="${Number(p['p' + i]) > 0 ? Number(p['p' + i]) : ''}" style="padding:5px; font-size:0.85rem;">
                                 <b>%</b>
+                            </div>
+                            <div style="font-size:0.72rem; color:${Number(p['p' + i]) > 0 ? '#059669' : '#94a3b8'}; margin-top:3px;">
+                                المطبَّق فعلياً: <b>${(Number(p['p' + i]) > 0 ? Number(p['p' + i]) : (100 / count)).toFixed(1)}%</b>
+                                ${Number(p['p' + i]) > 0 ? '' : ' (بالتساوي)'}
                             </div>
                         </div>
                     `;
@@ -1014,7 +1020,7 @@
                         <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; padding:15px; border-radius:12px; border:1px solid #e2e8f0;">
                             <div style="display:flex; align-items:center; gap:15px;">
                                 <label style="font-weight:bold;">عدد الأقساط المعتمدة:</label>
-                                <input type="number" id="acc-setting-inst-count" class="acc-input" value="${count}" style="width:70px;" onchange="saveGlobalFinancialSettings()">
+                                <input type="number" id="acc-setting-inst-count" class="acc-input" min="1" max="5" value="${count}" style="width:70px;" onchange="saveGlobalInstCount()">
                             </div>
                             <div style="font-size:0.8rem; color:#64748b; max-width:300px; line-height:1.4;">
                                 * إذا تركت النسب فارغة، سيقسم النظام المبلغ بالتساوي على عدد الأقساط المحددة.
@@ -2427,8 +2433,60 @@
             setTimeout(() => { if(printWindow && !printWindow.closed) printWindow.print(); }, 800);
         };
 
+        /**
+         * يُخفي أي طبقة تغطّي الشاشة بلا محتوى مرئي داخلها.
+         * سببها: مسار طباعة أو خطأ ترك الطبقة ظاهرة ونافذتها مخفيّة،
+         * فيرى المستخدم شاشة مظللة لا تزول إلا بتحديث الصفحة.
+         */
+        window.closeStrayOverlays = function () {
+            const W = window.innerWidth, H = window.innerHeight;
+            // النوافذ مُعشَّشة عميقاً داخل #admin-dash (وسمه لا يُغلق في الـHTML)
+            // ما لم تُرفع إلى body، لذلك نجمعها بالمعرّف والصنف لا بالموضع في الشجرة.
+            const cands = new Set();
+            document.querySelectorAll('[id$="-modal"], [id$="-overlay"], .acc-modal-overlay')
+                .forEach(e => cands.add(e));
+            cands.forEach(el => {
+                const cs = getComputedStyle(el);
+                if (cs.display === 'none' || cs.position !== 'fixed') return;
+                const rc = el.getBoundingClientRect();
+                if (rc.width < W * 0.85 || rc.height < H * 0.7) return;      // لا تغطّي الشاشة
+                const bg = cs.backgroundColor || '';
+                const m = bg.match(/rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?\)/);
+                if (!m) return;
+                const alpha = m[4] === undefined ? 1 : parseFloat(m[4]);
+                const lum = (+m[1] + +m[2] + +m[3]) / 3;
+                if (alpha < 0.2 || lum > 140) return;                        // ليست طبقة داكنة
+                if (el.id === 'accountant-dash' || el.id === 'admin-dash' ||
+                    el.id === 'teacher-dash' || el.id === 'student-dash') return;
+
+                // هل فيها محتوى مرئي؟ إن لا، فهي طبقة شاردة
+                let hasContent = false;
+                el.querySelectorAll(':scope > *').forEach(ch => {
+                    const cr = ch.getBoundingClientRect();
+                    if (cr.width > 60 && cr.height > 40 && getComputedStyle(ch).display !== 'none') hasContent = true;
+                });
+                if (!hasContent) {
+                    el.style.display = 'none';
+                    console.warn('[تنظيف] أُخفيت طبقة شاردة:', el.id || el.className);
+                }
+            });
+        };
+
+        // مخرج طوارئ: Escape يُغلق كل النوافذ والطبقات
+        document.addEventListener('keydown', function (e) {
+            if (e.key !== 'Escape') return;
+            try { window.closeAllAccModals && window.closeAllAccModals(); } catch (_) {}
+            try { window.trClosePrompt && window.trClosePrompt(); } catch (_) {}
+            try { window.closeStrayOverlays && window.closeStrayOverlays(); } catch (_) {}
+        });
+
         window.closeAllAccModals = function() {
-            ['acc-student-modal', 'acc-statement-modal', 'acc-payment-modal', 'acc-edit-transaction-modal', 'acc-hr-modal', 'acc-modal-overlay', 'bulk-reminder-modal', 'admission-approval-modal', 'acc-salary-modal'].forEach(id => {
+            ['acc-student-modal', 'acc-statement-modal', 'acc-payment-modal', 'acc-edit-transaction-modal',
+             'acc-hr-modal', 'acc-modal-overlay', 'bulk-reminder-modal', 'admission-approval-modal',
+             'acc-salary-modal',
+             // كانت هاتان خارج القائمة، وأولاهما z-index أعلى عنصر في الصفحة:
+             // إن بقيت ظاهرة غطّت كل شيء ولم يزُلها إلا تحديث الصفحة.
+             'tr-prompt-modal', 'no-objection-modal'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.style.display = 'none';
             });
@@ -3763,15 +3821,33 @@
             const percents = {};
             let totalP = 0;
 
+            let anyP = false, badP = false;
             for (let i = 1; i <= 5; i++) {
-                dates['inst' + i] = document.getElementById('acc-global-inst' + i).value;
-                const valP = parseInt(document.getElementById('acc-global-p' + i).value) || 0;
-                percents['p' + i] = valP;
-                if (i <= count) totalP += valP;
+                const dEl = document.getElementById('acc-global-inst' + i);
+                const pEl = document.getElementById('acc-global-p' + i);
+                if (i > count) {                       // أقساط خارج العدد المعتمد
+                    dates['inst' + i] = null;
+                    percents['p' + i] = null;
+                    continue;
+                }
+                dates['inst' + i] = (dEl && dEl.value) ? dEl.value : null;
+
+                // فارغ = «غير محدد» لا صفر. كتابة الصفر كانت تمحو النسبة
+                // وتُرجع النظام للقسمة المتساوية بلا أن يشعر المحاسب.
+                const raw = pEl ? String(pEl.value).trim() : '';
+                if (raw === '') { percents['p' + i] = null; continue; }
+                const v = Number(raw);
+                if (!isFinite(v) || v <= 0) { badP = true; percents['p' + i] = null; continue; }
+                percents['p' + i] = v; totalP += v; anyP = true;
             }
 
-            if (totalP > 0 && totalP !== 100) {
-                if(!(await confirm(`مجموع النسب الحالية هو ${totalP}%. يفضل أن يكون المجموع 100% لضمان دقة الحسابات. هل تود الحفظ على أي حال؟`))) return;
+            if (badP) {
+                showCustomAlert('نسبة غير صالحة',
+                    'النسبة يجب أن تكون رقماً أكبر من صفر. اتركها فارغة إن أردت القسمة بالتساوي.', 'warning');
+                return;
+            }
+            if (anyP && totalP !== 100) {
+                if(!(await confirm(`مجموع النسب المُدخلة ${totalP}% وليس 100%.\nالأقساط بلا نسبة ستُحسب بالتساوي. هل تحفظ على أي حال؟`))) return;
             }
 
             const branchId = currentUser?.branchId || 'samawah';
@@ -3780,7 +3856,13 @@
                 _restSet(`financialSettings/branches/${branchId}/globalDates`, dates),
                 _restSet(`financialSettings/branches/${branchId}/globalPercents`, percents)
             ]).then(() => {
-                showCustomAlert('تم الحفظ', '✅ تم حفظ المواعيد والنسب للفرع الحالي بنجاح', 'success');
+                accountantFinance.installmentCount = count;
+                accountantFinance.globalDates = dates;
+                accountantFinance.globalPercents = percents;
+                showCustomAlert('تم الحفظ',
+                    `✅ حُفظت إعدادات ${count} أقساط.\n` +
+                    (anyP ? `النسب المحددة: ${Object.keys(percents).filter(k => percents[k]).map(k => percents[k] + '%').join(' · ')}`
+                          : 'لم تُحدَّد نسب — سيُقسَّم المبلغ بالتساوي.'), 'success');
                 loadAccountantData();
             }).catch(e => alert('خطأ في الحفظ: ' + e.message));
         };
