@@ -1988,14 +1988,42 @@
             const ones = ['', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة', 'عشرة', 'أحد عشر', 'اثنا عشر', 'ثلاثة عشر', 'أربعة عشر', 'خمسة عشر', 'ستة عشر', 'سبعة عشر', 'ثمانية عشر', 'تسعة عشر'];
             const tens = ['', '', 'عشرون', 'ثلاثون', 'أربعون', 'خمسون', 'ستون', 'سبعون', 'ثمانون', 'تسعون'];
             const hundreds = ['', 'مائة', 'مائتان', 'ثلاثمائة', 'أربعمائة', 'خمسمائة', 'ستمائة', 'سبعمائة', 'ثمانمائة', 'تسعمائة'];
+            /* ثلاثة عيوب كانت هنا، وكلها تظهر على كل وصل يطبعه النظام:
+               ١) العربية تُقدّم الوحدات على العشرات: «خمسة وثلاثون» لا
+                  «ثلاثون وخمسة». كان ٣٥٬٠٠٠ يُفقَّط «ثلاثون وخمسة ألف».
+               ٢) الملايين غير معالَجة إطلاقاً: ما بلغ مليوناً يُطبع
+                  بالأرقام «1000000 دينار» — وأقساط المدرسة بالملايين.
+               ٣) الصفر يُفقَّط فراغاً. */
             function convert(n) {
                 if (n < 20) return ones[n];
-                if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? ' و' + ones[n % 10] : '');
-                if (n < 1000) return hundreds[Math.floor(n / 100)] + (n % 100 !== 0 ? ' و' + convert(n % 100) : '');
-                if (n < 1000000) { let k = Math.floor(n/1000); let r = n%1000; return (k===1?'ألف':(k===2?'ألفان':(k<=10?ones[k]+' آلاف':convert(k)+' ألف'))) + (r!==0?' و'+convert(r):''); }
-                return n.toString();
+                if (n < 100) {
+                    const t = Math.floor(n / 10), u = n % 10;
+                    return (u ? ones[u] + ' و' : '') + tens[t];
+                }
+                if (n < 1000) {
+                    const h = Math.floor(n / 100), r = n % 100;
+                    return hundreds[h] + (r ? ' و' + convert(r) : '');
+                }
+                if (n < 1000000) {
+                    const k = Math.floor(n / 1000), r = n % 1000;
+                    const kw = k === 1 ? 'ألف' : k === 2 ? 'ألفان'
+                             : (k <= 10 ? ones[k] + ' آلاف' : convert(k) + ' ألف');
+                    return kw + (r ? ' و' + convert(r) : '');
+                }
+                if (n < 1000000000) {
+                    const m = Math.floor(n / 1000000), r = n % 1000000;
+                    const mw = m === 1 ? 'مليون' : m === 2 ? 'مليونان'
+                             : (m <= 10 ? ones[m] + ' ملايين' : convert(m) + ' مليون');
+                    return mw + (r ? ' و' + convert(r) : '');
+                }
+                const b = Math.floor(n / 1000000000), r = n % 1000000000;
+                const bw = b === 1 ? 'مليار' : b === 2 ? 'ملياران'
+                         : (b <= 10 ? ones[b] + ' مليارات' : convert(b) + ' مليار');
+                return bw + (r ? ' و' + convert(r) : '');
             }
-            return convert(num) + ' دينار عراقي لا غير';
+            const _v = Math.floor(Math.abs(Number(num) || 0));
+            if (!_v) return 'صفر دينار عراقي لا غير';
+            return convert(_v) + ' دينار عراقي لا غير';
         }
 
         window.printAccReceipt = function(id, type, amount, note, dateStr, category, studentUid = '', nextDueDateOverride = '', payee = '', method = '', refNum = '') {
@@ -5574,8 +5602,23 @@
 
 
         // ══════════ قبض أجرة النقل من الطالب ══════════
+        /* الشعار كـdata URI — انظر تعليق trPrintStudentTransportReceipt */
+        window.__logoURI = window.__logoURI || '';
+        window._preloadLogo = function () {
+            if (window.__logoURI) return;
+            const b = (window.NAHRAIN_BRANCHES && window.NAHRAIN_BRANCHES[trBranch()]) || {};
+            const url = window.location.href.replace(/\/[^\/]*$/, '/') + (b.logo || 'logo.jpg');
+            fetch(url).then(r => r.ok ? r.blob() : null).then(bl => {
+                if (!bl) return;
+                const f = new FileReader();
+                f.onload = () => { window.__logoURI = String(f.result || ''); };
+                f.readAsDataURL(bl);
+            }).catch(() => {});
+        };
+
         window.trPayStudent = function (uid, routeId) {
             const s = window.TR.subs[uid]; if (!s) return;
+            window._preloadLogo();   // يجهز بينما يكتب المحاسب المبلغ
             const st = accountantStudents.find(x => String(x.uid) === String(uid));
             const r = window.TR.routes[s.routeId] || {};
             const m = trCurMonth();
@@ -5641,7 +5684,14 @@
                             month: m, fee: s.fee, discount: s.discount, amount,
                             rest: Math.max(0, _restNow - amount), receiptNo, ts: Date.now()
                         });
-                    } catch (e) { console.warn('تعذّرت طباعة وصل النقل', e); }
+                    } catch (e) {
+                        // كان الخطأ يُكتَم في الطرفية وحدها، فيرى المحاسب
+                        // «تم القبض» ولا وصل ولا سبب.
+                        console.warn('تعذّرت طباعة وصل النقل', e);
+                        showCustomAlert('تعذّرت الطباعة',
+                            'حُفظ القبض بنجاح \u2705 لكن تعذّر إعداد الوصل.\n' +
+                            'أعد طباعته من جدول المقبوضات.', 'warning');
+                    }
                 }, 60);
                 showCustomAlert('تم القبض', `استُلم ${trFmt(amount)} د.ع — وصل ${receiptNo} ✅`, 'success');
                 return true;
@@ -5662,6 +5712,9 @@
             const _words = (typeof arabicNumberToWords === 'function')
                 ? arabicNumberToWords(Number(o.amount) || 0) : '';
             const _year = (window.ACADEMIC_YEAR || (new Date().getFullYear() + ' / ' + (new Date().getFullYear() + 1)));
+            // data URI لا رابط: نافذة about:blank تُرسل طلب الصورة ولا
+            // يكتمل، وحوار الطباعة لا ينتظره. فارغاً ⇒ وصل بلا شعار.
+            const _logo = window.__logoURI || '';
 
             win.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8">
 <title>وصل قبض أجرة نقل — ${escHtml(o.name || '')}</title>
@@ -5676,7 +5729,8 @@
                         .rh::before{content:'';position:absolute;top:-25px;right:-15px;width:130px;height:130px;background:#059669;transform:rotate(45deg);opacity:.75;}
                         .rh::after{content:'';position:absolute;top:-35px;right:75px;width:85px;height:130px;background:#34d399;transform:rotate(45deg);opacity:.4;}
                         .rh-logo{display:flex;align-items:center;gap:12px;z-index:1;position:relative;}
-                        .rh-logo img{height:58px;filter:brightness(0) invert(1);}
+                        .rh-logo img{height:58px;width:auto;border-radius:5px;background:#fdf9f0;}  /* بلا brightness(0) invert(1): الشعار JPEG معتم بخلفية كريمية،
+                           فكان المرشّح يحوّله مربّعاً أبيض فارغاً. */
                         .rh-logo-text h2{font-size:1.1rem;font-weight:900;color:white;margin:0;}
                         .rh-logo-text p{font-size:0.68rem;color:#94a3b8;margin:0;font-weight:600;letter-spacing:1px;}
                         .rh-title{text-align:left;z-index:1;position:relative;}
@@ -5718,7 +5772,7 @@
                         /* SUMMARY */
                         .sa{display:flex;justify-content:flex-end;margin-bottom:16px;}
                         .st{width:250px;}
-                        .sr{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:0.85rem;}
+                        .sr{display:flex;justify-content:space-between;gap:14px;padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:0.85rem;}
                         .sr .sl{color:#64748b;font-weight:600;}
                         .sr .sv{font-weight:700;color:#1e293b;}
                         .sr.total{background:#059669;color:white;padding:9px 12px;border-radius:6px;margin-top:4px;border:none;}
@@ -5746,7 +5800,9 @@
                         .fi{display:flex;align-items:center;gap:7px;color:#94a3b8;font-size:0.72rem;z-index:1;}
                         .fi i{color:#059669;font-size:0.85rem;}
 
-                        .wm{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-30deg);font-size:9rem;font-weight:900;color:rgba(5,150,105,.04);pointer-events:none;white-space:nowrap;z-index:0;}
+                        /* absolute لا fixed: المثبَّت يُرسَم على كل صفحة في الطباعة وينزلق
+                           عن مكانه، و.page موضعها relative فتحويه. */
+                        .wm{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-30deg);font-size:9rem;font-weight:900;color:rgba(5,150,105,.04);pointer-events:none;white-space:nowrap;z-index:0;}
                         .no-print-bar{background:#1e293b;color:white;padding:11px;text-align:center;position:sticky;top:0;z-index:100;}
                         .no-print-bar button{background:#059669;color:white;border:none;padding:7px 28px;font-family:'Cairo';font-weight:800;cursor:pointer;border-radius:6px;font-size:0.9rem;}
 
@@ -5766,6 +5822,7 @@
 
     <div class="rh">
         <div class="rh-logo">
+            ${_logo ? `<img src="${_logo}" alt="">` : ''}
             <div class="rh-logo-text">
                 <h2>مؤسسة النهرين التعليمية</h2>
                 <p>AL-NAHRAIN EDUCATIONAL INSTITUTION</p>
@@ -5783,8 +5840,8 @@
             <strong>${escHtml(o.name || '—')}</strong>
         </div>
         <div class="cb-meta">
-            <div class="mi"><span class="mc">رقم الوصل</span><span class="mv">${escHtml(_no)}</span></div>
-            <div class="mi"><span class="mc">تاريخ الإصدار</span><span class="mv">${new Date(o.ts || Date.now()).toLocaleString('ar-IQ')}</span></div>
+            <div class="mi hl"><small>رقم الوصل</small><strong dir="ltr">${escHtml(_no)}</strong></div>
+            <div class="mi"><small>تاريخ الإصدار</small><strong>${new Date(o.ts || Date.now()).toLocaleDateString('ar-IQ')}</strong></div>
         </div>
     </div>
 
@@ -5792,14 +5849,14 @@
         <div class="sidebar">
             <div class="si"><span class="sl">المؤسسة</span><span class="sv">مؤسسة النهرين التعليمية الدولية</span></div>
             <div class="si"><span class="sl">الفرع</span><span class="sv">${escHtml(br.name || 'إعدادية النهرين المهنية الأهلية')}</span></div>
-            <div class="si"><span class="sl">السنة الدراسية</span><span class="sv">${escHtml(_year)}</span></div>
+            <div class="si"><span class="sl">السنة الدراسية</span><span class="sv" dir="ltr">${escHtml(_year)}</span></div>
             <div class="si"><span class="sl">خط النقل</span><span class="sv">${escHtml(o.route || '—')}</span></div>
             ${o.driver ? `<div class="si"><span class="sl">السائق</span><span class="sv">${escHtml(o.driver)}</span></div>` : ''}
             <div class="si"><span class="sl">عن شهر</span><span class="sv">${escHtml(trMonthLabel(o.month))}</span></div>
             <div class="si"><span class="sl">بواسطة</span><span class="sv">${escHtml((currentUser && currentUser.name) || 'المحاسب')}</span></div>
         </div>
 
-        <div class="mc-body">
+        <div class="mc">
             <table class="dt">
                 <thead><tr><th>ت</th><th>البيان</th><th>التفاصيل</th><th>المبلغ</th></tr></thead>
                 <tbody>
@@ -5819,16 +5876,16 @@
                     <div class="sr"><span class="sl">المبلغ المقبوض اليوم</span><span class="sv" style="color:#059669">${trFmt(o.amount)} د.ع</span></div>
                     ${Number(o.rest) > 0
                         ? `<div class="sr"><span class="sl">المتبقي من أجرة الشهر</span><span class="sv" style="color:#c62828;font-weight:900;">${trFmt(o.rest)} د.ع</span></div>`
-                        : `<div class="sr total"><span class="sl">الحالة</span><span class="sv">سُدّدت أجرة الشهر بالكامل ✓</span></div>`}
+                        : `<div class="sr total"><span class="sl">الحالة</span><span class="sv">سُدّدت بالكامل ✓</span></div>`}
                 </div>
             </div>
         </div>
     </div>
 
     <div class="sigs">
-        <div class="sb"><div class="sn">المستلم</div><div class="st">Receiver Signature</div></div>
-        <div class="sb"><div class="sn">المحاسب المختص</div><div class="st">Accountant Signature</div></div>
-        <div class="sb"><div class="sn">الختم الرسمي</div><div class="st">Official Stamp</div></div>
+        <div class="sb"><div class="sn">المستلم</div><div class="sl2"><span>Receiver Signature</span></div></div>
+        <div class="sb"><div class="sn">المحاسب المختص</div><div class="sl2"><span>Accountant Signature</span></div></div>
+        <div class="sb"><div class="sn">الختم الرسمي</div><div class="sl2"><span>Official Stamp</span></div></div>
     </div>
 
     <div class="rf">
@@ -5839,6 +5896,14 @@
 </div>
 </body></html>`);
             win.document.close();
+
+            // كل وصولات النظام تطبع تلقائياً إلا هذا: كان يكتفي بزرّ يدوي
+            // داخل نافذة تُفتح بلا إيماءة مستخدم، فتظهر وراء النافذة
+            // الرئيسية بلا تركيز — فلا يراها المحاسب ولا يُطبع شيء.
+            try { win.focus(); } catch (_) {}
+            setTimeout(() => {
+                if (win && !win.closed) { try { win.focus(); win.print(); } catch (_) {} }
+            }, 800);
         };
 
         // ══════════ شاشة التحصيل ══════════
