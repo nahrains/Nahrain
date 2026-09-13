@@ -5602,6 +5602,78 @@
 
 
         // ══════════ قبض أجرة النقل من الطالب ══════════
+        /* ═══ طباعة بإطار مخفي بدل نافذة منبثقة ═══
+           المتصفّح يسمح بـwindow.open ضمن مهلة إيماءة المستخدم (~٥ث).
+           قبض أجرة النقل ينتظر أربع رحلات شبكة متتالية قبل الفتح، فعلى
+           شبكة بطيئة يتجاوز المهلة وتُحجب النافذة — وهو سبب «يطبع كل
+           شيء إلا وصل النقل». الإطار داخل الصفحة لا يخضع للمهلة ولا
+           يحتاج إذناً. يُرجع واجهة تشبه النافذة كي تبقى الدالة كما هي. */
+        window._printFrameWin = function () {
+            try {
+                if (!document.body) return window.open('', '_blank');
+                document.querySelectorAll('iframe.nahr-printf').forEach(function (f) { f.remove(); });
+
+                const fr = document.createElement('iframe');
+                fr.className = 'nahr-printf';
+                fr.setAttribute('aria-hidden', 'true');
+                fr.setAttribute('title', 'معاينة الطباعة');
+                // خارج الشاشة، لا display:none — المخفيّ كلياً لا يُطبع
+                fr.style.cssText = 'position:fixed;left:-10000px;top:0;' +
+                    'width:210mm;height:297mm;border:0;opacity:0;pointer-events:none;';
+                document.body.appendChild(fr);
+
+                const w = fr.contentWindow;
+                if (!w || !w.document) { fr.remove(); return window.open('', '_blank'); }
+                const d = w.document;
+                d.open();
+
+                let done = false;
+                const api = {
+                    document: d,
+                    closed: false,
+                    focus: function () {},
+                    print: function () {
+                        if (done) return;
+                        done = true;
+                        const fire = function () {
+                            try { w.focus(); w.print(); }
+                            catch (e) { console.warn('طباعة الإطار', e); }
+                            // لا يُزال فوراً: بعض المتصفّحات تُلغي الطباعة إن اختفى
+                            setTimeout(function () { api.closed = true; fr.remove(); }, 60000);
+                        };
+                        try {
+                            w.addEventListener('afterprint', function () {
+                                setTimeout(function () { api.closed = true; fr.remove(); }, 400);
+                            });
+                        } catch (e) {}
+                        // ننتظر الصور والخطوط، وإلا طُبع الوصل بلا شعار وبخط بديل
+                        const waits = [];
+                        Array.prototype.slice.call(d.images || []).forEach(function (im) {
+                            if (im.complete) return;
+                            waits.push(new Promise(function (ok) {
+                                im.addEventListener('load', ok);
+                                im.addEventListener('error', ok);
+                            }));
+                        });
+                        if (d.fonts && d.fonts.ready) waits.push(d.fonts.ready);
+                        const all = Promise.all(waits.map(function (x) {
+                            return Promise.resolve(x).catch(function () {});
+                        }));
+                        // سقف زمني كي لا تتعلّق الطباعة على مورد لا يصل
+                        const cap = new Promise(function (ok) { setTimeout(ok, 2500); });
+                        Promise.race([all, cap]).then(function () { setTimeout(fire, 120); });
+                    }
+                };
+                // الطباعة تنطلق عند close() فتعمل حتى لو لم تُنادَ print صراحةً
+                const nativeClose = d.close.bind(d);
+                d.close = function () { nativeClose(); api.print(); };
+                return api;
+            } catch (e) {
+                console.warn('تعذّر إطار الطباعة، رجوع إلى النافذة المنبثقة', e);
+                try { return window.open('', '_blank'); } catch (e2) { return null; }
+            }
+        };
+
         /* الشعار كـdata URI — انظر تعليق trPrintStudentTransportReceipt */
         window.__logoURI = window.__logoURI || '';
         window._preloadLogo = function () {
@@ -5701,10 +5773,10 @@
         // وصل قبض أجرة النقل الشهري
         window.trPrintStudentTransportReceipt = function (o) {
             const br = (window.NAHRAIN_BRANCHES && window.NAHRAIN_BRANCHES[trBranch()]) || {};
-            const win = window.open('', '_blank');
-            // المتصفح قد يحجب النافذة المنبثقة — بلا هذا الفحص يتحطّم الكود
-            // ويظهر «تعذّر الحفظ» رغم أن القيد حُفظ، فيعيد المستخدم العملية.
-            if (!win) { showCustomAlert('تعذّرت الطباعة', 'حُفظت العملية بنجاح ✅ لكن المتصفح حجب نافذة الطباعة.\n' + 'اسمح بالنوافذ المنبثقة لهذا الموقع ثم أعد الطباعة من السجل.', 'warning'); return; }
+            // إطار مخفي لا نافذة منبثقة: الفتح هنا يقع بعد أربع رحلات
+            // شبكة، فتنتهي مهلة إيماءة المستخدم ويحجب المتصفّح النافذة.
+            const win = window._printFrameWin();
+            if (!win) { showCustomAlert('تعذّرت الطباعة', 'حُفظت العملية بنجاح ✅ لكن تعذّر فتح معاينة الطباعة.\n' + 'أعد طباعة الوصل من جدول المقبوضات.', 'warning'); return; }
 
             // رقم الوصل يأتي من _nextReceiptNum كاملاً بالبادئة (RV-2026-000xx)
             // فلا نُضيف بادئة ثانية — كان يُطبع RV-RV-...
@@ -5897,12 +5969,12 @@
 </body></html>`);
             win.document.close();
 
-            // كل وصولات النظام تطبع تلقائياً إلا هذا: كان يكتفي بزرّ يدوي
-            // داخل نافذة تُفتح بلا إيماءة مستخدم، فتظهر وراء النافذة
-            // الرئيسية بلا تركيز — فلا يراها المحاسب ولا يُطبع شيء.
-            try { win.focus(); } catch (_) {}
+            // الطباعة تنطلق من close() داخل _printFrameWin بعد اكتمال
+            // الخطوط والصور. وهذا احتياطي للمسار البديل (نافذة منبثقة).
             setTimeout(() => {
-                if (win && !win.closed) { try { win.focus(); win.print(); } catch (_) {} }
+                if (win && !win.closed && typeof win.print === 'function') {
+                    try { win.focus(); win.print(); } catch (_) {}
+                }
             }, 800);
         };
 
