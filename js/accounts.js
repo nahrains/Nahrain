@@ -79,9 +79,15 @@
                     .filter(k => (users[k].role === 'teacher' || users[k].role === 'admin' || users[k].role === 'accountant') && users[k].branchId === userBranchId)
                     .map(k => ({ uid: k, ...users[k] }));
 
-                accountantFinance.revenues = Object.values(finance.revenues || {}).filter(r => r && r.branchId === userBranchId);
-                accountantFinance.expenses = Object.values(finance.expenses || {}).filter(e => e && e.branchId === userBranchId);
-                accountantFinance.auditLogs = Object.values(finance.auditLogs || {}).filter(l => l && l.branchId === userBranchId);
+                // Object.values كان يُسقط مفتاح فايربيس، فالسجلّ الذي لا يحمل
+                // حقل id بداخله يصير id=undefined ولا يمكن تعديله ولا طباعته.
+                // (أصاب سجلّات أجور النقل وحدها: trPayStudent لا تكتب id.)
+                // المفتاح يطابق id الداخلي حيث وُجد، فلا يتغيّر شيء للقائم.
+                const _withId = o => Object.entries(o || {}).map(
+                    ([k, v]) => (v && typeof v === 'object') ? Object.assign({}, v, { id: k }) : v);
+                accountantFinance.revenues = _withId(finance.revenues).filter(r => r && r.branchId === userBranchId);
+                accountantFinance.expenses = _withId(finance.expenses).filter(e => e && e.branchId === userBranchId);
+                accountantFinance.auditLogs = _withId(finance.auditLogs).filter(l => l && l.branchId === userBranchId);
 
                 renderAccountantUI();
                 updateAccountantDashboardReports();
@@ -4353,8 +4359,41 @@
         window._printRev = function(id) {
             const r = window._revCache && window._revCache[id];
             if (!r) return;
+            // سجلّ نقل ⇒ قالب وصل النقل، وإلا خرج المُعاد مختلفاً عن أصله
+            if (window._isTransportRev && window._isTransportRev(r) && window.trPrintStudentTransportReceipt) {
+                return window._reprintTransportRev(r);
+            }
             const dateStr = new Date(r.timestamp).toLocaleString('en-US');
             window.printAccReceipt(r.id, 'revenue', r.amount, r.note || '', dateStr, 'مقبوضات عامة', r.studentUid || '');
+        };
+
+        /* يُعيد بناء وصل النقل من سجلّ المقبوضات.
+           الأجرة والخصم يأتيان من اشتراك الشهر إن كان محمّلاً؛ ولأشهر
+           سابقة لا تُحمَّل اشتراكاتها، نعرض المبلغ المقبوض كما هو. */
+        window._reprintTransportRev = function (r) {
+            const uid = r.studentUid || '';
+            const st = (typeof accountantStudents !== 'undefined' ? accountantStudents : [])
+                .find(x => String(x.uid) === String(uid));
+            const TR = window.TR || { routes: {}, drivers: {}, subs: {} };
+            const rt = TR.routes[r.transportRouteId] || {};
+            const sub = (TR.month && TR.month === r.transportMonth) ? (TR.subs[uid] || null) : null;
+            // ننتظر الشعار: لا مهلة هنا بخلاف مسار القبض، وبلا انتظار
+            // يُطبع الوصل المُعاد بلا شعار. وبسقف زمني كي لا يتعلّق.
+            const logo = window._preloadLogo ? window._preloadLogo() : Promise.resolve();
+            Promise.race([logo, new Promise(ok => setTimeout(ok, 3000))]).then(function () {
+            window.trPrintStudentTransportReceipt({
+                name: st ? st.name : (r.studentName || ''),
+                route: rt.name || '',
+                driver: (TR.drivers[rt.driverId] || {}).name || '',
+                month: r.transportMonth || '',
+                fee: sub ? sub.fee : r.amount,
+                discount: sub ? sub.discount : 0,
+                amount: r.amount,
+                rest: 0,
+                receiptNo: r.receiptNum || r.receiptNo || '',
+                ts: r.timestamp || Date.now()
+            });
+            });
         };
         window._openExpEdit = function(id) {
             const e = window._expCache && window._expCache[id];
@@ -5677,15 +5716,21 @@
         /* الشعار كـdata URI — انظر تعليق trPrintStudentTransportReceipt */
         window.__logoURI = window.__logoURI || '';
         window._preloadLogo = function () {
-            if (window.__logoURI) return;
+            // يُرجع وعداً: إعادة الطباعة تنتظره، والقبض يتركه يجري وحده
+            if (window.__logoURI) return Promise.resolve(window.__logoURI);
+            if (window.__logoP) return window.__logoP;
             const b = (window.NAHRAIN_BRANCHES && window.NAHRAIN_BRANCHES[trBranch()]) || {};
             const url = window.location.href.replace(/\/[^\/]*$/, '/') + (b.logo || 'logo.jpg');
-            fetch(url).then(r => r.ok ? r.blob() : null).then(bl => {
-                if (!bl) return;
-                const f = new FileReader();
-                f.onload = () => { window.__logoURI = String(f.result || ''); };
-                f.readAsDataURL(bl);
-            }).catch(() => {});
+            window.__logoP = fetch(url)
+                .then(r => r.ok ? r.blob() : null)
+                .then(bl => bl ? new Promise(ok => {
+                    const f = new FileReader();
+                    f.onload = () => { window.__logoURI = String(f.result || ''); ok(window.__logoURI); };
+                    f.onerror = () => ok('');
+                    f.readAsDataURL(bl);
+                }) : '')
+                .catch(() => '');
+            return window.__logoP;
         };
 
         window.trPayStudent = function (uid, routeId) {
